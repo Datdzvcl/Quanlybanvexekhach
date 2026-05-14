@@ -8,7 +8,8 @@ import Booking from './pages/Booking';
 import SeatSelection from './pages/SeatSelection';
 import PickupDropoff from './pages/PickupDropoff';
 import BookingContact from './pages/BookingContact';
-import BookingPaymentPlaceholder from './pages/BookingPaymentPlaceholder';
+import BookingPayment from './pages/BookingPayment';
+import BookingSuccess from './pages/BookingSuccess';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Payment from './pages/Payment';
@@ -132,7 +133,8 @@ export default function App() {
         <Route path="/trips/:id/seats" element={<SeatSelection />} />
         <Route path="/booking/pickup-dropoff" element={<PickupDropoff />} />
         <Route path="/booking/contact" element={<BookingContact />} />
-        <Route path="/booking/payment" element={<BookingPaymentPlaceholder />} />
+        <Route path="/booking/payment" element={<BookingPayment />} />
+        <Route path="/booking/success/:id" element={<BookingSuccess />} />
         <Route path="/booking" element={<Booking />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/login" element={<Login />} />
