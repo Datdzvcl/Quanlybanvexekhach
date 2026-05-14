@@ -16,6 +16,7 @@ import Payment from './pages/Payment';
 import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 import MyTickets from './pages/MyTickets';
+import MyTicketDetail from './pages/MyTicketDetail';
 import ChangePassword from './pages/ChangePassword';
 import { formatVND } from './api';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -141,6 +142,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
+        <Route path="/my-tickets/:id" element={<ProtectedRoute><MyTicketDetail /></ProtectedRoute>} />
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -2855,6 +2855,215 @@ a {
   width: 100%;
 }
 
+/* --- My tickets phase 21 --- */
+.my-ticket-panel {
+  max-width: 1120px;
+}
+
+.my-ticket-list {
+  display: grid;
+  gap: 16px;
+}
+
+.my-ticket-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 18px;
+  border: 1px solid #e6eefb;
+  border-radius: 14px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 10px 28px rgba(15, 79, 184, 0.08);
+  transition: var(--transition);
+}
+
+.my-ticket-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(15, 79, 184, 0.13);
+}
+
+.ticket-code {
+  display: inline-block;
+  margin-bottom: 5px;
+  color: #2563eb;
+  font-weight: 900;
+  font-size: 0.9rem;
+}
+
+.my-ticket-main h2 {
+  color: #1f3b63;
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+}
+
+.my-ticket-main p {
+  color: #60718a;
+  font-weight: 700;
+}
+
+.my-ticket-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.my-ticket-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e6eefb;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #475569;
+  padding: 7px 10px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.my-ticket-side {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+}
+
+.ticket-status {
+  display: inline-flex;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 900;
+  font-size: 0.86rem;
+}
+
+.ticket-status.status-paid,
+.ticket-status.status-confirmed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.ticket-status.status-pending,
+.ticket-status.status-pendingconfirm,
+.ticket-status.status-cancelrequested {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.ticket-status.status-cancelled {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.ticket-detail-hero {
+  background: linear-gradient(135deg, #0f4fb8, #2563eb);
+  color: #fff;
+  padding: 42px 0;
+}
+
+.ticket-detail-hero span {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #dbeafe;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+}
+
+.ticket-detail-hero h1 {
+  font-size: 2.1rem;
+  margin-bottom: 8px;
+}
+
+.ticket-detail-hero p {
+  color: #eaf3ff;
+}
+
+.ticket-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 24px;
+  padding-top: 34px;
+  padding-bottom: 70px;
+}
+
+.ticket-detail-card,
+.ticket-detail-side {
+  border: 1px solid #e6eefb;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 79, 184, 0.08);
+}
+
+.ticket-detail-card {
+  padding: 24px;
+}
+
+.ticket-detail-side {
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  text-align: center;
+}
+
+.ticket-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.ticket-detail-head h2,
+.ticket-section-title,
+.ticket-detail-side h2 {
+  color: #1f3b63;
+}
+
+.ticket-detail-head > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ticket-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ticket-detail-grid div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e6eefb;
+  border-radius: 10px;
+  padding: 13px;
+  background: #fff;
+}
+
+.ticket-detail-grid span {
+  color: #60718a;
+  font-weight: 700;
+}
+
+.ticket-detail-grid strong {
+  color: #1f3b63;
+}
+
+.ticket-section-title {
+  margin: 24px 0 14px;
+}
+
+.ticket-detail-side p {
+  overflow-wrap: anywhere;
+  color: #60718a;
+  font-size: 0.86rem;
+}
+
 @media (max-width: 980px) {
   .search-results-layout-v2 {
     grid-template-columns: 1fr;
@@ -2957,12 +3166,14 @@ a {
   }
 
   .payment-flow-layout,
-  .success-layout {
+  .success-layout,
+  .ticket-detail-layout {
     grid-template-columns: 1fr;
   }
 
   .payment-summary-card,
-  .success-qr-card {
+  .success-qr-card,
+  .ticket-detail-side {
     position: static;
   }
 
@@ -2994,6 +3205,29 @@ a {
 
   .success-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .my-ticket-card {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-ticket-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .my-ticket-side {
+    grid-template-columns: 1fr;
+  }
+
+  .account-head {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
