@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import './App.css';
 import Home from './pages/Home';
 import Search from './pages/Search';
+import SearchResults from './pages/SearchResults';
 import Booking from './pages/Booking';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -123,7 +124,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/search-results" element={<Search />} />
+        <Route path="/search-results" element={<SearchResults />} />
+        <Route path="/trips/:id/seats" element={<Booking />} />
         <Route path="/booking" element={<Booking />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/login" element={<Login />} />

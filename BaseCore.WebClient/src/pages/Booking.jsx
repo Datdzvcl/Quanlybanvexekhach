@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { API_BASE, formatVND, normalizeTrip, pick } from '../api';
 
@@ -7,8 +7,9 @@ const seats = 'ABCDEFGHIJ'.split('').flatMap((row) => [1, 2, 3, 4].map((number) 
 
 export default function Booking() {
   const [params] = useSearchParams();
+  const routeParams = useParams();
   const navigate = useNavigate();
-  const tripId = params.get('tripId');
+  const tripId = params.get('tripId') || routeParams.id;
 
   const [trip, setTrip] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
