@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import Search from './pages/Search';
 import SearchResults from './pages/SearchResults';
 import Booking from './pages/Booking';
+import SeatSelection from './pages/SeatSelection';
+import PickupDropoffPlaceholder from './pages/PickupDropoffPlaceholder';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Payment from './pages/Payment';
@@ -125,7 +127,8 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<Search />} />
         <Route path="/search-results" element={<SearchResults />} />
-        <Route path="/trips/:id/seats" element={<Booking />} />
+        <Route path="/trips/:id/seats" element={<SeatSelection />} />
+        <Route path="/booking/pickup-dropoff" element={<PickupDropoffPlaceholder />} />
         <Route path="/booking" element={<Booking />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/login" element={<Login />} />
