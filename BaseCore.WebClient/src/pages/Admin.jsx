@@ -1339,6 +1339,7 @@ import { bookingApi } from "../services/bookingApi";
 import { operatorApi } from "../services/operatorApi";
 import { tripApi } from "../services/tripApi";
 import { userApi } from "../services/userApi";
+import { useAuth } from "../contexts/AuthContext";
 const includesText = (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase());
 const dateOnly = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
 const PAGE_SIZE = 20;
@@ -1514,19 +1515,64 @@ function AdminContent({ active, stats, trips, upcomingTrips, bookings, ticketSea
 }
 
 function AdminSettings() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("adminDarkMode") === "true");
+
+  useEffect(() => {
+    localStorage.setItem("adminDarkMode", String(darkMode));
+    document.documentElement.classList.toggle("dark-mode", darkMode);
+  }, [darkMode]);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <section className="admin-card admin-settings-card">
-      <h3>Cài đặt</h3>
-      <p>Các thiết lập hệ thống sẽ được bổ sung ở phase sau.</p>
+      <div className="admin-section-head">
+        <div>
+          <h3>Cài đặt</h3>
+          <p>Thông tin tài khoản và tuỳ chọn hiển thị khu vực quản trị.</p>
+        </div>
+        <button className="btn btn-danger" type="button" onClick={handleLogout}>
+          <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
+        </button>
+      </div>
       <div className="admin-settings-grid">
         <div>
-          <b>Quyền truy cập</b>
-          <span>Chỉ tài khoản Role Admin được vào khu vực quản trị.</span>
+          <b>Họ tên</b>
+          <span>{user?.fullName || "Admin"}</span>
         </div>
         <div>
-          <b>Phiên đăng nhập</b>
-          <span>Token JWT đang được gắn tự động qua Axios interceptor.</span>
+          <b>Email</b>
+          <span>{user?.email || "Chưa cập nhật"}</span>
         </div>
+        <div>
+          <b>Số điện thoại</b>
+          <span>{user?.phone || "Chưa cập nhật"}</span>
+        </div>
+        <div>
+          <b>Vai trò</b>
+          <span>{user?.role || "Admin"}</span>
+        </div>
+      </div>
+
+      <div className="admin-settings-panel">
+        <div>
+          <b>Dark mode</b>
+          <span>Lưu lựa chọn vào localStorage và áp dụng lại khi tải trang.</span>
+        </div>
+        <button
+          className={`admin-toggle ${darkMode ? "active" : ""}`}
+          type="button"
+          onClick={() => setDarkMode((value) => !value)}
+          aria-pressed={darkMode}
+        >
+          <span />
+          {darkMode ? "Đang bật" : "Đang tắt"}
+        </button>
       </div>
     </section>
   );

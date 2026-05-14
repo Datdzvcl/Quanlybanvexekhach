@@ -124,6 +124,10 @@ function HoldSeatNotification() {
 }
 
 export default function App() {
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', localStorage.getItem('adminDarkMode') === 'true');
+  }, []);
+
   return (
     <BrowserRouter>
       <HoldSeatNotification />

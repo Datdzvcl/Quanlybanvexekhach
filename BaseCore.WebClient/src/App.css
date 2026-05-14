@@ -1290,6 +1290,66 @@ a {
   color: #5b7392;
 }
 
+.admin-settings-panel {
+  margin-top: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fbff, #eef6ff);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-settings-panel b,
+.admin-settings-panel span {
+  display: block;
+}
+
+.admin-settings-panel span {
+  color: #5b7392;
+  margin-top: 5px;
+}
+
+.admin-toggle {
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #24527f;
+  min-width: 128px;
+  padding: 7px 12px 7px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.admin-toggle span {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #bfdbfe;
+  margin: 0;
+  transition: background 0.18s ease;
+}
+
+.admin-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.16);
+}
+
+.admin-toggle.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-toggle.active span {
+  background: #ffffff;
+}
+
 .admin-filter-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1343,6 +1403,23 @@ a {
 
 .admin-loading {
   padding: 12px 0;
+}
+
+.admin-loading::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border: 3px solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-radius: 999px;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: -4px;
+  animation: admin-spin 0.8s linear infinite;
+}
+
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
 }
 
 .clickable-row {
@@ -1422,6 +1499,161 @@ a {
   color: #ffffff;
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
   transform: translateY(-1px);
+}
+
+.admin-card,
+.stat-card,
+.trip-result-card,
+.booking-card,
+.ticket-card,
+.seat-panel,
+.pickup-card,
+.payment-card,
+.success-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.admin-card:hover,
+.trip-result-card:hover,
+.booking-card:hover,
+.ticket-card:hover {
+  transform: translateY(-2px);
+  border-color: #bfdbfe;
+  box-shadow: 0 18px 40px rgba(37, 99, 235, 0.13);
+}
+
+.btn,
+button,
+.account-dropdown a,
+.admin-layout-nav button,
+.admin-layout-link {
+  border-radius: 12px;
+}
+
+a:hover,
+.admin-card table tr:hover a,
+.admin-card table tr:hover button.btn-outline {
+  color: #0f4eb3;
+}
+
+.table-wrap {
+  border-radius: 16px;
+  border: 1px solid #e6f0ff;
+  background: #ffffff;
+}
+
+.admin-card table {
+  overflow: hidden;
+}
+
+.empty-cell {
+  padding: 18px;
+}
+
+.dark-mode body {
+  background: #071526;
+  color: #dbeafe;
+}
+
+.dark-mode .admin-layout,
+.dark-mode .user-layout {
+  background: linear-gradient(180deg, #071526 0%, #0c1f36 100%);
+  color: #dbeafe;
+}
+
+.dark-mode .admin-layout-sidebar,
+.dark-mode .admin-layout-header,
+.dark-mode .admin-card,
+.dark-mode .stat-card,
+.dark-mode .table-wrap,
+.dark-mode .user-header,
+.dark-mode .user-footer,
+.dark-mode .account-dropdown,
+.dark-mode .admin-layout-dropdown,
+.dark-mode .trip-result-card,
+.dark-mode .booking-card,
+.dark-mode .ticket-card,
+.dark-mode .seat-panel,
+.dark-mode .pickup-card,
+.dark-mode .payment-card,
+.dark-mode .success-card {
+  background: #0f243d;
+  border-color: #1f3f63;
+  color: #dbeafe;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.dark-mode .admin-card th,
+.dark-mode .admin-card tr:hover td,
+.dark-mode .clickable-row:hover td {
+  background: #122b49;
+}
+
+.dark-mode .admin-card td {
+  border-top-color: #1f3f63;
+}
+
+.dark-mode .admin-layout-header h1,
+.dark-mode .admin-detail-grid b,
+.dark-mode .admin-invoice-head h2,
+.dark-mode .site-logo,
+.dark-mode .stat-card h2,
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode b,
+.dark-mode strong {
+  color: #eff6ff;
+}
+
+.dark-mode .admin-layout-header p,
+.dark-mode .admin-muted,
+.dark-mode .admin-settings-card p,
+.dark-mode .admin-settings-grid span,
+.dark-mode .admin-detail-grid span,
+.dark-mode .admin-settings-panel span,
+.dark-mode .admin-invoice-head p,
+.dark-mode .empty-cell,
+.dark-mode .admin-loading {
+  color: #a9c6e8;
+}
+
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea,
+.dark-mode .admin-filter-grid input,
+.dark-mode .admin-filter-grid select {
+  background: #102a46;
+  border-color: #27527f;
+  color: #eff6ff;
+}
+
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder {
+  color: #8fb2d8;
+}
+
+.dark-mode .admin-detail-grid div,
+.dark-mode .admin-settings-grid div,
+.dark-mode .admin-settings-panel,
+.dark-mode .admin-qr-box {
+  background: #102a46;
+  border-color: #27527f;
+}
+
+.dark-mode .btn-outline,
+.dark-mode .admin-filter-pills button,
+.dark-mode .admin-toggle {
+  background: #0f243d;
+  border-color: #3b82f6;
+  color: #bfdbfe;
+}
+
+.dark-mode .btn-outline:hover,
+.dark-mode .admin-filter-pills button:hover,
+.dark-mode .admin-filter-pills button.active {
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .admin-booking-detail-card .admin-section-head p,
