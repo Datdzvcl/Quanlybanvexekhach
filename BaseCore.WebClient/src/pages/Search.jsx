@@ -25,7 +25,7 @@ export default function Search() {
 
   const from = params.get("from") || "";
   const to   = params.get("to")   || "";
-  const date = params.get("date") || "";
+  const date = params.get("departureDate") || params.get("date") || "";
 
   // Fetch một trang cụ thể từ backend
   const fetchPage = useCallback(async (pageNum, isLoadMore = false) => {

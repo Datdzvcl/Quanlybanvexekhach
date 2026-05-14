@@ -1,185 +1,261 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import UserLayout from "../layouts/UserLayout";
-import { API_BASE } from "../api";
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import UserLayout from '../layouts/UserLayout';
+import { API_BASE } from '../api';
+
+const offerItems = [
+  {
+    title: 'Giảm 20% tuyến đêm',
+    desc: 'Áp dụng cho các chuyến khởi hành sau 20:00 trong tuần.',
+    icon: 'fa-moon',
+  },
+  {
+    title: 'Hoàn xu khách mới',
+    desc: 'Tặng điểm thưởng cho đơn đặt vé đầu tiên trên VéXeAZ.',
+    icon: 'fa-gift',
+  },
+  {
+    title: 'Combo khứ hồi',
+    desc: 'Đặt vé đi và về cùng lúc để nhận giá tốt hơn.',
+    icon: 'fa-repeat',
+  },
+];
 
 const popularRoutes = [
-  [
-    "Hà Nội - Đà Nẵng",
-    "Từ 250.000đ",
-    "https://vcdn1-dulich.vnecdn.net/2022/06/01/CauVangDaNang-1654082224-7229-1654082320.jpg?w=0&h=0&q=100&dpr=2&fit=crop&s=MeVMb72UZA27ivcyB3s7Kg",
-  ],
-  [
-    "Sài Gòn - Nha Trang",
-    "Từ 300.000đ",
-    "https://static.vinwonders.com/2022/11/du-lich-nha-trang.jpg",
-  ],
-  [
-    "Hà Nội - Sapa",
-    "Từ 350.000đ",
-    "https://booking.muongthanh.com/upload_images/images/H%60/sa-pa-thi-tran-trong-suong.jpg",
-  ],
+  {
+    route: 'Hà Nội - Đà Nẵng',
+    price: 'Từ 250.000đ',
+    image: 'https://vcdn1-dulich.vnecdn.net/2022/06/01/CauVangDaNang-1654082224-7229-1654082320.jpg?w=1200&h=720&q=90&fit=crop',
+  },
+  {
+    route: 'Sài Gòn - Nha Trang',
+    price: 'Từ 300.000đ',
+    image: 'https://static.vinwonders.com/2022/11/du-lich-nha-trang.jpg',
+  },
+  {
+    route: 'Hà Nội - Sa Pa',
+    price: 'Từ 350.000đ',
+    image: 'https://booking.muongthanh.com/upload_images/images/H%60/sa-pa-thi-tran-trong-suong.jpg',
+  },
 ];
+
+const reasons = [
+  ['fa-ticket', 'Đặt vé nhanh', 'Tìm chuyến, giữ ghế và thanh toán trong một luồng rõ ràng.'],
+  ['fa-shield-halved', 'Thông tin minh bạch', 'Giá vé, giờ chạy và trạng thái ghế được hiển thị trực tiếp.'],
+  ['fa-headset', 'Hỗ trợ 24/7', 'Đội ngũ hỗ trợ luôn sẵn sàng khi bạn cần thay đổi lịch trình.'],
+];
+
+function getToday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function Home() {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split("T")[0];
-  const [form, setForm] = useState({ from: "", to: "", date: today });
+  const today = useMemo(() => getToday(), []);
   const [locations, setLocations] = useState([]);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    from: '',
+    to: '',
+    departureDate: today,
+    isRoundTrip: false,
+    returnDate: '',
+  });
 
   useEffect(() => {
     fetch(`${API_BASE}/api/trips/locations`)
-      .then((r) => r.json())
+      .then((response) => (response.ok ? response.json() : []))
       .then((data) => setLocations(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .catch(() => setLocations([]));
   }, []);
 
-  useEffect(() => setForm((f) => ({ ...f, date: today })), [today]);
-
-  const submit = (e) => {
-    e.preventDefault();
-    const qs = new URLSearchParams(form).toString();
-    navigate(`/search?${qs}`);
+  const updateForm = (key, value) => {
+    setError('');
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === 'isRoundTrip' && !value) next.returnDate = '';
+      return next;
+    });
   };
 
-  const swapLocations = () => {
-    setForm((prev) => ({ ...prev, from: prev.to, to: prev.from }));
+  const validate = () => {
+    const from = form.from.trim();
+    const to = form.to.trim();
+
+    if (!from) return 'Vui lòng chọn điểm xuất phát.';
+    if (!to) return 'Vui lòng chọn điểm đến.';
+    if (from.toLowerCase() === to.toLowerCase()) return 'Điểm xuất phát không được trùng điểm đến.';
+    if (!form.departureDate || form.departureDate < today) return 'Ngày đi không được nhỏ hơn ngày hiện tại.';
+    if (form.isRoundTrip && (!form.returnDate || form.returnDate < form.departureDate)) {
+      return 'Ngày về phải lớn hơn hoặc bằng ngày đi.';
+    }
+
+    return '';
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    const message = validate();
+    if (message) {
+      setError(message);
+      return;
+    }
+
+    const query = new URLSearchParams({
+      from: form.from.trim(),
+      to: form.to.trim(),
+      departureDate: form.departureDate,
+    });
+
+    if (form.isRoundTrip && form.returnDate) {
+      query.set('returnDate', form.returnDate);
+    }
+
+    navigate(`/search-results?${query.toString()}`);
   };
 
   return (
     <UserLayout>
-      <header className="hero">
-        <div className="hero-overlay" />
-        <div className="hero-content container">
-          <h1>Hành trình của bạn, ưu tiên của chúng tôi</h1>
-          <p>
-            Đặt vé xe khách trực tuyến dễ dàng, an toàn và nhanh chóng. Hơn 2000
-            nhà xe trên toàn quốc.
-          </p>
+      <section className="home-hero">
+        <div className="home-hero-media" aria-hidden="true" />
+        <div className="home-hero-shade" />
+        <div className="container home-hero-inner">
+          <div className="home-hero-copy">
+            <p className="home-eyebrow">Nền tảng đặt vé xe khách trực tuyến</p>
+            <h1>VéXeAZ</h1>
+            <p>
+              Chọn chuyến phù hợp, giữ ghế nhanh và quản lý vé dễ dàng cho mọi hành trình liên tỉnh.
+            </p>
+          </div>
 
-          {/* New Search Widget */}
-          {/* <div className="search-box modern-search"> */}
-          <form onSubmit={submit}>
-            <div className="search-widget">
-              {/* From */}
-              <div className="widget-field">
-                <i className="fa-solid fa-circle-dot"></i>
-                <div className="widget-input">
-                  <label>Nơi xuất phát</label>
-                  <select
-                    value={form.from}
-                    onChange={(e) => setForm({ ...form, from: e.target.value })}
-                    required
-                  >
-                    <option value="">Chọn điểm đi</option>
-                    {locations.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          <form className="featured-search" onSubmit={submit}>
+            <div className="featured-search-head">
+              <div>
+                <strong>Tìm chuyến xe</strong>
+                <span>So sánh nhà xe và giá vé theo lịch trình của bạn</span>
               </div>
+              <label className="round-trip-toggle">
+                <input
+                  type="checkbox"
+                  checked={form.isRoundTrip}
+                  onChange={(event) => updateForm('isRoundTrip', event.target.checked)}
+                />
+                <span>Khứ hồi</span>
+              </label>
+            </div>
 
-              {/* Swap button */}
-              <button
-                type="button"
-                className="widget-swap"
-                onClick={swapLocations}
-                aria-label="Đổi điểm đi và đến"
-              >
-                <i className="fa-solid fa-arrow-right-arrow-left"></i>
-              </button>
+            <div className="featured-search-grid">
+              <label className="search-field">
+                <span>Điểm xuất phát</span>
+                <input
+                  list="home-locations"
+                  value={form.from}
+                  onChange={(event) => updateForm('from', event.target.value)}
+                  placeholder="Ví dụ: Hà Nội"
+                />
+              </label>
 
-              {/* To */}
-              <div className="widget-field">
-                <i className="fa-solid fa-location-dot"></i>
-                <div className="widget-input">
-                  <label>Nơi đến</label>
-                  <select
-                    value={form.to}
-                    onChange={(e) => setForm({ ...form, to: e.target.value })}
-                    required
-                  >
-                    <option value="">Chọn điểm đến</option>
-                    {locations.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <label className="search-field">
+                <span>Điểm đến</span>
+                <input
+                  list="home-locations"
+                  value={form.to}
+                  onChange={(event) => updateForm('to', event.target.value)}
+                  placeholder="Ví dụ: Đà Nẵng"
+                />
+              </label>
 
-              {/* Date */}
-              <div className="widget-field">
-                <i className="fa-regular fa-calendar"></i>
-                <div className="widget-input">
-                  <label>Ngày đi</label>
+              <label className="search-field">
+                <span>Ngày đi</span>
+                <input
+                  type="date"
+                  min={today}
+                  value={form.departureDate}
+                  onChange={(event) => updateForm('departureDate', event.target.value)}
+                />
+              </label>
+
+              {form.isRoundTrip && (
+                <label className="search-field">
+                  <span>Ngày về</span>
                   <input
                     type="date"
-                    value={form.date}
-                    min={today}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    required
+                    min={form.departureDate || today}
+                    value={form.returnDate}
+                    onChange={(event) => updateForm('returnDate', event.target.value)}
                   />
-                </div>
-              </div>
+                </label>
+              )}
 
-              {/* Submit button */}
-              <button type="submit" className="btn btn-search">
-                Tìm vé xe
+              <button type="submit" className="btn btn-primary featured-search-button">
+                <i className="fa-solid fa-magnifying-glass" />
+                Tìm chuyến xe
               </button>
             </div>
-          </form>
-          {/* </div> */}
-        </div>
-      </header>
 
-      <section className="popular-routes container section-padding">
-        <h2 className="section-title">Khám Phá Tuyến Đường Phổ Biến</h2>
-        <div className="grid routes-grid">
-          {popularRoutes.map(([title, price, img]) => (
-            <div className="route-card" key={title}>
-              <div
-                className="route-img"
-                style={{ backgroundImage: `url(${img})` }}
-              />
-              <div className="route-info">
-                <h3>{title}</h3>
-                <p>{price}</p>
-              </div>
-            </div>
+            <datalist id="home-locations">
+              {locations.map((location) => (
+                <option key={location} value={location} />
+              ))}
+            </datalist>
+
+            {error && <p className="search-error">{error}</p>}
+          </form>
+        </div>
+      </section>
+
+      <section id="offers" className="container home-section">
+        <div className="home-section-head">
+          <span>Ưu đãi</span>
+          <h2>Tiết kiệm hơn cho mỗi chuyến đi</h2>
+        </div>
+        <div className="offer-grid">
+          {offerItems.map((item) => (
+            <article className="offer-card" key={item.title}>
+              <i className={`fa-solid ${item.icon}`} />
+              <h3>{item.title}</h3>
+              <p>{item.desc}</p>
+            </article>
           ))}
         </div>
       </section>
 
-      <section id="about" className="container section-padding">
-        <h2 className="section-title">Tại Sao Chọn VéXeAZ?</h2>
-        <div className="grid info-grid">
-          <div className="info-card">
-            <i className="fa-solid fa-ticket fa-3x" />
-            <h3>Hơn 2000 Nhà Xe</h3>
-            <p>
-              Mạng lưới phủ khắp 63 tỉnh thành, đa dạng sự lựa chọn cho chuyến
-              đi của bạn.
-            </p>
+      <section className="container home-section">
+        <div className="home-section-head">
+          <span>Tuyến phổ biến</span>
+          <h2>Những hành trình được chọn nhiều</h2>
+        </div>
+        <div className="home-route-grid">
+          {popularRoutes.map((item) => (
+            <article className="home-route-card" key={item.route}>
+              <img src={item.image} alt={item.route} />
+              <div>
+                <h3>{item.route}</h3>
+                <p>{item.price}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="booking-guide" className="home-reasons">
+        <div className="container home-section">
+          <div className="home-section-head">
+            <span>Lý do nên chọn</span>
+            <h2>Đặt vé rõ ràng, nhanh và an tâm</h2>
           </div>
-          <div className="info-card">
-            <i className="fa-solid fa-shield-halved fa-3x" />
-            <h3>Thanh Toán An Toàn</h3>
-            <p>
-              Hệ thống thanh toán bảo mật với VNPay, MoMo đảm bảo giao dịch an
-              toàn 100%.
-            </p>
-          </div>
-          <div className="info-card">
-            <i className="fa-solid fa-headset fa-3x" />
-            <h3>Hỗ Trợ 24/7</h3>
-            <p>
-              Đội ngũ hỗ trợ khách hàng luôn sẵn sàng giải đáp mọi thắc mắc ngay
-              lập tức.
-            </p>
+          <div className="reason-grid">
+            {reasons.map(([icon, title, desc]) => (
+              <article className="reason-card" key={title}>
+                <i className={`fa-solid ${icon}`} />
+                <h3>{title}</h3>
+                <p>{desc}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
