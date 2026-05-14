@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, pick } from '../api';
+import { formatVND, labelBookingStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -43,7 +43,7 @@ function PseudoQrCode({ value }) {
   }, [value]);
 
   return (
-    <div className="pseudo-qr" aria-label="QR code">
+    <div className="pseudo-qr" aria-label="Mã QR">
       {cells.map((filled, index) => (
         <span key={index} className={filled ? 'filled' : ''} />
       ))}
@@ -116,7 +116,7 @@ export default function BookingSuccess() {
         <main className="success-detail-card">
           <div className="success-detail-head">
             <h2>Chi tiết đơn</h2>
-            <span>{pick(booking, ['bookingStatus', 'BookingStatus'], '--')}</span>
+            <span>{labelBookingStatus(pick(booking, ['bookingStatus', 'BookingStatus'], '--'))}</span>
           </div>
 
           <div className="success-info-grid">
@@ -136,7 +136,7 @@ export default function BookingSuccess() {
         </main>
 
         <aside className="success-qr-card">
-          <h2>QR code vé</h2>
+          <h2>Mã QR vé</h2>
           <PseudoQrCode value={qrText} />
           <p>{qrText}</p>
           <div className="success-actions">

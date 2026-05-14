@@ -1838,3 +1838,4 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.AuthService\obj
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.AuthService\obj\Debug\net8.0\BaseCore.AuthService.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.AuthService\obj\Debug\net8.0\BaseCore.AuthService.genruntimeconfig.cache
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.AuthService\obj\Debug\net8.0\ref\BaseCore.AuthService.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.AuthService\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

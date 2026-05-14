@@ -263,3 +263,11 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Repository\obj\
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Repository\obj\Debug\net8.0\BaseCore.Repository.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Repository\obj\Debug\net8.0\BaseCore.Repository.genruntimeconfig.cache
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Repository\obj\Debug\net8.0\ref\BaseCore.Repository.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Repository.deps.json
+C:\tmp\basecore-api-build-phase20\BaseCore.Repository.runtimeconfig.json
+C:\tmp\basecore-api-build-phase20\BaseCore.Repository.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Repository.pdb
+C:\tmp\basecore-api-build-phase30\BaseCore.Repository.deps.json
+C:\tmp\basecore-api-build-phase30\BaseCore.Repository.runtimeconfig.json
+C:\tmp\basecore-api-build-phase30\BaseCore.Repository.dll
+C:\tmp\basecore-api-build-phase30\BaseCore.Repository.pdb

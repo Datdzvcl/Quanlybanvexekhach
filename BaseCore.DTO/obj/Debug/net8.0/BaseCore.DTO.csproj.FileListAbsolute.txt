@@ -133,3 +133,9 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.DTO\obj\Debug\n
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.DTO\obj\Debug\net8.0\refint\BaseCore.DTO.dll
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.DTO\obj\Debug\net8.0\BaseCore.DTO.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.DTO\obj\Debug\net8.0\ref\BaseCore.DTO.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.DTO.deps.json
+C:\tmp\basecore-api-build-phase20\BaseCore.DTO.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.DTO.pdb
+C:\tmp\basecore-api-build-phase30\BaseCore.DTO.deps.json
+C:\tmp\basecore-api-build-phase30\BaseCore.DTO.dll
+C:\tmp\basecore-api-build-phase30\BaseCore.DTO.pdb

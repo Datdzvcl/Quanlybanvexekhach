@@ -58,6 +58,50 @@ export const isAdminRole = (role) => String(role || '').toLowerCase() === 'admin
 export const formatVND = (value) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
 
+export const labelPaymentStatus = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'paid') return 'Đã thanh toán';
+  if (value === 'pending') return 'Chưa thanh toán';
+  if (value === 'cancelled' || value === 'canceled') return 'Đã hủy';
+  if (value === 'refunded') return 'Đã hoàn tiền';
+  return status || 'Chưa rõ';
+};
+
+export const labelBookingStatus = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'pendingconfirm') return 'Đợi xác nhận';
+  if (value === 'confirmed') return 'Đã xác nhận';
+  if (value === 'cancelrequested') return 'Yêu cầu hủy';
+  if (value === 'cancelled' || value === 'canceled') return 'Đã hủy';
+  return status || 'Chưa rõ';
+};
+
+export const labelTripStatus = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'scheduled' || value === 'active') return 'Đã lên lịch';
+  if (value === 'on-going' || value === 'ongoing') return 'Đang chạy';
+  if (value === 'completed') return 'Hoàn thành';
+  if (value === 'cancelled' || value === 'canceled') return 'Đã hủy';
+  return status || 'Chưa rõ';
+};
+
+export const labelSeatStatus = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'available') return 'Còn trống';
+  if (value === 'booked') return 'Đã đặt';
+  if (value === 'holdingbyme') return 'Bạn đang giữ';
+  if (value === 'holdingbyother') return 'Người khác đang giữ';
+  return status || 'Chưa rõ';
+};
+
+export const labelRole = (role) => {
+  const value = String(role || '').toLowerCase();
+  if (value === 'admin') return 'Quản trị viên';
+  if (value === 'customer') return 'Khách hàng';
+  if (value === 'operator') return 'Nhà xe';
+  return role || 'Chưa rõ';
+};
+
 export function normalizeTrip(t) {
   const rawBus = t?.bus || t?.Bus || {};
   const rawOperator = rawBus?.operator || rawBus?.Operator || {};

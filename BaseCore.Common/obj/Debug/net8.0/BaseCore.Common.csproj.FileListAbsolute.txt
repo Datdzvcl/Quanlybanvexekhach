@@ -139,3 +139,9 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Common\obj\Debu
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Common\obj\Debug\net8.0\refint\BaseCore.Common.dll
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Common\obj\Debug\net8.0\BaseCore.Common.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Common\obj\Debug\net8.0\ref\BaseCore.Common.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Common.deps.json
+C:\tmp\basecore-api-build-phase20\BaseCore.Common.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Common.pdb
+C:\tmp\basecore-api-build-phase30\BaseCore.Common.deps.json
+C:\tmp\basecore-api-build-phase30\BaseCore.Common.dll
+C:\tmp\basecore-api-build-phase30\BaseCore.Common.pdb

@@ -1742,3 +1742,22 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.APIService\obj\
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.APIService\obj\Debug\net8.0\BaseCore.APIService.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.APIService\obj\Debug\net8.0\BaseCore.APIService.genruntimeconfig.cache
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.APIService\obj\Debug\net8.0\ref\BaseCore.APIService.dll
+C:\tmp\basecore-api-build-phase20\appsettings.Development.json
+C:\tmp\basecore-api-build-phase20\appsettings.json
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.staticwebassets.runtime.json
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.staticwebassets.endpoints.json
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.exe
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.deps.json
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.runtimeconfig.json
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.APIService.pdb
+C:\tmp\basecore-api-build-phase30\appsettings.Development.json
+C:\tmp\basecore-api-build-phase30\appsettings.json
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.staticwebassets.runtime.json
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.staticwebassets.endpoints.json
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.exe
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.deps.json
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.runtimeconfig.json
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.dll
+C:\tmp\basecore-api-build-phase30\BaseCore.APIService.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.APIService\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

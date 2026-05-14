@@ -216,3 +216,9 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Libs\obj\Debug\
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Libs\obj\Debug\net8.0\refint\BaseCore.Libs.dll
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Libs\obj\Debug\net8.0\BaseCore.Libs.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Libs\obj\Debug\net8.0\ref\BaseCore.Libs.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Libs.deps.json
+C:\tmp\basecore-api-build-phase20\BaseCore.Libs.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Libs.pdb
+C:\tmp\basecore-api-build-phase30\BaseCore.Libs.deps.json
+C:\tmp\basecore-api-build-phase30\BaseCore.Libs.dll
+C:\tmp\basecore-api-build-phase30\BaseCore.Libs.pdb

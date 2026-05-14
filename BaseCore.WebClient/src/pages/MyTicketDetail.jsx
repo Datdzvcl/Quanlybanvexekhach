@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, pick } from '../api';
+import { formatVND, labelBookingStatus, labelPaymentStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 
 function formatDateTime(value) {
@@ -137,8 +137,8 @@ export default function MyTicketDetail() {
           <div className="ticket-detail-head">
             <h2>Thông tin chuyến đi</h2>
             <div>
-              <span className={statusClass(paymentStatus)}>{paymentStatus}</span>
-              <span className={statusClass(bookingStatus)}>{bookingStatus}</span>
+              <span className={statusClass(paymentStatus)}>{labelPaymentStatus(paymentStatus)}</span>
+              <span className={statusClass(bookingStatus)}>{labelBookingStatus(bookingStatus)}</span>
             </div>
           </div>
 
@@ -165,7 +165,7 @@ export default function MyTicketDetail() {
         </main>
 
         <aside className="ticket-detail-side">
-          <h2>QR code</h2>
+          <h2>Mã QR</h2>
           <PseudoQrCode value={code} />
           <p>{code}</p>
           <Link className="btn btn-outline" to="/my-tickets">Quay lại danh sách</Link>

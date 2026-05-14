@@ -142,7 +142,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var trip = await _context.Trips

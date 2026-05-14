@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, pick } from '../api';
+import { formatVND, labelSeatStatus, pick } from '../api';
 import { tripApi } from '../services/tripApi';
 import { seatApi } from '../services/seatApi';
 
@@ -291,10 +291,10 @@ export default function SeatSelection() {
           </div>
 
           <div className="seat-status-legend">
-            <span><b className="legend-available" /> Available</span>
-            <span><b className="legend-selected" /> HoldingByMe/Selected</span>
-            <span><b className="legend-booked" /> Booked</span>
-            <span><b className="legend-other" /> HoldingByOther</span>
+            <span><b className="legend-available" /> Còn trống</span>
+            <span><b className="legend-selected" /> Đang chọn/Bạn đang giữ</span>
+            <span><b className="legend-booked" /> Đã đặt</span>
+            <span><b className="legend-other" /> Người khác đang giữ</span>
           </div>
 
           <div className={`bus-floor-wrapper ${floors.length > 1 ? 'two-floor' : ''}`}>
@@ -319,7 +319,7 @@ export default function SeatSelection() {
                         disabled={disabled}
                         onClick={() => toggleSeat(seat.label)}
                         className={`seat-v2 status-${seat.status.toLowerCase()} ${isSelected ? 'selected' : ''}`}
-                        title={`${seat.label} - ${seat.status}`}
+                        title={`${seat.label} - ${labelSeatStatus(seat.status)}`}
                       >
                         {busySeat === seat.label ? <i className="fa-solid fa-spinner fa-spin" /> : seat.label}
                       </button>

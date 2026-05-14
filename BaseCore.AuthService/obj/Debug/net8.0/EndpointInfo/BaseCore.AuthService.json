@@ -68,6 +68,18 @@
         }
       }
     },
+    "/api/Auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/Roles": {
       "get": {
         "tags": [
@@ -376,7 +388,19 @@
       "LoginRequest": {
         "type": "object",
         "properties": {
+          "login": {
+            "type": "string",
+            "nullable": true
+          },
+          "emailOrPhone": {
+            "type": "string",
+            "nullable": true
+          },
           "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
             "type": "string",
             "nullable": true
           },

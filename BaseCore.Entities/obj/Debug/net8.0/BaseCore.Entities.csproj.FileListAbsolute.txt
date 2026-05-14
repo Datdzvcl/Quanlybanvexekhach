@@ -194,3 +194,9 @@ C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Entities\obj\De
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Entities\obj\Debug\net8.0\refint\BaseCore.Entities.dll
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Entities\obj\Debug\net8.0\BaseCore.Entities.pdb
 C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Entities\obj\Debug\net8.0\ref\BaseCore.Entities.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Entities.deps.json
+C:\tmp\basecore-api-build-phase20\BaseCore.Entities.dll
+C:\tmp\basecore-api-build-phase20\BaseCore.Entities.pdb
+C:\tmp\basecore-api-build-phase30\BaseCore.Entities.deps.json
+C:\tmp\basecore-api-build-phase30\BaseCore.Entities.dll
+C:\tmp\basecore-api-build-phase30\BaseCore.Entities.pdb

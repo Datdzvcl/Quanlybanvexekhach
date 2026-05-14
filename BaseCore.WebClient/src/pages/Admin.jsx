@@ -1333,7 +1333,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, formatVND, normalizeTrip, pick } from "../api";
+import { apiFetch, formatVND, labelBookingStatus, labelPaymentStatus, labelRole, labelTripStatus, normalizeTrip, pick } from "../api";
 import { busApi } from "../services/busApi";
 import { bookingApi } from "../services/bookingApi";
 import { operatorApi } from "../services/operatorApi";
@@ -1555,13 +1555,13 @@ function AdminSettings() {
         </div>
         <div>
           <b>Vai trò</b>
-          <span>{user?.role || "Admin"}</span>
+          <span>{labelRole(user?.role || "Admin")}</span>
         </div>
       </div>
 
       <div className="admin-settings-panel">
         <div>
-          <b>Dark mode</b>
+          <b>Chế độ tối</b>
           <span>Lưu lựa chọn vào localStorage và áp dụng lại khi tải trang.</span>
         </div>
         <button
@@ -1604,7 +1604,7 @@ function Dashboard({ stats, trips, upcomingTrips, bookings, transactions, revenu
 
       {last6.length > 0 && (
         <div className="admin-card" style={{ marginBottom: 24 }}>
-          <h3>Doanh thu theo tháng (Paid)</h3>
+          <h3>Doanh thu theo tháng (đã thanh toán)</h3>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 200, padding: '16px 0' }}>
             {last6.map((item) => {
               const maxRevenue = Math.max(...last6.map(x => Number(x.revenue || x.Revenue)));
@@ -1641,7 +1641,7 @@ function Dashboard({ stats, trips, upcomingTrips, bookings, transactions, revenu
                       <td>{id}</td>
                       <td>{pick(b, ["customerName", "CustomerName"])}</td>
                       <td>{pick(b, ["route", "Route"]) || "..."}</td>
-                      <td><span className="badge">{getPaymentStatus(b)}</span></td>
+                      <td><span className="badge">{labelPaymentStatus(getPaymentStatus(b))}</span></td>
                       <td>{formatVND(pick(b, ["totalPrice", "TotalPrice"], 0))}</td>
                     </tr>
                   );
@@ -1922,9 +1922,9 @@ function UsersManager({ onRefresh }) {
           <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" required />
           <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Số điện thoại" required />
           <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="Customer">Customer</option>
-            <option value="Operator">Operator</option>
-            <option value="Admin">Admin</option>
+            <option value="Customer">Khách hàng</option>
+            <option value="Operator">Nhà xe</option>
+            <option value="Admin">Quản trị viên</option>
           </select>
           <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={form.userID ? "Mật khẩu mới nếu muốn đổi" : "Mật khẩu"} required={!form.userID} />
           <div className="admin-form-actions">
@@ -1939,9 +1939,9 @@ function UsersManager({ onRefresh }) {
         <input value={filters.phone} onChange={(e) => updateFilter("phone", e.target.value)} placeholder="Tìm số điện thoại" />
         <select value={filters.role} onChange={(e) => updateFilter("role", e.target.value)}>
           <option value="">Tất cả role</option>
-          <option value="Customer">Customer</option>
-          <option value="Operator">Operator</option>
-          <option value="Admin">Admin</option>
+          <option value="Customer">Khách hàng</option>
+          <option value="Operator">Nhà xe</option>
+          <option value="Admin">Quản trị viên</option>
         </select>
       </div>
       {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
@@ -1962,7 +1962,7 @@ function UsersManager({ onRefresh }) {
                   <td>{pick(item, ["phone", "Phone"])}</td>
                   <td>
                     <span className="badge" style={{ background: role === 'Admin' ? '#fef9c3' : '#f0f9ff', color: role === 'Admin' ? '#854d0e' : '#1d4ed8' }}>
-                      {role}
+                      {labelRole(role)}
                     </span>
                   </td>
                   <td>{formatDateTime(pick(item, ["createdAt", "CreatedAt"]))}</td>
@@ -2070,10 +2070,10 @@ function TripsManager({ buses, operators, onRefresh }) {
           <input type="datetime-local" value={form.arrivalTime} onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })} required />
           <input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Giá vé" required />
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="Scheduled">Scheduled</option>
-            <option value="On-going">On-going</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
+            <option value="Scheduled">Đã lên lịch</option>
+            <option value="On-going">Đang chạy</option>
+            <option value="Completed">Hoàn thành</option>
+            <option value="Cancelled">Đã hủy</option>
           </select>
           <div className="admin-form-actions">
             <button className="btn btn-primary" type="submit">{form.tripID ? "Cập nhật" : "Lưu chuyến xe"}</button>
@@ -2094,10 +2094,10 @@ function TripsManager({ buses, operators, onRefresh }) {
         </select>
         <select value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}>
           <option value="">Tất cả trạng thái</option>
-          <option value="Scheduled">Scheduled</option>
-          <option value="On-going">On-going</option>
-          <option value="Completed">Completed</option>
-          <option value="Cancelled">Cancelled</option>
+          <option value="Scheduled">Đã lên lịch</option>
+          <option value="On-going">Đang chạy</option>
+          <option value="Completed">Hoàn thành</option>
+          <option value="Cancelled">Đã hủy</option>
         </select>
       </div>
       {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
@@ -2191,7 +2191,7 @@ export function AdminTripDetail({ tripId }) {
           <div><span>Thời gian đến</span><b>{formatDateTime(pick(trip, ["arrivalTime", "ArrivalTime"]))}</b></div>
           <div><span>Giá vé</span><b>{formatVND(pick(trip, ["price", "Price"], 0))}</b></div>
           <div><span>Ghế còn</span><b>{pick(trip, ["availableSeats", "AvailableSeats"], 0)}</b></div>
-          <div><span>Trạng thái</span><b><span className="badge">{status}</span></b></div>
+        <div><span>Trạng thái</span><b><span className="badge">{labelTripStatus(status)}</span></b></div>
         </div>
       </section>
 
@@ -2221,7 +2221,7 @@ export function AdminTripDetail({ tripId }) {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Mã đơn</th><th>Tên khách</th><th>Số điện thoại</th><th>Số ghế</th><th>Tổng tiền</th><th>PaymentStatus</th><th>BookingStatus</th><th>Thao tác</th></tr>
+              <tr><th>Mã đơn</th><th>Tên khách</th><th>Số điện thoại</th><th>Số ghế</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái đơn</th><th>Thao tác</th></tr>
             </thead>
             <tbody>
               {bookings.map((item) => {
@@ -2233,8 +2233,8 @@ export function AdminTripDetail({ tripId }) {
                     <td>{pick(item, ["customerPhone", "CustomerPhone"], "Chưa rõ")}</td>
                     <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
                     <td>{formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}</td>
-                    <td><span className="badge">{pick(item, ["paymentStatus", "PaymentStatus"], "Pending")}</span></td>
-                    <td><span className="badge">{pick(item, ["bookingStatus", "BookingStatus"], "PendingConfirm")}</span></td>
+                    <td><span className="badge">{labelPaymentStatus(pick(item, ["paymentStatus", "PaymentStatus"], "Pending"))}</span></td>
+                    <td><span className="badge">{labelBookingStatus(pick(item, ["bookingStatus", "BookingStatus"], "PendingConfirm"))}</span></td>
                     <td className="admin-actions">
                       <button className="btn btn-outline" type="button" onClick={() => navigate(`/admin/bookings/${bookingId}`)}>Xem chi tiết</button>
                     </td>
@@ -2309,23 +2309,23 @@ function BookingsManager() {
         <input value={filters.customerPhone} onChange={(e) => updateFilter("customerPhone", e.target.value)} placeholder="Số điện thoại" />
         <select value={filters.paymentStatus} onChange={(e) => updateFilter("paymentStatus", e.target.value)}>
           <option value="">Tất cả thanh toán</option>
-          <option value="Paid">Paid</option>
-          <option value="Pending">Pending</option>
-          <option value="Cancelled">Cancelled</option>
+          <option value="Paid">Đã thanh toán</option>
+          <option value="Pending">Chưa thanh toán</option>
+          <option value="Cancelled">Đã hủy</option>
         </select>
         <select value={filters.bookingStatus} onChange={(e) => updateFilter("bookingStatus", e.target.value)}>
           <option value="">Tất cả trạng thái đơn</option>
-          <option value="PendingConfirm">PendingConfirm</option>
-          <option value="Confirmed">Confirmed</option>
-          <option value="CancelRequested">CancelRequested</option>
-          <option value="Cancelled">Cancelled</option>
+          <option value="PendingConfirm">Đợi xác nhận</option>
+          <option value="Confirmed">Đã xác nhận</option>
+          <option value="CancelRequested">Yêu cầu hủy</option>
+          <option value="Cancelled">Đã hủy</option>
         </select>
         <input type="date" value={filters.bookingDate} onChange={(e) => updateFilter("bookingDate", e.target.value)} />
       </div>
       {loading && <div className="admin-loading">Đang tải danh sách đơn...</div>}
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Số điện thoại</th><th>Tuyến đường</th><th>Nhà xe</th><th>Số ghế</th><th>Tổng tiền</th><th>PaymentStatus</th><th>BookingStatus</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Số điện thoại</th><th>Tuyến đường</th><th>Nhà xe</th><th>Số ghế</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái đơn</th><th>Thao tác</th></tr></thead>
           <tbody>
             {rows.map((item) => {
               const id = pick(item, ["bookingID", "BookingID", "bookingId", "id"]);
@@ -2340,8 +2340,8 @@ function BookingsManager() {
                   <td>{pick(item, ["operatorName", "OperatorName"], "Chưa rõ")}</td>
                   <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
                   <td>{formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}</td>
-                  <td><span className="badge">{pick(item, ["paymentStatus", "PaymentStatus"], "Pending")}</span></td>
-                  <td><span className="badge">{pick(item, ["bookingStatus", "BookingStatus"], "PendingConfirm")}</span></td>
+                  <td><span className="badge">{labelPaymentStatus(pick(item, ["paymentStatus", "PaymentStatus"], "Pending"))}</span></td>
+                  <td><span className="badge">{labelBookingStatus(pick(item, ["bookingStatus", "BookingStatus"], "PendingConfirm"))}</span></td>
                   <td className="admin-actions">
                     <button className="btn btn-outline" type="button" onClick={() => navigate(`/admin/bookings/${id}`)}>Xem chi tiết</button>
                   </td>
@@ -2434,8 +2434,8 @@ export function AdminBookingDetail({ bookingId }) {
             <p>VéXeAZ - Quản lý đơn đặt vé</p>
           </div>
           <div>
-            <span className="badge">{paymentStatus}</span>
-            <span className="badge">{status}</span>
+            <span className="badge">{labelPaymentStatus(paymentStatus)}</span>
+            <span className="badge">{labelBookingStatus(status)}</span>
           </div>
         </div>
 
@@ -2455,13 +2455,13 @@ export function AdminBookingDetail({ bookingId }) {
           <div><span>Email</span><b>{pick(booking, ["customerEmail", "CustomerEmail"], "Chưa rõ")}</b></div>
           <div><span>Tổng số tiền</span><b>{formatVND(pick(booking, ["totalPrice", "TotalPrice"], 0))}</b></div>
           <div><span>Phương thức thanh toán</span><b>{pick(booking, ["paymentMethod", "PaymentMethod"], "Chưa rõ")}</b></div>
-          <div><span>PaymentStatus</span><b><span className="badge">{paymentStatus}</span></b></div>
-          <div><span>BookingStatus</span><b><span className="badge">{status}</span></b></div>
+          <div><span>Thanh toán</span><b><span className="badge">{labelPaymentStatus(paymentStatus)}</span></b></div>
+          <div><span>Trạng thái đơn</span><b><span className="badge">{labelBookingStatus(status)}</span></b></div>
         </div>
 
         {firstQr && (
           <div className="admin-qr-box">
-            <span>QR code</span>
+            <span>Mã QR</span>
             <pre>{firstQr}</pre>
           </div>
         )}

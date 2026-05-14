@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, pick } from '../api';
+import { formatVND, labelBookingStatus, labelPaymentStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 
 function formatDateTime(value) {
@@ -105,8 +105,8 @@ export default function MyTickets() {
                   </div>
 
                   <div className="my-ticket-side">
-                    <span className={statusClass(paymentStatus)}>{paymentStatus}</span>
-                    <span className={statusClass(bookingStatus)}>{bookingStatus}</span>
+                    <span className={statusClass(paymentStatus)}>{labelPaymentStatus(paymentStatus)}</span>
+                    <span className={statusClass(bookingStatus)}>{labelBookingStatus(bookingStatus)}</span>
                     <Link className="btn btn-outline" to={`/my-tickets/${bookingId}`}>Xem chi tiết</Link>
                     <button
                       type="button"
