@@ -13,7 +13,7 @@ import BookingSuccess from './pages/BookingSuccess';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Payment from './pages/Payment';
-import Admin from './pages/Admin';
+import AdminPage from './pages/AdminPage';
 import Profile from './pages/Profile';
 import MyTickets from './pages/MyTickets';
 import MyTicketDetail from './pages/MyTicketDetail';
@@ -144,7 +144,7 @@ export default function App() {
         <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
         <Route path="/my-tickets/:id" element={<ProtectedRoute><MyTicketDetail /></ProtectedRoute>} />
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
-        <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+        <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

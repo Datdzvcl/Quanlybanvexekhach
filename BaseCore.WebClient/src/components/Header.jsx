@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Navbar from './Navbar';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../api';
 
 export default function Header({ simple = false }) {
   const navigate = useNavigate();
@@ -87,6 +88,12 @@ export default function Header({ simple = false }) {
                     <i className="fa-solid fa-ticket" />
                     Vé của tôi
                   </Link>
+                  {isAdminRole(user.role) && (
+                    <Link to="/admin" onClick={closeMenus}>
+                      <i className="fa-solid fa-gauge-high" />
+                      Xem trang quản trị
+                    </Link>
+                  )}
                   <button type="button" onClick={handleLogout}>
                     <i className="fa-solid fa-right-from-bracket" />
                     Đăng xuất

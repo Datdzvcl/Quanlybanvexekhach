@@ -1332,7 +1332,6 @@
 // }
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { apiFetch, formatVND, normalizeTrip, pick } from "../api";
 const includesText = (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase());
 const dateOnly = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
@@ -1362,9 +1361,7 @@ const EMPTY_BUS = { busID: null, operatorID: "", licensePlate: "", capacity: "",
 const EMPTY_OPERATOR = { operatorID: null, name: "", description: "", contactPhone: "", email: "" };
 const EMPTY_BOOKING = { tripID: "", customerName: "", customerPhone: "", customerEmail: "", totalSeats: 1, paymentMethod: "Online", paymentStatus: "Pending" };
 
-export default function Admin() {
-  const navigate = useNavigate();
-  const [active, setActive] = useState("dashboard");
+export default function Admin({ active = "dashboard" }) {
   const [stats, setStats] = useState({});
   const [trips, setTrips] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -1376,7 +1373,6 @@ export default function Admin() {
   const [revenueStats, setRevenueStats] = useState([]);
   const [upcomingTrips, setUpcomingTrips] = useState([]);
   const [loading, setLoading] = useState(true);
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   // const load = async () => {
   //   setLoading(true);
@@ -1432,62 +1428,32 @@ export default function Admin() {
 
   useEffect(() => { load(); }, []);
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login", { replace: true });
-  };
-
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-logo"><i className="fa-solid fa-bus" /> VéXeAZ</div>
-        <p className="admin-role">Xin chào, {user.fullName || user.email || "Admin"}</p>
-        <nav>
-          {tabs.map(([id, label, icon]) => (
-            <button key={id} className={active === id ? "active" : ""} onClick={() => setActive(id)}>
-              <i className={`fa-solid ${icon}`} /> {label}
-            </button>
-          ))}
-        </nav>
-        <a href="/" target="_self" style={{ display:'block', margin:'8px 16px 0', padding:'10px 16px', borderRadius:8, border:'1px solid rgba(255,255,255,0.3)', color:'white', textDecoration:'none', textAlign:'center', fontSize:14 }}>
-            <i className="fa-solid fa-eye" /> Xem trang web
-        </a>
-        <button className="admin-logout" onClick={logout}>
-          <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
+    <>
+      <div className="admin-content-tools">
+        <button className="btn btn-primary" onClick={load}>
+          <i className="fa-solid fa-rotate" /> Tải lại
         </button>
-      </aside>
-      <main className="admin-main">
-        <header className="admin-top">
-          <div>
-            <h1>{tabs.find((t) => t[0] === active)?.[1]}</h1>
-            <p>Quản trị hệ thống đặt vé xe khách</p>
-          </div>
-          <button className="btn btn-primary" onClick={load}>
-            <i className="fa-solid fa-rotate" /> Tải lại
-          </button>
-        </header>
-        {loading ? (
-          <div className="admin-card">Đang tải dữ liệu...</div>
-        ) : (
-          <AdminContent
-            active={active}
-            stats={stats}
-            trips={trips}
-            upcomingTrips={upcomingTrips} 
-            bookings={bookings}
-            ticketSeats={ticketSeats}
-            transactions={transactions}
-            buses={buses}
-            operators={operators}
-            users={users}
-            revenueStats={revenueStats}
-            // onRefresh={load}
-            onRefresh={() => load(true)}
-          />
-        )}
-      </main>
-    </div>
+      </div>
+      {loading ? (
+        <div className="admin-card">Đang tải dữ liệu...</div>
+      ) : (
+        <AdminContent
+          active={active}
+          stats={stats}
+          trips={trips}
+          upcomingTrips={upcomingTrips}
+          bookings={bookings}
+          ticketSeats={ticketSeats}
+          transactions={transactions}
+          buses={buses}
+          operators={operators}
+          users={users}
+          revenueStats={revenueStats}
+          onRefresh={() => load(true)}
+        />
+      )}
+    </>
   );
 }
 
@@ -1511,7 +1477,27 @@ function AdminContent({ active, stats, trips, upcomingTrips, bookings, ticketSea
   // if (active === "tickets") return <TicketsManager ticketSeats={ticketSeats} trips={trips} operators={operators} />;  // ← thêm props
   if (active === "buses") return <BusesManager buses={buses} operators={operators} onRefresh={onRefresh} />;
   if (active === "users") return <UsersManager users={users} onRefresh={onRefresh} />;
+  if (active === "settings") return <AdminSettings />;
   return <OperatorsManager operators={operators} onRefresh={onRefresh} />;
+}
+
+function AdminSettings() {
+  return (
+    <section className="admin-card admin-settings-card">
+      <h3>Cài đặt</h3>
+      <p>Các thiết lập hệ thống sẽ được bổ sung ở phase sau.</p>
+      <div className="admin-settings-grid">
+        <div>
+          <b>Quyền truy cập</b>
+          <span>Chỉ tài khoản Role Admin được vào khu vực quản trị.</span>
+        </div>
+        <div>
+          <b>Phiên đăng nhập</b>
+          <span>Token JWT đang được gắn tự động qua Axios interceptor.</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 // ==================== DASHBOARD ====================
 // function Dashboard({ stats, trips, bookings, transactions, revenueStats }) {
