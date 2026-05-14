@@ -1,0 +1,63 @@
+Using launch settings from BaseCore.APIService\Properties\launchSettings.json...
+BaseCore API Service running on port 5001
+Endpoints: /api/products, /api/categories, /api/orders
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5001
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.APIService
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (340ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[CreatedAt], [u].[Email], [u].[FullName], [u].[PasswordHash], [u].[Phone], [u].[Role]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (17ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[CreatedAt], [u].[Email], [u].[FullName], [u].[PasswordHash], [u].[Phone], [u].[Role]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (70ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[CreatedAt], [u].[Email], [u].[FullName], [u].[PasswordHash], [u].[Phone], [u].[Role]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (69ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [b].[BookingID], [b].[BookingDate], [b].[CustomerEmail], [b].[CustomerName], [b].[CustomerPhone], [b].[PaymentMethod], [b].[PaymentStatus], [b].[TotalPrice], [b].[TotalSeats], [b].[TripID], [b].[UserID]
+      FROM [Bookings] AS [b]
+      ORDER BY [b].[BookingDate] DESC
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (13ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [b].[BookingID], [b].[BookingDate], [b].[CustomerEmail], [b].[CustomerName], [b].[CustomerPhone], [b].[PaymentMethod], [b].[PaymentStatus], [b].[TotalPrice], [b].[TotalSeats], [b].[TripID], [b].[UserID]
+      FROM [Bookings] AS [b]
+      ORDER BY [b].[BookingDate] DESC
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (17ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[FullName], [u].[Email], [u].[Phone], [u].[Role], [u].[CreatedAt]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[FullName], [u].[Email], [u].[Phone], [u].[Role], [u].[CreatedAt]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (8ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[CreatedAt], [u].[Email], [u].[FullName], [u].[PasswordHash], [u].[Phone], [u].[Role]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (8ms) [Parameters=[@__id_0='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [u].[UserID], [u].[CreatedAt], [u].[Email], [u].[FullName], [u].[PasswordHash], [u].[Phone], [u].[Role]
+      FROM [Users] AS [u]
+      WHERE [u].[UserID] = @__id_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (51ms) [Parameters=[@p1='?' (DbType = Int32), @p0='?' (Size = 100)], CommandType='Text', CommandTimeout='30']
+      SET IMPLICIT_TRANSACTIONS OFF;
+      SET NOCOUNT ON;
+      UPDATE [Users] SET [FullName] = @p0
+      OUTPUT 1
+      WHERE [UserID] = @p1;

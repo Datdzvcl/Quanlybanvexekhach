@@ -1,0 +1,19 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "BaseCore.AuthService\\BaseCore.AuthService.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "BaseCore.ApiGateway\\BaseCore.ApiGateway.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "BaseCore.APIService\\BaseCore.APIService.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

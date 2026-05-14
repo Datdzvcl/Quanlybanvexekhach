@@ -1,0 +1,256 @@
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+D:\Code\CSharp\RobotVibot_WithoutChange-main\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\pc\Downloads\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\ndngu\SOURCE\BaseCore\BaseCore\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Admin\Desktop\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\WEB Mẫu\FW\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\webvexe\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\.buildcheck\AuthService\BaseCore.Services.deps.json
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\.buildcheck\AuthService\BaseCore.Services.dll
+C:\Users\MSI Prestige 14 AI\Downloads\FW (2)\FW\BaseCore\.buildcheck\AuthService\BaseCore.Services.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.deps.json
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Common.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.DTO.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Entities.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Repository.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\bin\Debug\net8.0\BaseCore.Libs.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.AssemblyReference.cache
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfoInputs.cache
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.AssemblyInfo.cs
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.csproj.CoreCompileInputs.cache
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.A71D4B49.Up2Date
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\refint\BaseCore.Services.dll
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\BaseCore.Services.pdb
+C:\Users\Dat\Documents\Cuối\FW (2)\FW (3)\FW\BaseCore\BaseCore.Services\obj\Debug\net8.0\ref\BaseCore.Services.dll
