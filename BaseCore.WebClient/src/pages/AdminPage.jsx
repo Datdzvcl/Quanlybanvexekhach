@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
-import Admin from './Admin';
+import Admin, { AdminBookingDetail, AdminTripDetail } from './Admin';
 
 const adminPaths = {
   dashboard: '/admin/dashboard',
@@ -22,10 +22,24 @@ export default function AdminPage() {
   const [active, setActive] = useState('dashboard');
   const location = useLocation();
   const navigate = useNavigate();
+  const tripDetailMatch = location.pathname.match(/^\/admin\/trips\/(\d+)$/);
+  const tripDetailId = tripDetailMatch?.[1] || null;
+  const bookingDetailMatch = location.pathname.match(/^\/admin\/bookings\/(\d+)$/);
+  const bookingDetailId = bookingDetailMatch?.[1] || null;
 
   useEffect(() => {
     if (location.pathname === '/admin') {
       navigate('/admin/dashboard', { replace: true });
+      return;
+    }
+
+    if (location.pathname.startsWith('/admin/trips/')) {
+      setActive('trips');
+      return;
+    }
+
+    if (location.pathname.startsWith('/admin/bookings/')) {
+      setActive('orders');
       return;
     }
 
@@ -39,7 +53,13 @@ export default function AdminPage() {
 
   return (
     <AdminLayout active={active} onActiveChange={handleActiveChange}>
-      <Admin active={active} />
+      {tripDetailId ? (
+        <AdminTripDetail tripId={tripDetailId} />
+      ) : bookingDetailId ? (
+        <AdminBookingDetail bookingId={bookingDetailId} />
+      ) : (
+        <Admin active={active} />
+      )}
     </AdminLayout>
   );
 }

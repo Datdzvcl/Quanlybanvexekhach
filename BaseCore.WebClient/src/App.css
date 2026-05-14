@@ -1345,6 +1345,168 @@ a {
   padding: 12px 0;
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover td {
+  background: #eff6ff;
+}
+
+.admin-detail-card .admin-section-head p {
+  margin-top: 4px;
+  color: #5b7392;
+  font-weight: 700;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.admin-detail-grid div {
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 14px;
+}
+
+.admin-detail-grid span,
+.admin-detail-grid b {
+  display: block;
+}
+
+.admin-detail-grid span {
+  color: #5b7392;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.admin-detail-grid b {
+  color: #143764;
+}
+
+.admin-trip-bookings {
+  margin-top: 18px;
+}
+
+.admin-muted {
+  color: #5b7392;
+  font-weight: 800;
+}
+
+.admin-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.admin-filter-pills button {
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #24527f;
+  padding: 9px 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.admin-filter-pills button:hover,
+.admin-filter-pills button.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  transform: translateY(-1px);
+}
+
+.admin-booking-detail-card .admin-section-head p,
+.admin-invoice-head p {
+  margin-top: 4px;
+  color: #5b7392;
+  font-weight: 700;
+}
+
+.admin-invoice-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-invoice-head h2 {
+  margin: 0;
+  color: #143764;
+}
+
+.admin-invoice-head .badge {
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.admin-qr-box {
+  margin-top: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 14px;
+}
+
+.admin-qr-box span {
+  display: block;
+  color: #5b7392;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.admin-qr-box pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  color: #143764;
+  font-family: inherit;
+}
+
+.admin-booking-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .admin-invoice-print,
+  .admin-invoice-print * {
+    visibility: visible;
+  }
+
+  .admin-invoice-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+    background: #ffffff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .admin-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 920px) {
   .admin-layout {
     flex-direction: column;
@@ -1362,6 +1524,10 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .admin-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .admin-layout-header {
     position: static;
     padding: 16px;
@@ -1376,6 +1542,7 @@ a {
   .admin-layout-nav,
   .admin-layout-sidebar-actions,
   .admin-filter-grid,
+  .admin-detail-grid,
   .admin-settings-grid {
     grid-template-columns: 1fr;
   }

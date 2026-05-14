@@ -1332,9 +1332,12 @@
 // }
 
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch, formatVND, normalizeTrip, pick } from "../api";
 import { busApi } from "../services/busApi";
+import { bookingApi } from "../services/bookingApi";
 import { operatorApi } from "../services/operatorApi";
+import { tripApi } from "../services/tripApi";
 import { userApi } from "../services/userApi";
 const includesText = (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase());
 const dateOnly = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
@@ -1502,8 +1505,7 @@ export default function Admin({ active = "dashboard" }) {
 function AdminContent({ active, stats, trips, upcomingTrips, bookings, ticketSeats, transactions, buses, operators, users, revenueStats, onRefresh }) {
   if (active === "dashboard") return <Dashboard stats={stats} trips={trips} upcomingTrips={upcomingTrips} bookings={bookings} transactions={transactions} revenueStats={revenueStats} buses={buses} operators={operators} users={users} />;
   if (active === "trips") return <TripsManager trips={trips} buses={buses} operators={operators} onRefresh={onRefresh} />;
-  // if (active === "orders") return <OrdersManager bookings={bookings} trips={trips} onRefresh={onRefresh} />;  // ← tab mới
-  if (active === "orders") return <OrdersManager bookings={bookings} trips={trips} operators={operators} onRefresh={onRefresh} />;
+  if (active === "orders") return <BookingsManager />;
   // if (active === "tickets") return <TicketsManager ticketSeats={ticketSeats} trips={trips} operators={operators} />;  // ← thêm props
   if (active === "buses") return <BusesManager buses={buses} operators={operators} onRefresh={onRefresh} />;
   if (active === "users") return <UsersManager users={users} onRefresh={onRefresh} />;
@@ -1937,14 +1939,41 @@ function UsersManager({ onRefresh }) {
 }
 
 // ==================== TRIPS MANAGER ====================
-function TripsManager({ trips, buses, operators, onRefresh }) {
+function TripsManager({ buses, operators, onRefresh }) {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState([]);
+  const [meta, setMeta] = useState({ totalCount: 0, page: 1, pageSize: ADMIN_CRUD_PAGE_SIZE, totalPages: 1 });
   const [form, setForm] = useState(EMPTY_TRIP);
   const [showForm, setShowForm] = useState(false);
-  const { search, setSearch, filtered } = useSearch(trips, ['departureLocation', 'arrivalLocation', 'operator', 'busType']);
-  const { page, setPage, totalPages, rows } = usePagination(filtered);
+  const [filters, setFilters] = useState({ departureLocation: "", arrivalLocation: "", departureDate: "", operatorId: "", status: "" });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const loadTrips = async () => {
+    setLoading(true);
+    try {
+      const data = await tripApi.adminList(cleanParams({ ...filters, page, pageSize: ADMIN_CRUD_PAGE_SIZE }));
+      const paged = normalizePagedResponse(data, page);
+      setRows(paged.items.map(normalizeTrip));
+      setMeta(paged);
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không tải được danh sách chuyến xe." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadTrips(); }, [page, filters.departureLocation, filters.arrivalLocation, filters.departureDate, filters.operatorId, filters.status]);
+
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
+    setNotice(null);
     try {
       const payload = {
         tripID: form.tripID || 0, busID: Number(form.busID),
@@ -1955,10 +1984,11 @@ function TripsManager({ trips, buses, operators, onRefresh }) {
       };
       if (!payload.busID || !payload.departureLocation || !payload.arrivalLocation || !payload.departureTime || !payload.arrivalTime)
         throw new Error("Vui lòng nhập đủ thông tin chuyến xe.");
-      if (form.tripID) await apiFetch(`/api/trips/${form.tripID}`, { method: "PUT", body: JSON.stringify(payload) });
-      else await apiFetch("/api/trips", { method: "POST", body: JSON.stringify(payload) });
-      setForm(EMPTY_TRIP); setShowForm(false); await onRefresh(); setPage(1);
-    } catch (e2) { alert(e2.message || "Không lưu được chuyến xe."); }
+      if (form.tripID) await tripApi.update(form.tripID, payload);
+      else await tripApi.create(payload);
+      setNotice({ type: "success", text: form.tripID ? "Cập nhật chuyến xe thành công." : "Thêm chuyến xe thành công." });
+      setForm(EMPTY_TRIP); setShowForm(false); await loadTrips(); await onRefresh?.();
+    } catch (e2) { setNotice({ type: "error", text: e2.message || "Không lưu được chuyến xe." }); }
   };
 
   const editItem = (item) => {
@@ -1968,13 +1998,20 @@ function TripsManager({ trips, buses, operators, onRefresh }) {
 
   const removeItem = async (id) => {
     if (!confirm(`Xóa chuyến xe #${id}?`)) return;
-    try { await apiFetch(`/api/trips/${id}`, { method: "DELETE" }); await onRefresh(); }
-    catch (e) { alert(e.message || "Không xóa được chuyến xe."); }
+    setNotice(null);
+    try {
+      await tripApi.remove(id);
+      setNotice({ type: "success", text: "Xóa chuyến xe thành công." });
+      await loadTrips();
+      await onRefresh?.();
+    }
+    catch (e) { setNotice({ type: "error", text: e.message || "Không xóa được chuyến xe." }); }
   };
 
   return (
     <section className="admin-card table-card">
       <SectionHeader title="Quản lý chuyến xe" showForm={showForm} onToggle={() => toggleCreateForm(showForm, setShowForm, setForm, EMPTY_TRIP)} />
+      {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
         <form className="admin-form-grid" onSubmit={submit}>
           <select value={form.busID} onChange={(e) => setForm({ ...form, busID: e.target.value })} required>
@@ -1986,103 +2023,421 @@ function TripsManager({ trips, buses, operators, onRefresh }) {
           <input type="datetime-local" value={form.departureTime} onChange={(e) => setForm({ ...form, departureTime: e.target.value })} required />
           <input type="datetime-local" value={form.arrivalTime} onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })} required />
           <input type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Giá vé" required />
-          <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} placeholder="Số ghế trống" required />
-          <input value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} placeholder="Trạng thái" />
+          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <option value="Scheduled">Scheduled</option>
+            <option value="On-going">On-going</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
           <div className="admin-form-actions">
             <button className="btn btn-primary" type="submit">{form.tripID ? "Cập nhật" : "Lưu chuyến xe"}</button>
             <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}>Hủy</button>
           </div>
         </form>
       )}
-      <SearchBox value={search} onChange={setSearch} placeholder="Tìm tuyến, nhà xe, loại xe..." />
-      <TripsTable trips={rows} onEdit={editItem} onDelete={removeItem} />
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      <div className="admin-filter-grid">
+        <input value={filters.departureLocation} onChange={(e) => updateFilter("departureLocation", e.target.value)} placeholder="Điểm xuất phát" />
+        <input value={filters.arrivalLocation} onChange={(e) => updateFilter("arrivalLocation", e.target.value)} placeholder="Điểm đến" />
+        <input type="date" value={filters.departureDate} onChange={(e) => updateFilter("departureDate", e.target.value)} />
+        <select value={filters.operatorId} onChange={(e) => updateFilter("operatorId", e.target.value)}>
+          <option value="">Tất cả nhà xe</option>
+          {operators.map((o) => {
+            const id = pick(o, ["operatorID", "OperatorID"]);
+            return <option key={id} value={id}>{pick(o, ["name", "Name"])}</option>;
+          })}
+        </select>
+        <select value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}>
+          <option value="">Tất cả trạng thái</option>
+          <option value="Scheduled">Scheduled</option>
+          <option value="On-going">On-going</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
+      <TripsTable trips={rows} onEdit={editItem} onDelete={removeItem} onRowClick={(id) => navigate(`/admin/trips/${id}`)} />
+      {!loading && rows.length === 0 && <div className="empty-cell">Không có chuyến xe phù hợp.</div>}
+      <AdminPagination page={meta.page} totalPages={meta.totalPages} totalCount={meta.totalCount} onPageChange={setPage} />
     </section>
   );
 }
 
+export function AdminTripDetail({ tripId }) {
+  const navigate = useNavigate();
+  const [trip, setTrip] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [bookingFilter, setBookingFilter] = useState({ bookingStatus: "", paymentStatus: "" });
+  const [loading, setLoading] = useState(true);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadTrip = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await tripApi.getById(tripId);
+        setTrip(data);
+      } catch (e) {
+        setError(e.message || "Không tải được chi tiết chuyến xe.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTrip();
+  }, [tripId]);
+
+  useEffect(() => {
+    const loadBookings = async () => {
+      setBookingsLoading(true);
+      try {
+        const data = await tripApi.getBookings(tripId, cleanParams(bookingFilter));
+        setBookings(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setError(e.message || "Không tải được danh sách đơn của chuyến.");
+      } finally {
+        setBookingsLoading(false);
+      }
+    };
+
+    loadBookings();
+  }, [tripId, bookingFilter.bookingStatus, bookingFilter.paymentStatus]);
+
+  if (loading) return <div className="admin-card admin-loading">Đang tải chi tiết chuyến xe...</div>;
+  if (error) return <AdminNotice type="error">{error}</AdminNotice>;
+  if (!trip) return <div className="admin-card empty-cell">Không tìm thấy chuyến xe.</div>;
+
+  const bus = trip.bus || trip.Bus || {};
+  const operator = trip.operator || trip.Operator || bus.operator || bus.Operator || {};
+  const status = pick(trip, ["status", "Status"], "Scheduled");
+  const filterButtons = [
+    { label: "Tất cả", bookingStatus: "", paymentStatus: "" },
+    { label: "Đợi xác nhận", bookingStatus: "PendingConfirm", paymentStatus: "" },
+    { label: "Đã xác nhận", bookingStatus: "Confirmed", paymentStatus: "" },
+    { label: "Yêu cầu hủy", bookingStatus: "CancelRequested", paymentStatus: "" },
+    { label: "Đã hủy", bookingStatus: "Cancelled", paymentStatus: "" },
+    { label: "Đã thanh toán", bookingStatus: "", paymentStatus: "Paid" },
+    { label: "Chưa thanh toán", bookingStatus: "", paymentStatus: "Pending" },
+  ];
+
+  return (
+    <>
+      <section className="admin-card admin-detail-card">
+        <div className="admin-section-head">
+          <div>
+            <h3>Chi tiết chuyến #{tripId}</h3>
+            <p>{pick(trip, ["departureLocation", "DepartureLocation"])} → {pick(trip, ["arrivalLocation", "ArrivalLocation"])}</p>
+          </div>
+          <button className="btn btn-outline" type="button" onClick={() => navigate("/admin/trips")}>
+            <i className="fa-solid fa-arrow-left" /> Quay lại danh sách
+          </button>
+        </div>
+
+        <div className="admin-detail-grid">
+          <div><span>Nhà xe</span><b>{pick(trip, ["operatorName", "OperatorName"], pick(operator, ["name", "Name"], "Chưa rõ"))}</b></div>
+          <div><span>Xe</span><b>{pick(trip, ["licensePlate", "LicensePlate"], pick(bus, ["licensePlate", "LicensePlate"], "Chưa rõ"))}</b></div>
+          <div><span>Loại xe</span><b>{pick(trip, ["busType", "BusType"], pick(bus, ["busType", "BusType"], "Chưa rõ"))}</b></div>
+          <div><span>Sức chứa</span><b>{pick(trip, ["capacity", "Capacity"], pick(bus, ["capacity", "Capacity"], 0))}</b></div>
+          <div><span>Điểm xuất phát</span><b>{pick(trip, ["departureLocation", "DepartureLocation"])}</b></div>
+          <div><span>Điểm đến</span><b>{pick(trip, ["arrivalLocation", "ArrivalLocation"])}</b></div>
+          <div><span>Thời gian đi</span><b>{formatDateTime(pick(trip, ["departureTime", "DepartureTime"]))}</b></div>
+          <div><span>Thời gian đến</span><b>{formatDateTime(pick(trip, ["arrivalTime", "ArrivalTime"]))}</b></div>
+          <div><span>Giá vé</span><b>{formatVND(pick(trip, ["price", "Price"], 0))}</b></div>
+          <div><span>Ghế còn</span><b>{pick(trip, ["availableSeats", "AvailableSeats"], 0)}</b></div>
+          <div><span>Trạng thái</span><b><span className="badge">{status}</span></b></div>
+        </div>
+      </section>
+
+      <section className="admin-card table-card admin-trip-bookings">
+        <div className="admin-section-head">
+          <h3>Đơn đặt vé của chuyến</h3>
+          <span className="admin-muted">{bookings.length} đơn</span>
+        </div>
+
+        <div className="admin-filter-pills">
+          {filterButtons.map((item) => {
+            const active = bookingFilter.bookingStatus === item.bookingStatus && bookingFilter.paymentStatus === item.paymentStatus;
+            return (
+              <button
+                key={`${item.bookingStatus}-${item.paymentStatus}-${item.label}`}
+                type="button"
+                className={active ? "active" : ""}
+                onClick={() => setBookingFilter({ bookingStatus: item.bookingStatus, paymentStatus: item.paymentStatus })}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {bookingsLoading && <div className="admin-loading">Đang tải danh sách đơn...</div>}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Mã đơn</th><th>Tên khách</th><th>Số điện thoại</th><th>Số ghế</th><th>Tổng tiền</th><th>PaymentStatus</th><th>BookingStatus</th><th>Thao tác</th></tr>
+            </thead>
+            <tbody>
+              {bookings.map((item) => {
+                const bookingId = pick(item, ["bookingID", "BookingID", "bookingId", "id"]);
+                return (
+                  <tr key={bookingId}>
+                    <td>{bookingId}</td>
+                    <td><b>{pick(item, ["customerName", "CustomerName"], "Chưa rõ")}</b></td>
+                    <td>{pick(item, ["customerPhone", "CustomerPhone"], "Chưa rõ")}</td>
+                    <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
+                    <td>{formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}</td>
+                    <td><span className="badge">{pick(item, ["paymentStatus", "PaymentStatus"], "Pending")}</span></td>
+                    <td><span className="badge">{pick(item, ["bookingStatus", "BookingStatus"], "PendingConfirm")}</span></td>
+                    <td className="admin-actions">
+                      <button className="btn btn-outline" type="button" onClick={() => navigate(`/admin/bookings/${bookingId}`)}>Xem chi tiết</button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!bookingsLoading && bookings.length === 0 && (
+                <tr><td colSpan="8" className="empty-cell">Không có đơn phù hợp.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
 // ==================== BOOKINGS MANAGER ====================
-function BookingsManager({ bookings, trips, onRefresh }) {
-  const [form, setForm] = useState(EMPTY_BOOKING);
-  const [showForm, setShowForm] = useState(false);
-  const { search, setSearch, filtered } = useSearch(bookings, ['customerName', 'CustomerName', 'customerPhone', 'CustomerPhone']);
-  const { page, setPage, totalPages, rows } = usePagination(filtered);
+function BookingsManager() {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState([]);
+  const [meta, setMeta] = useState({ totalCount: 0, page: 1, pageSize: ADMIN_CRUD_PAGE_SIZE, totalPages: 1 });
+  const [filters, setFilters] = useState({ bookingId: "", customerName: "", customerPhone: "", paymentStatus: "", bookingStatus: "", bookingDate: "" });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const loadBookings = async () => {
+    setLoading(true);
+    setNotice(null);
     try {
-      const trip = trips.find((t) => String(t.id) === String(form.tripID));
-      const seats = Number(form.totalSeats || 0);
-      if (!form.tripID || !form.customerName.trim() || !form.customerPhone.trim() || seats <= 0) throw new Error("Vui lòng nhập đủ thông tin đặt vé.");
-      await apiFetch("/api/bookings", { method: "POST", body: JSON.stringify({ tripID: Number(form.tripID), customerName: form.customerName.trim(), customerPhone: form.customerPhone.trim(), customerEmail: form.customerEmail.trim(), totalSeats: seats, totalPrice: Number((trip?.price || 0) * seats), paymentMethod: form.paymentMethod || "Online", paymentStatus: form.paymentStatus || "Pending" }) });
-      setForm(EMPTY_BOOKING); setShowForm(false); await onRefresh(); setPage(1);
-    } catch (e2) { alert(e2.message || "Không thêm được đơn đặt vé."); }
+      const data = await bookingApi.adminList(cleanParams({
+        bookingId: filters.bookingId,
+        customerName: filters.customerName,
+        customerPhone: filters.customerPhone,
+        paymentStatus: filters.paymentStatus,
+        bookingStatus: filters.bookingStatus,
+        fromDate: filters.bookingDate,
+        toDate: filters.bookingDate,
+        page,
+        pageSize: ADMIN_CRUD_PAGE_SIZE,
+      }));
+      const paged = normalizePagedResponse(data, page);
+      setRows(paged.items);
+      setMeta(paged);
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không tải được danh sách đơn đặt vé." });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateStatus = async (id, status) => {
-    try { await apiFetch(`/api/bookings/${id}/payment-status`, { method: "PUT", body: JSON.stringify(status) }); await onRefresh(); }
-    catch (e) { alert(e.message || "Không cập nhật được."); }
-  };
+  useEffect(() => {
+    loadBookings();
+  }, [page, filters.bookingId, filters.customerName, filters.customerPhone, filters.paymentStatus, filters.bookingStatus, filters.bookingDate]);
 
-  const removeItem = async (id) => {
-    if (!confirm(`Xóa đơn #${id}?`)) return;
-    try { await apiFetch(`/api/bookings/${id}`, { method: "DELETE" }); await onRefresh(); }
-    catch (e) { alert(e.message || "Không xóa được đơn đặt vé."); }
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
   };
 
   return (
     <section className="admin-card table-card">
-      <SectionHeader title="Quản lý đặt vé" showForm={showForm} onToggle={() => toggleCreateForm(showForm, setShowForm, setForm, EMPTY_BOOKING)} />
-      {showForm && (
-        <form className="admin-form-grid" onSubmit={submit}>
-          <select value={form.tripID} onChange={(e) => setForm({ ...form, tripID: e.target.value })} required>
-            <option value="">Chọn chuyến</option>
-            {trips.map((t) => <option key={t.id} value={t.id}>{t.id} - {t.departureLocation} → {t.arrivalLocation}</option>)}
-          </select>
-          <input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="Tên khách" required />
-          <input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} placeholder="SĐT khách" required />
-          <input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="Email" />
-          <input type="number" min="1" value={form.totalSeats} onChange={(e) => setForm({ ...form, totalSeats: e.target.value })} placeholder="Số ghế" required />
-          <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
-            <option value="Online">Online</option><option value="Cash">Cash</option>
-          </select>
-          <select value={form.paymentStatus} onChange={(e) => setForm({ ...form, paymentStatus: e.target.value })}>
-            <option value="Pending">Pending</option><option value="Paid">Paid</option><option value="Cancelled">Cancelled</option>
-          </select>
-          <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">Lưu đơn đặt vé</button>
-            <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_BOOKING)}>Hủy</button>
-          </div>
-        </form>
-      )}
-      <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên, SĐT khách..." />
+      <div className="admin-section-head">
+        <h3>Quản lý đơn đặt vé</h3>
+        <span className="admin-muted">{meta.totalCount || 0} đơn</span>
+      </div>
+      {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
+      <div className="admin-filter-grid">
+        <input type="number" min="1" value={filters.bookingId} onChange={(e) => updateFilter("bookingId", e.target.value)} placeholder="Mã đơn" />
+        <input value={filters.customerName} onChange={(e) => updateFilter("customerName", e.target.value)} placeholder="Tên khách" />
+        <input value={filters.customerPhone} onChange={(e) => updateFilter("customerPhone", e.target.value)} placeholder="Số điện thoại" />
+        <select value={filters.paymentStatus} onChange={(e) => updateFilter("paymentStatus", e.target.value)}>
+          <option value="">Tất cả thanh toán</option>
+          <option value="Paid">Paid</option>
+          <option value="Pending">Pending</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+        <select value={filters.bookingStatus} onChange={(e) => updateFilter("bookingStatus", e.target.value)}>
+          <option value="">Tất cả trạng thái đơn</option>
+          <option value="PendingConfirm">PendingConfirm</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="CancelRequested">CancelRequested</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+        <input type="date" value={filters.bookingDate} onChange={(e) => updateFilter("bookingDate", e.target.value)} />
+      </div>
+      {loading && <div className="admin-loading">Đang tải danh sách đơn...</div>}
       <div className="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Khách hàng</th><th>SĐT</th><th>Tuyến</th><th>Ngày đặt</th><th>Thanh toán</th><th>Tổng tiền</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Số điện thoại</th><th>Tuyến đường</th><th>Nhà xe</th><th>Số ghế</th><th>Tổng tiền</th><th>PaymentStatus</th><th>BookingStatus</th><th>Thao tác</th></tr></thead>
           <tbody>
             {rows.map((item) => {
               const id = pick(item, ["bookingID", "BookingID", "bookingId", "id"]);
-              const status = getPaymentStatus(item);
+              const departure = pick(item, ["departureLocation", "DepartureLocation"], "");
+              const arrival = pick(item, ["arrivalLocation", "ArrivalLocation"], "");
               return (
                 <tr key={id}>
                   <td>{id}</td>
-                  <td>{pick(item, ["customerName", "CustomerName"])}</td>
-                  <td>{pick(item, ["customerPhone", "CustomerPhone"])}</td>
-                  <td>{pick(item, ["route", "Route"]) || findTripRoute(trips, pick(item, ["tripID", "TripID"]))}</td>
-                  <td>{formatDateTime(pick(item, ["bookingDate", "BookingDate"]))}</td>
-                  <td><span className="badge">{status}</span></td>
+                  <td><b>{pick(item, ["customerName", "CustomerName"], "Chưa rõ")}</b></td>
+                  <td>{pick(item, ["customerPhone", "CustomerPhone"], "Chưa rõ")}</td>
+                  <td>{departure || arrival ? `${departure} → ${arrival}` : "Chưa rõ tuyến"}</td>
+                  <td>{pick(item, ["operatorName", "OperatorName"], "Chưa rõ")}</td>
+                  <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
                   <td>{formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}</td>
+                  <td><span className="badge">{pick(item, ["paymentStatus", "PaymentStatus"], "Pending")}</span></td>
+                  <td><span className="badge">{pick(item, ["bookingStatus", "BookingStatus"], "PendingConfirm")}</span></td>
                   <td className="admin-actions">
-                    <button className="btn btn-outline" onClick={() => updateStatus(id, status === "Paid" ? "Pending" : "Paid")}>{status === "Paid" ? "Pending" : "Paid"}</button>
-                    <button className="btn btn-danger" onClick={() => removeItem(id)}>Xóa</button>
+                    <button className="btn btn-outline" type="button" onClick={() => navigate(`/admin/bookings/${id}`)}>Xem chi tiết</button>
                   </td>
                 </tr>
               );
             })}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan="10" className="empty-cell">Không có đơn đặt vé phù hợp.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      <AdminPagination page={meta.page} totalPages={meta.totalPages} totalCount={meta.totalCount} onPageChange={setPage} />
+    </section>
+  );
+}
+
+export function AdminBookingDetail({ bookingId }) {
+  const navigate = useNavigate();
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const loadBooking = async () => {
+    setLoading(true);
+    try {
+      const data = await bookingApi.getById(bookingId);
+      setBooking(data);
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không tải được chi tiết đơn." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadBooking(); }, [bookingId]);
+
+  const runAction = async (action, successText) => {
+    setActionLoading(true);
+    setNotice(null);
+    try {
+      await action();
+      setNotice({ type: "success", text: successText });
+      await loadBooking();
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Thao tác thất bại." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading) return <div className="admin-card admin-loading">Đang tải chi tiết đơn...</div>;
+  if (!booking) return <>{notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}</>;
+
+  const status = pick(booking, ["bookingStatus", "BookingStatus"], "PendingConfirm");
+  const paymentStatus = pick(booking, ["paymentStatus", "PaymentStatus"], "Pending");
+  const seatLabels = pick(booking, ["seatLabels", "SeatLabels"], []);
+  const qrCodes = pick(booking, ["qrCodes", "QrCodes", "QRCodes"], []);
+  const ticketSeats = pick(booking, ["ticketSeats", "TicketSeats"], []);
+  const pickupStop = pick(booking, ["pickupStop", "PickupStop"], {});
+  const dropoffStop = pick(booking, ["dropoffStop", "DropoffStop"], {});
+  const pickupText = [pick(pickupStop, ["stopName", "StopName"], ""), pick(pickupStop, ["stopAddress", "StopAddress"], "")].filter(Boolean).join(" - ");
+  const dropoffText = [pick(dropoffStop, ["stopName", "StopName"], ""), pick(dropoffStop, ["stopAddress", "StopAddress"], "")].filter(Boolean).join(" - ");
+  const firstQr = qrCodes.find(Boolean) || ticketSeats.map((x) => pick(x, ["qrCode", "QRCode"], "")).find(Boolean);
+
+  return (
+    <section className="admin-card admin-booking-detail-card">
+      <div className="admin-section-head no-print">
+        <div>
+          <h3>Chi tiết đơn #{bookingId}</h3>
+          <p>{pick(booking, ["departureLocation", "DepartureLocation"])} → {pick(booking, ["arrivalLocation", "ArrivalLocation"])}</p>
+        </div>
+        <div className="admin-actions">
+          <button className="btn btn-outline" type="button" onClick={() => navigate("/admin/bookings")}>
+            <i className="fa-solid fa-arrow-left" /> Quay lại
+          </button>
+          <button className="btn btn-primary" type="button" onClick={() => window.print()}>
+            <i className="fa-solid fa-print" /> In hóa đơn
+          </button>
+        </div>
+      </div>
+
+      {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
+
+      <div className="admin-invoice-print">
+        <div className="admin-invoice-head">
+          <div>
+            <h2>Hóa đơn đặt vé #{bookingId}</h2>
+            <p>VéXeAZ - Quản lý đơn đặt vé</p>
+          </div>
+          <div>
+            <span className="badge">{paymentStatus}</span>
+            <span className="badge">{status}</span>
+          </div>
+        </div>
+
+        <div className="admin-detail-grid">
+          <div><span>Mã đơn</span><b>{bookingId}</b></div>
+          <div><span>Tên nhà xe</span><b>{pick(booking, ["operatorName", "OperatorName"], "Chưa rõ")}</b></div>
+          <div><span>Nơi xuất phát</span><b>{pick(booking, ["departureLocation", "DepartureLocation"], "Chưa rõ")}</b></div>
+          <div><span>Giờ xuất phát</span><b>{formatDateTime(pick(booking, ["departureTime", "DepartureTime"]))}</b></div>
+          <div><span>Nơi đến</span><b>{pick(booking, ["arrivalLocation", "ArrivalLocation"], "Chưa rõ")}</b></div>
+          <div><span>Giờ đến dự kiến</span><b>{formatDateTime(pick(booking, ["arrivalTime", "ArrivalTime"]))}</b></div>
+          <div><span>Số ghế đặt</span><b>{pick(booking, ["totalSeats", "TotalSeats"], 0)}</b></div>
+          <div><span>Danh sách ghế</span><b>{Array.isArray(seatLabels) && seatLabels.length ? seatLabels.join(", ") : "Chưa rõ"}</b></div>
+          <div><span>Điểm đón</span><b>{pickupText || pick(booking, ["pickupStopID", "PickupStopID"], "Chưa rõ")}</b></div>
+          <div><span>Điểm trả</span><b>{dropoffText || pick(booking, ["dropoffStopID", "DropoffStopID"], "Chưa rõ")}</b></div>
+          <div><span>Tên người đặt</span><b>{pick(booking, ["customerName", "CustomerName"], "Chưa rõ")}</b></div>
+          <div><span>Số điện thoại</span><b>{pick(booking, ["customerPhone", "CustomerPhone"], "Chưa rõ")}</b></div>
+          <div><span>Email</span><b>{pick(booking, ["customerEmail", "CustomerEmail"], "Chưa rõ")}</b></div>
+          <div><span>Tổng số tiền</span><b>{formatVND(pick(booking, ["totalPrice", "TotalPrice"], 0))}</b></div>
+          <div><span>Phương thức thanh toán</span><b>{pick(booking, ["paymentMethod", "PaymentMethod"], "Chưa rõ")}</b></div>
+          <div><span>PaymentStatus</span><b><span className="badge">{paymentStatus}</span></b></div>
+          <div><span>BookingStatus</span><b><span className="badge">{status}</span></b></div>
+        </div>
+
+        {firstQr && (
+          <div className="admin-qr-box">
+            <span>QR code</span>
+            <pre>{firstQr}</pre>
+          </div>
+        )}
+      </div>
+
+      <div className="admin-booking-actions no-print">
+        {status === "PendingConfirm" && (
+          <button className="btn btn-primary" disabled={actionLoading} onClick={() => runAction(() => bookingApi.confirm(bookingId), "Xác nhận đơn thành công.")}>
+            Xác nhận đơn
+          </button>
+        )}
+        {status === "CancelRequested" && (
+          <>
+            <button className="btn btn-danger" disabled={actionLoading} onClick={() => runAction(() => bookingApi.approveCancel(bookingId, {}), "Duyệt hủy đơn thành công.")}>
+              Duyệt hủy
+            </button>
+            <button className="btn btn-outline" disabled={actionLoading} onClick={() => runAction(() => bookingApi.rejectCancel(bookingId, {}), "Từ chối hủy đơn thành công.")}>
+              Từ chối hủy
+            </button>
+          </>
+        )}
+      </div>
     </section>
   );
 }
@@ -2488,7 +2843,7 @@ function OperatorsManager({ onRefresh }) {
 }
 
 // ==================== SHARED COMPONENTS ====================
-function TripsTable({ trips, onEdit, onDelete }) {
+function TripsTable({ trips, onEdit, onDelete, onRowClick }) {
   const showActions = Boolean(onEdit || onDelete);
   return (
     <div className="table-wrap">
@@ -2496,7 +2851,7 @@ function TripsTable({ trips, onEdit, onDelete }) {
         <thead><tr><th>ID</th><th>Tuyến</th><th>Giờ đi</th><th>Nhà xe</th><th>Loại xe</th><th>Chỗ</th><th>Giá</th>{showActions && <th>Thao tác</th>}</tr></thead>
         <tbody>
           {trips.map((t) => (
-            <tr key={t.id}>
+            <tr key={t.id} className={onRowClick ? "clickable-row" : ""} onClick={() => onRowClick?.(t.id)}>
               <td>{t.id}</td>
               <td><b>{t.departureLocation}</b> → <b>{t.arrivalLocation}</b></td>
               <td>{formatDateTime(t.departureTime)}</td>
@@ -2506,8 +2861,8 @@ function TripsTable({ trips, onEdit, onDelete }) {
               <td>{formatVND(t.price)}</td>
               {showActions && (
                 <td className="admin-actions">
-                  {onEdit && <button className="btn btn-outline" onClick={() => onEdit(t)}>Sửa</button>}
-                  {onDelete && <button className="btn btn-danger" onClick={() => onDelete(t.id)}>Xóa</button>}
+                  {onEdit && <button className="btn btn-outline" onClick={(event) => { event.stopPropagation(); onEdit(t); }}>Sửa</button>}
+                  {onDelete && <button className="btn btn-danger" onClick={(event) => { event.stopPropagation(); onDelete(t.id); }}>Xóa</button>}
                 </td>
               )}
             </tr>
