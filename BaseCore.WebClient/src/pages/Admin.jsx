@@ -1333,9 +1333,39 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch, formatVND, normalizeTrip, pick } from "../api";
+import { busApi } from "../services/busApi";
+import { operatorApi } from "../services/operatorApi";
+import { userApi } from "../services/userApi";
 const includesText = (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase());
 const dateOnly = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
 const PAGE_SIZE = 20;
+const ADMIN_CRUD_PAGE_SIZE = 10;
+const normalizePagedResponse = (data, fallbackPage = 1, fallbackPageSize = ADMIN_CRUD_PAGE_SIZE) => {
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      totalCount: data.length,
+      page: fallbackPage,
+      pageSize: fallbackPageSize,
+      totalPages: Math.max(1, Math.ceil(data.length / fallbackPageSize)),
+    };
+  }
+
+  const items = data?.items || data?.Items || [];
+  const totalCount = Number(data?.totalCount ?? data?.TotalCount ?? items.length);
+  const pageSize = Number(data?.pageSize ?? data?.PageSize ?? fallbackPageSize);
+  return {
+    items,
+    totalCount,
+    page: Number(data?.page ?? data?.Page ?? fallbackPage),
+    pageSize,
+    totalPages: Number(data?.totalPages ?? data?.TotalPages ?? Math.max(1, Math.ceil(totalCount / pageSize))),
+  };
+};
+
+const cleanParams = (params) => Object.fromEntries(
+  Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "")
+);
 // const tabs = [
 //   ["dashboard", "Tổng quan", "fa-chart-line"],
 //   ["trips", "Chuyến xe", "fa-route"],
@@ -1392,7 +1422,7 @@ export default function Admin({ active = "dashboard" }) {
       //   apiFetch("/api/admin/upcoming-trips").catch(() => []),
       // ]);
       const [s, rawTrips, rawBookings, rawBuses, rawOperators, rawTicketSeats, rawTransactions, rawUsers, rawRevenue, rawUpcoming] = await Promise.all([
-        apiFetch("/api/admin/statistics").catch(() => ({})),
+        apiFetch("/api/dashboard/stats").catch(() => ({})),
         apiFetch("/api/admin/trips").catch(() => []),
         apiFetch("/api/admin/bookings").catch(() => []),
         apiFetch("/api/admin/buses").catch(() => []),
@@ -1470,7 +1500,7 @@ export default function Admin({ active = "dashboard" }) {
 // }
 // function AdminContent({ active, stats, trips, bookings, ticketSeats, transactions, buses, operators, users, revenueStats, onRefresh }) {
 function AdminContent({ active, stats, trips, upcomingTrips, bookings, ticketSeats, transactions, buses, operators, users, revenueStats, onRefresh }) {
-  if (active === "dashboard") return <Dashboard stats={stats} trips={trips} upcomingTrips={upcomingTrips} bookings={bookings} transactions={transactions} revenueStats={revenueStats} />;
+  if (active === "dashboard") return <Dashboard stats={stats} trips={trips} upcomingTrips={upcomingTrips} bookings={bookings} transactions={transactions} revenueStats={revenueStats} buses={buses} operators={operators} users={users} />;
   if (active === "trips") return <TripsManager trips={trips} buses={buses} operators={operators} onRefresh={onRefresh} />;
   // if (active === "orders") return <OrdersManager bookings={bookings} trips={trips} onRefresh={onRefresh} />;  // ← tab mới
   if (active === "orders") return <OrdersManager bookings={bookings} trips={trips} operators={operators} onRefresh={onRefresh} />;
@@ -1501,12 +1531,14 @@ function AdminSettings() {
 }
 // ==================== DASHBOARD ====================
 // function Dashboard({ stats, trips, bookings, transactions, revenueStats }) {
-function Dashboard({ stats, trips, upcomingTrips, bookings, transactions, revenueStats }) {
+function Dashboard({ stats, trips, upcomingTrips, bookings, transactions, revenueStats, buses = [], operators = [], users = [] }) {
   const cards = [
-    ["Tổng chuyến", pick(stats, ["totalTrips", "TotalTrips"], trips.length), "fa-route", "#2563eb"],
-    ["Tổng đơn", pick(stats, ["totalBookings", "TotalBookings"], bookings.length), "fa-ticket", "#16a34a"],
-    ["Người dùng", pick(stats, ["totalUsers", "TotalUsers"], 0), "fa-users", "#9333ea"],
-    ["Doanh thu", formatVND(pick(stats, ["revenue", "Revenue"], 0)), "fa-money-bill-wave", "#ea580c"],
+    ["Tổng số vé", pick(stats, ["totalTickets", "TotalTickets"], bookings.reduce((sum, item) => sum + Number(pick(item, ["totalSeats", "TotalSeats"], 0)), 0)), "fa-ticket", "#16a34a"],
+    ["Tổng số xe", pick(stats, ["totalBuses", "TotalBuses"], buses.length), "fa-bus", "#2563eb"],
+    ["Tổng nhà xe", pick(stats, ["totalOperators", "TotalOperators"], operators.length), "fa-building", "#0ea5e9"],
+    ["Tổng doanh thu", formatVND(pick(stats, ["totalRevenue", "TotalRevenue", "revenue", "Revenue"], 0)), "fa-money-bill-wave", "#ea580c"],
+    ["Tổng chuyến xe", pick(stats, ["totalTrips", "TotalTrips"], trips.length), "fa-route", "#7c3aed"],
+    ["Tổng người dùng", pick(stats, ["totalUsers", "TotalUsers"], users.length), "fa-users", "#db2777"],
   ];
 
   const last6 = revenueStats.slice(-6);
@@ -1745,18 +1777,130 @@ function InvoicesManager({ bookings, trips, onRefresh }) {
 }
 
 // ==================== USERS ====================
-function UsersManager({ users, onRefresh }) {
-  const { search, setSearch, filtered } = useSearch(users, ['fullName', 'FullName', 'email', 'Email', 'phone', 'Phone', 'role', 'Role']);
-  const { page, setPage, totalPages, rows } = usePagination(filtered);
+function UsersManager({ onRefresh }) {
+  const [rows, setRows] = useState([]);
+  const [meta, setMeta] = useState({ totalCount: 0, page: 1, pageSize: ADMIN_CRUD_PAGE_SIZE, totalPages: 1 });
+  const [filters, setFilters] = useState({ fullName: "", email: "", phone: "", role: "" });
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState({ userID: null, fullName: "", email: "", phone: "", role: "Customer", password: "" });
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      const data = await userApi.list(cleanParams({ ...filters, page, pageSize: ADMIN_CRUD_PAGE_SIZE }));
+      const paged = normalizePagedResponse(data, page);
+      setRows(paged.items);
+      setMeta(paged);
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không tải được danh sách người dùng." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, [page, filters.fullName, filters.email, filters.phone, filters.role]);
+
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
+  };
+
+  const openCreate = () => {
+    setForm({ userID: null, fullName: "", email: "", phone: "", role: "Customer", password: "" });
+    setShowForm(true);
+  };
+
+  const editItem = (item) => {
+    setForm({
+      userID: pick(item, ["userID", "UserID"]),
+      fullName: pick(item, ["fullName", "FullName"], ""),
+      email: pick(item, ["email", "Email"], ""),
+      phone: pick(item, ["phone", "Phone"], ""),
+      role: pick(item, ["role", "Role"], "Customer"),
+      password: "",
+    });
+    setShowForm(true);
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setNotice(null);
+    try {
+      const payload = {
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        role: form.role,
+      };
+      if (!payload.fullName || !payload.email || !payload.phone) throw new Error("Vui lòng nhập đủ họ tên, email và số điện thoại.");
+      if (!form.userID || form.password.trim()) payload.password = form.password.trim();
+      if (!form.userID && !payload.password) throw new Error("Vui lòng nhập mật khẩu khi thêm user.");
+
+      if (form.userID) await userApi.update(form.userID, payload);
+      else await userApi.create(payload);
+
+      setNotice({ type: "success", text: form.userID ? "Cập nhật user thành công." : "Thêm user thành công." });
+      setShowForm(false);
+      await loadUsers();
+      await onRefresh?.();
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không lưu được user." });
+    }
+  };
+
+  const removeItem = async (id) => {
+    if (!confirm(`Xóa user #${id}?`)) return;
+    setNotice(null);
+    try {
+      await userApi.remove(id);
+      setNotice({ type: "success", text: "Xóa user thành công." });
+      await loadUsers();
+      await onRefresh?.();
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không xóa được user." });
+    }
+  };
 
   return (
     <section className="admin-card table-card">
-      <h3>Quản lý người dùng</h3>
-      <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên, email, SĐT, role..." />
+      <SectionHeader title="Quản lý người dùng" showForm={showForm} onToggle={() => (showForm ? setShowForm(false) : openCreate())} />
+      {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
+      {showForm && (
+        <form className="admin-form-grid" onSubmit={submit}>
+          <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Họ tên" required />
+          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" required />
+          <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Số điện thoại" required />
+          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            <option value="Customer">Customer</option>
+            <option value="Operator">Operator</option>
+            <option value="Admin">Admin</option>
+          </select>
+          <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={form.userID ? "Mật khẩu mới nếu muốn đổi" : "Mật khẩu"} required={!form.userID} />
+          <div className="admin-form-actions">
+            <button className="btn btn-primary" type="submit" disabled={loading}>{form.userID ? "Cập nhật" : "Lưu user"}</button>
+            <button className="btn btn-outline" type="button" onClick={() => setShowForm(false)}>Hủy</button>
+          </div>
+        </form>
+      )}
+      <div className="admin-filter-grid">
+        <input value={filters.fullName} onChange={(e) => updateFilter("fullName", e.target.value)} placeholder="Tìm họ tên" />
+        <input value={filters.email} onChange={(e) => updateFilter("email", e.target.value)} placeholder="Tìm email" />
+        <input value={filters.phone} onChange={(e) => updateFilter("phone", e.target.value)} placeholder="Tìm số điện thoại" />
+        <select value={filters.role} onChange={(e) => updateFilter("role", e.target.value)}>
+          <option value="">Tất cả role</option>
+          <option value="Customer">Customer</option>
+          <option value="Operator">Operator</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>ID</th><th>Họ tên</th><th>Email</th><th>SĐT</th><th>Vai trò</th><th>Ngày tạo</th></tr>
+            <tr><th>ID</th><th>Họ tên</th><th>Email</th><th>SĐT</th><th>Vai trò</th><th>Ngày tạo</th><th>Thao tác</th></tr>
           </thead>
           <tbody>
             {rows.map((item) => {
@@ -1774,13 +1918,20 @@ function UsersManager({ users, onRefresh }) {
                     </span>
                   </td>
                   <td>{formatDateTime(pick(item, ["createdAt", "CreatedAt"]))}</td>
+                  <td className="admin-actions">
+                    <button className="btn btn-outline" onClick={() => editItem(item)}>Sửa</button>
+                    <button className="btn btn-danger" onClick={() => removeItem(id)}>Xóa</button>
+                  </td>
                 </tr>
               );
             })}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan="7" className="empty-cell">Không có người dùng phù hợp.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      <AdminPagination page={meta.page} totalPages={meta.totalPages} totalCount={meta.totalCount} onPageChange={setPage} />
     </section>
   );
 }
@@ -2081,21 +2232,65 @@ function TransactionsManager({ transactions }) {
 }
 
 // ==================== BUSES ====================
-function BusesManager({ buses, operators, onRefresh }) {
+function BusesManager({ operators: initialOperators = [], onRefresh }) {
+  const [rows, setRows] = useState([]);
+  const [operators, setOperators] = useState(initialOperators);
+  const [meta, setMeta] = useState({ totalCount: 0, page: 1, pageSize: ADMIN_CRUD_PAGE_SIZE, totalPages: 1 });
   const [form, setForm] = useState(EMPTY_BUS);
   const [showForm, setShowForm] = useState(false);
-  const { search, setSearch, filtered } = useSearch(buses, ['licensePlate', 'LicensePlate', 'busType', 'BusType']);
-  const { page, setPage, totalPages, rows } = usePagination(filtered);
+  const [filters, setFilters] = useState({ licensePlate: "", busType: "", operatorId: "" });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const loadBuses = async () => {
+    setLoading(true);
+    try {
+      const data = await busApi.list(cleanParams({ ...filters, page, pageSize: ADMIN_CRUD_PAGE_SIZE }));
+      const paged = normalizePagedResponse(data, page);
+      setRows(paged.items);
+      setMeta(paged);
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không tải được danh sách xe." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadBuses(); }, [page, filters.licensePlate, filters.busType, filters.operatorId]);
+
+  useEffect(() => {
+    const loadOperators = async () => {
+      if (initialOperators.length > 0) {
+        setOperators(initialOperators);
+        return;
+      }
+      try {
+        const data = await operatorApi.list({ page: 1, pageSize: 100 });
+        setOperators(normalizePagedResponse(data, 1, 100).items);
+      } catch {
+        setOperators([]);
+      }
+    };
+    loadOperators();
+  }, [initialOperators]);
+
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
+    setNotice(null);
     try {
       const payload = { busID: form.busID || 0, operatorID: Number(form.operatorID), licensePlate: form.licensePlate.trim(), capacity: Number(form.capacity || 0), busType: form.busType.trim() };
       if (!payload.operatorID || !payload.licensePlate || !payload.capacity || !payload.busType) throw new Error("Vui lòng nhập đủ thông tin xe.");
-      if (form.busID) await apiFetch(`/api/buses/${form.busID}`, { method: "PUT", body: JSON.stringify(payload) });
-      else await apiFetch("/api/buses", { method: "POST", body: JSON.stringify(payload) });
-      setForm(EMPTY_BUS); setShowForm(false); await onRefresh(); setPage(1);
-    } catch (e2) { alert(e2.message || "Không lưu được xe."); }
+      if (form.busID) await busApi.update(form.busID, payload);
+      else await busApi.create(payload);
+      setNotice({ type: "success", text: form.busID ? "Cập nhật xe thành công." : "Thêm xe thành công." });
+      setForm(EMPTY_BUS); setShowForm(false); await loadBuses(); await onRefresh?.();
+    } catch (e2) { setNotice({ type: "error", text: e2.message || "Không lưu được xe." }); }
   };
 
   const editItem = (item) => {
@@ -2105,13 +2300,20 @@ function BusesManager({ buses, operators, onRefresh }) {
 
   const removeItem = async (id) => {
     if (!confirm(`Xóa xe #${id}?`)) return;
-    try { await apiFetch(`/api/buses/${id}`, { method: "DELETE" }); await onRefresh(); }
-    catch (e) { alert(e.message || "Không xóa được xe. Có thể xe đang được dùng trong chuyến."); }
+    setNotice(null);
+    try {
+      await busApi.remove(id);
+      setNotice({ type: "success", text: "Xóa xe thành công." });
+      await loadBuses();
+      await onRefresh?.();
+    }
+    catch (e) { setNotice({ type: "error", text: e.message || "Không xóa được xe. Có thể xe đang được dùng trong chuyến." }); }
   };
 
   return (
     <section className="admin-card table-card">
       <SectionHeader title="Quản lý xe" showForm={showForm} onToggle={() => toggleCreateForm(showForm, setShowForm, setForm, EMPTY_BUS)} />
+      {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
         <form className="admin-form-grid" onSubmit={submit}>
           <select value={form.operatorID} onChange={(e) => setForm({ ...form, operatorID: e.target.value })} required>
@@ -2127,7 +2329,18 @@ function BusesManager({ buses, operators, onRefresh }) {
           </div>
         </form>
       )}
-      <SearchBox value={search} onChange={setSearch} placeholder="Tìm biển số, loại xe..." />
+      <div className="admin-filter-grid">
+        <input value={filters.licensePlate} onChange={(e) => updateFilter("licensePlate", e.target.value)} placeholder="Tìm biển số" />
+        <input value={filters.busType} onChange={(e) => updateFilter("busType", e.target.value)} placeholder="Tìm loại xe" />
+        <select value={filters.operatorId} onChange={(e) => updateFilter("operatorId", e.target.value)}>
+          <option value="">Tất cả nhà xe</option>
+          {operators.map((o) => {
+            const id = pick(o, ["operatorID", "OperatorID"]);
+            return <option key={id} value={id}>{pick(o, ["name", "Name"])}</option>;
+          })}
+        </select>
+      </div>
+      {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
       <div className="table-wrap">
         <table>
           <thead><tr><th>ID</th><th>Nhà xe</th><th>Biển số</th><th>Loại xe</th><th>Sức chứa</th><th>Thao tác</th></tr></thead>
@@ -2148,30 +2361,60 @@ function BusesManager({ buses, operators, onRefresh }) {
                 </tr>
               );
             })}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan="6" className="empty-cell">Không có xe phù hợp.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      <AdminPagination page={meta.page} totalPages={meta.totalPages} totalCount={meta.totalCount} onPageChange={setPage} />
     </section>
   );
 }
 
 // ==================== OPERATORS ====================
-function OperatorsManager({ operators, onRefresh }) {
+function OperatorsManager({ onRefresh }) {
+  const [rows, setRows] = useState([]);
+  const [meta, setMeta] = useState({ totalCount: 0, page: 1, pageSize: ADMIN_CRUD_PAGE_SIZE, totalPages: 1 });
   const [form, setForm] = useState(EMPTY_OPERATOR);
   const [showForm, setShowForm] = useState(false);
-  const { search, setSearch, filtered } = useSearch(operators, ['name', 'Name', 'contactPhone', 'ContactPhone', 'email', 'Email']);
-  const { page, setPage, totalPages, rows } = usePagination(filtered);
+  const [filters, setFilters] = useState({ name: "", phone: "", email: "" });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const loadOperators = async () => {
+    setLoading(true);
+    try {
+      const data = await operatorApi.list(cleanParams({ ...filters, page, pageSize: ADMIN_CRUD_PAGE_SIZE }));
+      const paged = normalizePagedResponse(data, page);
+      setRows(paged.items);
+      setMeta(paged);
+    } catch (e) {
+      setNotice({ type: "error", text: e.message || "Không tải được danh sách nhà xe." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadOperators(); }, [page, filters.name, filters.phone, filters.email]);
+
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
+    setNotice(null);
     try {
       const payload = { operatorID: form.operatorID || 0, name: form.name.trim(), description: form.description.trim(), contactPhone: form.contactPhone.trim(), email: form.email.trim() };
       if (!payload.name || !payload.contactPhone) throw new Error("Vui lòng nhập tên và số điện thoại nhà xe.");
-      if (form.operatorID) await apiFetch(`/api/operators/${form.operatorID}`, { method: "PUT", body: JSON.stringify(payload) });
-      else await apiFetch("/api/operators", { method: "POST", body: JSON.stringify(payload) });
-      setForm(EMPTY_OPERATOR); setShowForm(false); await onRefresh(); setPage(1);
-    } catch (e2) { alert(e2.message || "Không lưu được nhà xe."); }
+      if (form.operatorID) await operatorApi.update(form.operatorID, payload);
+      else await operatorApi.create(payload);
+      setNotice({ type: "success", text: form.operatorID ? "Cập nhật nhà xe thành công." : "Thêm nhà xe thành công." });
+      setForm(EMPTY_OPERATOR); setShowForm(false); await loadOperators(); await onRefresh?.();
+    } catch (e2) { setNotice({ type: "error", text: e2.message || "Không lưu được nhà xe." }); }
   };
 
   const editItem = (item) => {
@@ -2181,13 +2424,20 @@ function OperatorsManager({ operators, onRefresh }) {
 
   const removeItem = async (id) => {
     if (!confirm(`Xóa nhà xe #${id}?`)) return;
-    try { await apiFetch(`/api/operators/${id}`, { method: "DELETE" }); await onRefresh(); }
-    catch (e) { alert(e.message || "Không xóa được nhà xe. Có thể vẫn còn xe thuộc nhà xe này."); }
+    setNotice(null);
+    try {
+      await operatorApi.remove(id);
+      setNotice({ type: "success", text: "Xóa nhà xe thành công." });
+      await loadOperators();
+      await onRefresh?.();
+    }
+    catch (e) { setNotice({ type: "error", text: e.message || "Không xóa được nhà xe. Có thể vẫn còn xe thuộc nhà xe này." }); }
   };
 
   return (
     <section className="admin-card table-card">
       <SectionHeader title="Quản lý nhà xe" showForm={showForm} onToggle={() => toggleCreateForm(showForm, setShowForm, setForm, EMPTY_OPERATOR)} />
+      {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
         <form className="admin-form-grid" onSubmit={submit}>
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Tên nhà xe" required />
@@ -2200,7 +2450,12 @@ function OperatorsManager({ operators, onRefresh }) {
           </div>
         </form>
       )}
-      <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên, SĐT, email..." />
+      <div className="admin-filter-grid">
+        <input value={filters.name} onChange={(e) => updateFilter("name", e.target.value)} placeholder="Tìm tên nhà xe" />
+        <input value={filters.phone} onChange={(e) => updateFilter("phone", e.target.value)} placeholder="Tìm số điện thoại" />
+        <input value={filters.email} onChange={(e) => updateFilter("email", e.target.value)} placeholder="Tìm email" />
+      </div>
+      {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
       <div className="table-wrap">
         <table>
           <thead><tr><th>ID</th><th>Tên nhà xe</th><th>Điện thoại</th><th>Email</th><th>Mô tả</th><th>Thao tác</th></tr></thead>
@@ -2221,10 +2476,13 @@ function OperatorsManager({ operators, onRefresh }) {
                 </tr>
               );
             })}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan="6" className="empty-cell">Không có nhà xe phù hợp.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      <AdminPagination page={meta.page} totalPages={meta.totalPages} totalCount={meta.totalCount} onPageChange={setPage} />
     </section>
   );
 }
@@ -2280,6 +2538,21 @@ function Pagination({ page, totalPages, onPageChange }) {
       <button className="btn btn-outline" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>Sau</button>
     </div>
   );
+}
+
+function AdminPagination({ page, totalPages, totalCount, onPageChange }) {
+  const safeTotalPages = Math.max(1, Number(totalPages || 1));
+  return (
+    <div className="admin-pagination">
+      <button className="btn btn-outline" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Trước</button>
+      <span>Trang {page}/{safeTotalPages} · {totalCount || 0} dòng</span>
+      <button className="btn btn-outline" disabled={page >= safeTotalPages} onClick={() => onPageChange(page + 1)}>Sau</button>
+    </div>
+  );
+}
+
+function AdminNotice({ type = "success", children }) {
+  return <div className={`admin-notice ${type}`}>{children}</div>;
 }
 
 function SearchBox({ value, onChange, placeholder = 'Tìm kiếm...' }) {

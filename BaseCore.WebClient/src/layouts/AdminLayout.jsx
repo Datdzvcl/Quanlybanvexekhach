@@ -38,7 +38,7 @@ export default function AdminLayout({ active, onActiveChange, children }) {
   return (
     <div className="admin-layout">
       <aside className="admin-layout-sidebar">
-        <Link className="admin-layout-brand" to="/admin" onClick={() => onActiveChange('dashboard')}>
+        <Link className="admin-layout-brand" to="/admin/dashboard" onClick={() => onActiveChange('dashboard')}>
           <span><i className="fa-solid fa-bus" /></span>
           <strong>VéXeAZ</strong>
         </Link>
