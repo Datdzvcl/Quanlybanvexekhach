@@ -1,55 +1,69 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import UserLayout from '../layouts/UserLayout';
-import { API_BASE } from '../api';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import UserLayout from "../layouts/UserLayout";
+import { API_BASE } from "../api";
 
 const offerItems = [
   {
-    title: 'Giảm 20% tuyến đêm',
-    desc: 'Áp dụng cho các chuyến khởi hành sau 20:00 trong tuần.',
-    icon: 'fa-moon',
+    title: "Giảm 20% tuyến đêm",
+    desc: "Áp dụng cho các chuyến khởi hành sau 20:00 trong tuần.",
+    icon: "fa-moon",
   },
   {
-    title: 'Hoàn xu khách mới',
-    desc: 'Tặng điểm thưởng cho đơn đặt vé đầu tiên trên VéXeAZ.',
-    icon: 'fa-gift',
+    title: "Hoàn xu khách mới",
+    desc: "Tặng điểm thưởng cho đơn đặt vé đầu tiên trên VéXeAZ.",
+    icon: "fa-gift",
   },
   {
-    title: 'Combo khứ hồi',
-    desc: 'Đặt vé đi và về cùng lúc để nhận giá tốt hơn.',
-    icon: 'fa-repeat',
+    title: "Combo khứ hồi",
+    desc: "Đặt vé đi và về cùng lúc để nhận giá tốt hơn.",
+    icon: "fa-repeat",
   },
 ];
 
 const popularRoutes = [
   {
-    route: 'Hà Nội - Đà Nẵng',
-    price: 'Từ 250.000đ',
-    image: 'https://vcdn1-dulich.vnecdn.net/2022/06/01/CauVangDaNang-1654082224-7229-1654082320.jpg?w=1200&h=720&q=90&fit=crop',
+    route: "Hà Nội - Đà Nẵng",
+    price: "Từ 250.000đ",
+    image:
+      "https://vcdn1-dulich.vnecdn.net/2022/06/03/cauvang-1654247842-9403-1654247849.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=Swd6JjpStebEzT6WARcoOA",
   },
   {
-    route: 'Sài Gòn - Nha Trang',
-    price: 'Từ 300.000đ',
-    image: 'https://static.vinwonders.com/2022/11/du-lich-nha-trang.jpg',
+    route: "Sài Gòn - Nha Trang",
+    price: "Từ 300.000đ",
+    image: "https://static.vinwonders.com/2022/11/du-lich-nha-trang.jpg",
   },
   {
-    route: 'Hà Nội - Sa Pa',
-    price: 'Từ 350.000đ',
-    image: 'https://booking.muongthanh.com/upload_images/images/H%60/sa-pa-thi-tran-trong-suong.jpg',
+    route: "Hà Nội - Sa Pa",
+    price: "Từ 350.000đ",
+    image:
+      "https://booking.muongthanh.com/upload_images/images/H%60/sa-pa-thi-tran-trong-suong.jpg",
   },
 ];
 
 const reasons = [
-  ['fa-ticket', 'Đặt vé nhanh', 'Tìm chuyến, giữ ghế và thanh toán trong một luồng rõ ràng.'],
-  ['fa-shield-halved', 'Thông tin minh bạch', 'Giá vé, giờ chạy và trạng thái ghế được hiển thị trực tiếp.'],
-  ['fa-headset', 'Hỗ trợ 24/7', 'Đội ngũ hỗ trợ luôn sẵn sàng khi bạn cần thay đổi lịch trình.'],
+  [
+    "fa-ticket",
+    "Đặt vé nhanh",
+    "Tìm chuyến, giữ ghế và thanh toán trong một luồng rõ ràng.",
+  ],
+  [
+    "fa-shield-halved",
+    "Thông tin minh bạch",
+    "Giá vé, giờ chạy và trạng thái ghế được hiển thị trực tiếp.",
+  ],
+  [
+    "fa-headset",
+    "Hỗ trợ 24/7",
+    "Đội ngũ hỗ trợ luôn sẵn sàng khi bạn cần thay đổi lịch trình.",
+  ],
 ];
 
 function getToday() {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -57,13 +71,13 @@ export default function Home() {
   const navigate = useNavigate();
   const today = useMemo(() => getToday(), []);
   const [locations, setLocations] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
-    from: '',
-    to: '',
+    from: "",
+    to: "",
     departureDate: today,
     isRoundTrip: false,
-    returnDate: '',
+    returnDate: "",
   });
 
   useEffect(() => {
@@ -74,10 +88,10 @@ export default function Home() {
   }, []);
 
   const updateForm = (key, value) => {
-    setError('');
+    setError("");
     setForm((current) => {
       const next = { ...current, [key]: value };
-      if (key === 'isRoundTrip' && !value) next.returnDate = '';
+      if (key === "isRoundTrip" && !value) next.returnDate = "";
       return next;
     });
   };
@@ -86,15 +100,20 @@ export default function Home() {
     const from = form.from.trim();
     const to = form.to.trim();
 
-    if (!from) return 'Vui lòng chọn điểm xuất phát.';
-    if (!to) return 'Vui lòng chọn điểm đến.';
-    if (from.toLowerCase() === to.toLowerCase()) return 'Điểm xuất phát không được trùng điểm đến.';
-    if (!form.departureDate || form.departureDate < today) return 'Ngày đi không được nhỏ hơn ngày hiện tại.';
-    if (form.isRoundTrip && (!form.returnDate || form.returnDate < form.departureDate)) {
-      return 'Ngày về phải lớn hơn hoặc bằng ngày đi.';
+    if (!from) return "Vui lòng chọn điểm xuất phát.";
+    if (!to) return "Vui lòng chọn điểm đến.";
+    if (from.toLowerCase() === to.toLowerCase())
+      return "Điểm xuất phát không được trùng điểm đến.";
+    if (!form.departureDate || form.departureDate < today)
+      return "Ngày đi không được nhỏ hơn ngày hiện tại.";
+    if (
+      form.isRoundTrip &&
+      (!form.returnDate || form.returnDate < form.departureDate)
+    ) {
+      return "Ngày về phải lớn hơn hoặc bằng ngày đi.";
     }
 
-    return '';
+    return "";
   };
 
   const submit = (event) => {
@@ -112,7 +131,7 @@ export default function Home() {
     });
 
     if (form.isRoundTrip && form.returnDate) {
-      query.set('returnDate', form.returnDate);
+      query.set("returnDate", form.returnDate);
     }
 
     navigate(`/search-results?${query.toString()}`);
@@ -128,7 +147,8 @@ export default function Home() {
             <p className="home-eyebrow">Nền tảng đặt vé xe khách trực tuyến</p>
             <h1>VéXeAZ</h1>
             <p>
-              Chọn chuyến phù hợp, giữ ghế nhanh và quản lý vé dễ dàng cho mọi hành trình liên tỉnh.
+              Chọn chuyến phù hợp, giữ ghế nhanh và quản lý vé dễ dàng cho mọi
+              hành trình liên tỉnh.
             </p>
           </div>
 
@@ -142,7 +162,9 @@ export default function Home() {
                 <input
                   type="checkbox"
                   checked={form.isRoundTrip}
-                  onChange={(event) => updateForm('isRoundTrip', event.target.checked)}
+                  onChange={(event) =>
+                    updateForm("isRoundTrip", event.target.checked)
+                  }
                 />
                 <span>Khứ hồi</span>
               </label>
@@ -154,7 +176,7 @@ export default function Home() {
                 <input
                   list="home-locations"
                   value={form.from}
-                  onChange={(event) => updateForm('from', event.target.value)}
+                  onChange={(event) => updateForm("from", event.target.value)}
                   placeholder="Ví dụ: Hà Nội"
                 />
               </label>
@@ -164,7 +186,7 @@ export default function Home() {
                 <input
                   list="home-locations"
                   value={form.to}
-                  onChange={(event) => updateForm('to', event.target.value)}
+                  onChange={(event) => updateForm("to", event.target.value)}
                   placeholder="Ví dụ: Đà Nẵng"
                 />
               </label>
@@ -175,7 +197,9 @@ export default function Home() {
                   type="date"
                   min={today}
                   value={form.departureDate}
-                  onChange={(event) => updateForm('departureDate', event.target.value)}
+                  onChange={(event) =>
+                    updateForm("departureDate", event.target.value)
+                  }
                 />
               </label>
 
@@ -186,12 +210,17 @@ export default function Home() {
                     type="date"
                     min={form.departureDate || today}
                     value={form.returnDate}
-                    onChange={(event) => updateForm('returnDate', event.target.value)}
+                    onChange={(event) =>
+                      updateForm("returnDate", event.target.value)
+                    }
                   />
                 </label>
               )}
 
-              <button type="submit" className="btn btn-primary featured-search-button">
+              <button
+                type="submit"
+                className="btn btn-primary featured-search-button"
+              >
                 <i className="fa-solid fa-magnifying-glass" />
                 Tìm chuyến xe
               </button>
