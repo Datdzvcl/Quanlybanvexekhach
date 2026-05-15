@@ -86,16 +86,18 @@ function formatDateLabel(value) {
 
 function LocationPicker({ label, value, onChange, options, icon, accentClass, placeholder }) {
   const [open, setOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const filteredOptions = useMemo(() => {
-    const keyword = normalizeText(value);
+    const keyword = isTyping ? normalizeText(value) : "";
     const source = keyword
       ? options.filter((item) => normalizeText(item).includes(keyword))
       : options;
     return source.slice(0, 12);
-  }, [options, value]);
+  }, [isTyping, options, value]);
 
   const selectLocation = (location) => {
     onChange(location);
+    setIsTyping(false);
     setOpen(false);
   };
 
@@ -107,12 +109,19 @@ function LocationPicker({ label, value, onChange, options, icon, accentClass, pl
         <input
           value={value}
           placeholder={placeholder}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => {
-            onChange(event.target.value);
+          onFocus={() => {
+            setIsTyping(false);
             setOpen(true);
           }}
-          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setIsTyping(true);
+            setOpen(true);
+          }}
+          onBlur={() => window.setTimeout(() => {
+            setIsTyping(false);
+            setOpen(false);
+          }, 120)}
         />
       </label>
 
