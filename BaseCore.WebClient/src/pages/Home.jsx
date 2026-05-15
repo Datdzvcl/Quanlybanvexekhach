@@ -263,6 +263,7 @@ export default function Home() {
       query.set("returnDate", form.returnDate);
     }
 
+    localStorage.setItem("lastTripSearchQuery", query.toString());
     navigate(`/search-results?${query.toString()}`);
   };
 

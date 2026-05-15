@@ -2414,9 +2414,21 @@ a:hover,
 
 /* --- Search results phase 16 --- */
 .search-results-hero {
+  display: none;
   background: linear-gradient(135deg, #0f4fb8, #2563eb);
   color: #fff;
   padding: 46px 0;
+}
+
+.search-results-searchbar {
+  position: relative;
+  z-index: 20;
+  background: linear-gradient(135deg, #0f4fb8, #2563eb);
+  padding: 26px 0;
+}
+
+.search-results-searchbar .modern-home-search {
+  max-width: none;
 }
 
 .search-results-hero span {

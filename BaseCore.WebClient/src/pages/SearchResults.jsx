@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, pick } from '../api';
+import { API_BASE, formatVND, pick } from '../api';
 import { tripApi } from '../services/tripApi';
 
 const PAGE_SIZE = 10;
+const LAST_SEARCH_KEY = 'lastTripSearchQuery';
 
 const timeRanges = [
   { value: '', label: 'Tất cả' },
@@ -41,6 +42,126 @@ function formatTime(value) {
   }).format(new Date(value));
 }
 
+function getToday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function formatDateLabel(value) {
+  if (!value) return '';
+  return new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function LocationPicker({ label, value, onChange, options, icon, accentClass, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const filteredOptions = useMemo(() => {
+    const keyword = isTyping ? normalizeText(value) : '';
+    const source = keyword
+      ? options.filter((item) => normalizeText(item).includes(keyword))
+      : options;
+    return source.slice(0, 12);
+  }, [isTyping, options, value]);
+
+  const selectLocation = (location) => {
+    onChange(location);
+    setIsTyping(false);
+    setOpen(false);
+  };
+
+  return (
+    <div className={`home-location-picker ${open ? 'open' : ''}`}>
+      <i className={`fa-solid ${icon} ${accentClass}`} />
+      <label>
+        <span>{label}</span>
+        <input
+          value={value}
+          placeholder={placeholder}
+          onFocus={() => {
+            setIsTyping(false);
+            setOpen(true);
+          }}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setIsTyping(true);
+            setOpen(true);
+          }}
+          onBlur={() => window.setTimeout(() => {
+            setIsTyping(false);
+            setOpen(false);
+          }, 120)}
+        />
+      </label>
+
+      {open && (
+        <div className="home-location-menu">
+          <strong>Địa điểm phổ biến</strong>
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((location) => (
+              <button
+                type="button"
+                key={location}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectLocation(location)}
+              >
+                <i className="fa-solid fa-location-dot" />
+                <span>{location}</span>
+              </button>
+            ))
+          ) : (
+            <p>Không có gợi ý phù hợp. Bạn có thể nhập tay.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DatePickerField({ label, value, min, onChange, icon, emptyText }) {
+  const inputRef = useRef(null);
+
+  const openPicker = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+    input.focus();
+  };
+
+  return (
+    <button type="button" className="home-date-field" onClick={openPicker}>
+      <i className={`fa-solid ${icon}`} />
+      <span>{label}</span>
+      <strong>{value ? formatDateLabel(value) : emptyText}</strong>
+      <input
+        ref={inputRef}
+        type="date"
+        min={min}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+      />
+    </button>
+  );
+}
+
 function parseItems(response) {
   if (Array.isArray(response)) {
     return {
@@ -74,6 +195,8 @@ export default function SearchResults() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const today = useMemo(() => getToday(), []);
+  const [locations, setLocations] = useState([]);
 
   const [filters, setFilters] = useState({
     busType: searchParams.get('busType') || '',
@@ -94,7 +217,51 @@ export default function SearchResults() {
     returnDate: searchParams.get('returnDate') || '',
   }), [searchParams]);
 
+  const [searchForm, setSearchForm] = useState({
+    from: '',
+    to: '',
+    departureDate: today,
+    isRoundTrip: false,
+    returnDate: '',
+  });
+
+  const locationOptions = useMemo(() => {
+    return Array.from(new Set(
+      locations
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [locations]);
+
   const page = Number(searchParams.get('page') || 1);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/trips/locations`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setLocations(Array.isArray(data) ? data : []))
+      .catch(() => setLocations([]));
+  }, []);
+
+  useEffect(() => {
+    setSearchForm({
+      from: baseQuery.from,
+      to: baseQuery.to,
+      departureDate: baseQuery.departureDate || today,
+      isRoundTrip: Boolean(baseQuery.returnDate),
+      returnDate: baseQuery.returnDate,
+    });
+  }, [baseQuery, today]);
+
+  useEffect(() => {
+    if (baseQuery.from || baseQuery.to || baseQuery.departureDate || baseQuery.returnDate) {
+      const storedQuery = new URLSearchParams();
+      if (baseQuery.from) storedQuery.set('from', baseQuery.from);
+      if (baseQuery.to) storedQuery.set('to', baseQuery.to);
+      if (baseQuery.departureDate) storedQuery.set('departureDate', baseQuery.departureDate);
+      if (baseQuery.returnDate) storedQuery.set('returnDate', baseQuery.returnDate);
+      localStorage.setItem(LAST_SEARCH_KEY, storedQuery.toString());
+    }
+  }, [baseQuery]);
 
   useEffect(() => {
     const load = async () => {
@@ -149,8 +316,138 @@ export default function SearchResults() {
     if (id) navigate(`/trips/${id}/seats`);
   };
 
+  const updateSearchForm = (key, value) => {
+    setError('');
+    setSearchForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === 'isRoundTrip' && !value) next.returnDate = '';
+      return next;
+    });
+  };
+
+  const swapLocations = () => {
+    setSearchForm((current) => ({
+      ...current,
+      from: current.to,
+      to: current.from,
+    }));
+  };
+
+  const submitSearch = (event) => {
+    event.preventDefault();
+    const from = searchForm.from.trim();
+    const to = searchForm.to.trim();
+
+    if (!from) {
+      setError('Vui lòng chọn điểm xuất phát.');
+      return;
+    }
+    if (!to) {
+      setError('Vui lòng chọn điểm đến.');
+      return;
+    }
+    if (from.toLowerCase() === to.toLowerCase()) {
+      setError('Điểm xuất phát không được trùng điểm đến.');
+      return;
+    }
+    if (!searchForm.departureDate || searchForm.departureDate < today) {
+      setError('Ngày đi không được nhỏ hơn ngày hiện tại.');
+      return;
+    }
+    if (searchForm.isRoundTrip && (!searchForm.returnDate || searchForm.returnDate < searchForm.departureDate)) {
+      setError('Ngày về phải lớn hơn hoặc bằng ngày đi.');
+      return;
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.set('from', from);
+    next.set('to', to);
+    next.set('departureDate', searchForm.departureDate);
+    if (searchForm.isRoundTrip && searchForm.returnDate) next.set('returnDate', searchForm.returnDate);
+    else next.delete('returnDate');
+    next.set('page', '1');
+
+    const storedQuery = new URLSearchParams();
+    storedQuery.set('from', from);
+    storedQuery.set('to', to);
+    storedQuery.set('departureDate', searchForm.departureDate);
+    if (searchForm.isRoundTrip && searchForm.returnDate) storedQuery.set('returnDate', searchForm.returnDate);
+    localStorage.setItem(LAST_SEARCH_KEY, storedQuery.toString());
+
+    setSearchParams(next);
+  };
+
   return (
     <UserLayout>
+      <section className="search-results-searchbar">
+        <div className="container">
+          <form className="featured-search modern-home-search" onSubmit={submitSearch}>
+            <div className="home-search-widget">
+              <LocationPicker
+                label="Nơi xuất phát"
+                value={searchForm.from}
+                onChange={(value) => updateSearchForm('from', value)}
+                options={locationOptions}
+                icon="fa-circle-dot"
+                accentClass="from"
+                placeholder="Chọn điểm đi"
+              />
+
+              <button
+                type="button"
+                className="home-swap-button"
+                onClick={swapLocations}
+                aria-label="Đổi điểm đi và điểm đến"
+              >
+                <i className="fa-solid fa-right-left" />
+              </button>
+
+              <LocationPicker
+                label="Nơi đến"
+                value={searchForm.to}
+                onChange={(value) => updateSearchForm('to', value)}
+                options={locationOptions}
+                icon="fa-location-dot"
+                accentClass="to"
+                placeholder="Chọn điểm đến"
+              />
+
+              <DatePickerField
+                label="Ngày đi"
+                value={searchForm.departureDate}
+                min={today}
+                onChange={(value) => updateSearchForm('departureDate', value)}
+                icon="fa-calendar-days"
+                emptyText="Chọn ngày đi"
+              />
+
+              {searchForm.isRoundTrip ? (
+                <DatePickerField
+                  label="Ngày về"
+                  value={searchForm.returnDate}
+                  min={searchForm.departureDate || today}
+                  onChange={(value) => updateSearchForm('returnDate', value)}
+                  icon="fa-calendar-plus"
+                  emptyText="Chọn ngày về"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="home-return-button"
+                  onClick={() => updateSearchForm('isRoundTrip', true)}
+                >
+                  <i className="fa-solid fa-plus" />
+                  Thêm ngày về
+                </button>
+              )}
+
+              <button type="submit" className="home-search-button">
+                Tìm kiếm
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
       <section className="search-results-hero">
         <div className="container">
           <span>Kết quả tìm kiếm</span>

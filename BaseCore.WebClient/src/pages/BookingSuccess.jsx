@@ -5,6 +5,8 @@ import { formatVND, labelBookingStatus, labelPaymentMethod, pick } from '../api'
 import { bookingApi } from '../services/bookingApi';
 import { useAuth } from '../contexts/AuthContext';
 
+const LAST_SEARCH_KEY = 'lastTripSearchQuery';
+
 function formatDateTime(value) {
   if (!value) return '--';
   return new Intl.DateTimeFormat('vi-VN', {
@@ -100,6 +102,8 @@ export default function BookingSuccess() {
   const dropoffStop = booking.dropoffStop || booking.DropoffStop;
   const seatLabels = booking.seatLabels || booking.SeatLabels || [];
   const qrText = getQrText(booking);
+  const continueSearchQuery = localStorage.getItem(LAST_SEARCH_KEY) || '';
+  const continueSearchUrl = continueSearchQuery ? `/search-results?${continueSearchQuery}` : '/search-results';
 
   return (
     <UserLayout>
@@ -141,7 +145,7 @@ export default function BookingSuccess() {
           <p>{qrText}</p>
           <div className="success-actions">
             <Link className="btn btn-primary" to="/">Quay lại trang chủ</Link>
-            <Link className="btn btn-outline" to="/search-results">Tiếp tục đặt vé</Link>
+            <Link className="btn btn-outline" to={continueSearchUrl}>Tiếp tục đặt vé</Link>
             {isAuthenticated && <Link className="btn btn-outline" to="/my-tickets">Xem vé của tôi</Link>}
           </div>
         </aside>
