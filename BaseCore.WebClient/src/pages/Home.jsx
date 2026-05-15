@@ -1,43 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLayout from "../layouts/UserLayout";
-
-const vietnamLocations = [
-  "An Giang",
-  "Bắc Ninh",
-  "Cà Mau",
-  "Cao Bằng",
-  "Cần Thơ",
-  "Đà Nẵng",
-  "Đắk Lắk",
-  "Điện Biên",
-  "Đồng Nai",
-  "Đồng Tháp",
-  "Gia Lai",
-  "Hà Nội",
-  "Hà Tĩnh",
-  "Hải Phòng",
-  "Huế",
-  "Hưng Yên",
-  "Khánh Hòa",
-  "Lai Châu",
-  "Lâm Đồng",
-  "Lạng Sơn",
-  "Lào Cai",
-  "Nghệ An",
-  "Ninh Bình",
-  "Phú Thọ",
-  "Quảng Ngãi",
-  "Quảng Ninh",
-  "Quảng Trị",
-  "Sơn La",
-  "Tây Ninh",
-  "Thái Nguyên",
-  "Thanh Hóa",
-  "TP. Hồ Chí Minh",
-  "Tuyên Quang",
-  "Vĩnh Long",
-];
+import { API_BASE } from "../api";
 
 const offerItems = [
   {
@@ -209,6 +173,7 @@ function DatePickerField({ label, value, min, onChange, icon, emptyText }) {
 export default function Home() {
   const navigate = useNavigate();
   const today = useMemo(() => getToday(), []);
+  const [locations, setLocations] = useState([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     from: "",
@@ -219,7 +184,18 @@ export default function Home() {
   });
 
   const locationOptions = useMemo(() => {
-    return vietnamLocations;
+    return Array.from(new Set(
+      locations
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, "vi"));
+  }, [locations]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/trips/locations`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setLocations(Array.isArray(data) ? data : []))
+      .catch(() => setLocations([]));
   }, []);
 
   const updateForm = (key, value) => {
