@@ -1,1 +1,0 @@
-{"Version":1,"Hash":"KtYaGSif1NmWogMuQSapy4b44byqrmcn7wl2IcXhY5s=","Source":"BaseCore.ApiGateway","BasePath":"/","Mode":"Root","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}

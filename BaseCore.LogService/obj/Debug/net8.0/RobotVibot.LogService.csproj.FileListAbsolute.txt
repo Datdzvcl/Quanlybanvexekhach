@@ -1,5 +1,0 @@
-D:\Code\C#\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\RobotVibot.LogService\obj\Debug\net8.0\RobotVibot.LogService.csproj.AssemblyReference.cache
-D:\Code\C#\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\RobotVibot.LogService\obj\Debug\net8.0\RobotVibot.LogService.GeneratedMSBuildEditorConfig.editorconfig
-D:\Code\C#\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\RobotVibot.LogService\obj\Debug\net8.0\RobotVibot.LogService.AssemblyInfoInputs.cache
-D:\Code\C#\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\RobotVibot.LogService\obj\Debug\net8.0\RobotVibot.LogService.AssemblyInfo.cs
-D:\Code\C#\RobotVibot_WithoutChange-main\RobotVibot_WithoutChange-main\RobotVibot.LogService\obj\Debug\net8.0\RobotVibot.LogService.csproj.CoreCompileInputs.cache

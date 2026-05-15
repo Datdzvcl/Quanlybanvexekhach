@@ -1,6 +1,0 @@
-C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.UnitTest\bin\Debug\net8.0\.msCoverageSourceRootsMapping_BaseCore.UnitTest
-C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.UnitTest\obj\Debug\net8.0\BaseCore.UnitTest.csproj.AssemblyReference.cache
-C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.UnitTest\obj\Debug\net8.0\BaseCore.UnitTest.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.UnitTest\obj\Debug\net8.0\BaseCore.UnitTest.AssemblyInfoInputs.cache
-C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.UnitTest\obj\Debug\net8.0\BaseCore.UnitTest.AssemblyInfo.cs
-C:\Users\Dat\Documents\FW\FW\BaseCore\BaseCore.UnitTest\obj\Debug\net8.0\BaseCore.UnitTest.csproj.CoreCompileInputs.cache
