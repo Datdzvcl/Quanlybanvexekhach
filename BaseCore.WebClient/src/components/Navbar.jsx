@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 
 const navItems = [
   { label: 'Trang chủ', to: '/' },
-  { label: 'Tìm chuyến', to: '/search' },
   { label: 'Ưu đãi', to: '/#offers' },
   { label: 'Hướng dẫn đặt vé', to: '/#booking-guide' },
   { label: 'Liên hệ', to: '/#contact' },
