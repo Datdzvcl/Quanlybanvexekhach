@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Repository;
 using BaseCore.Entities;
@@ -28,6 +29,7 @@ namespace BaseCore.APIService.Controllers
                 .Select(x => new
                 {
                     x.TripID,
+                    x.AvailableSeats,
                     Capacity = x.Bus != null ? x.Bus.Capacity : 0
                 })
                 .FirstOrDefaultAsync();
@@ -46,14 +48,16 @@ namespace BaseCore.APIService.Controllers
                 .Where(x =>
                     x.Booking != null &&
                     x.Booking.TripID == tripId &&
-                    (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled"))
+                    (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled") &&
+                    (x.Booking.BookingStatus == null || x.Booking.BookingStatus != "Cancelled"))
                 .Select(x => x.SeatLabel)
                 .ToListAsync();
 
             var bookedSeatSet = bookedSeats
                 .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x.Trim().ToUpperInvariant())
+                .Select(NormalizeSeatLabel)
                 .ToHashSet();
+            AddSyntheticBookedSeats(bookedSeatSet, seatLabels, trip.AvailableSeats);
 
             var activeHolds = await _context.SeatHolds
                 .AsNoTracking()
@@ -72,14 +76,14 @@ namespace BaseCore.APIService.Controllers
 
             var holdBySeat = activeHolds
                 .Where(x => !string.IsNullOrWhiteSpace(x.SeatLabel))
-                .GroupBy(x => x.SeatLabel.Trim().ToUpperInvariant())
+                .GroupBy(x => NormalizeSeatLabel(x.SeatLabel))
                 .ToDictionary(
                     x => x.Key,
                     x => x.OrderByDescending(h => h.HoldExpiresAt).First());
 
             var seats = seatLabels.Select(label =>
             {
-                var normalizedLabel = label.ToUpperInvariant();
+                var normalizedLabel = NormalizeSeatLabel(label);
                 var status = "Available";
 
                 if (bookedSeatSet.Contains(normalizedLabel))
@@ -120,7 +124,7 @@ namespace BaseCore.APIService.Controllers
             if (request.TripId <= 0 || requestedSeats.Count == 0)
                 return BadRequest(new { message = "TripId và danh sách ghế là bắt buộc" });
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
             try
             {
                 var trip = await _context.Trips
@@ -130,8 +134,8 @@ namespace BaseCore.APIService.Controllers
                 if (trip == null)
                     return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
-                var validSeats = GenerateSeatLabels(Math.Max(trip.Bus?.Capacity ?? 0, 0))
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var validSeatLabels = GenerateSeatLabels(Math.Max(trip.Bus?.Capacity ?? 0, 0));
+                var validSeats = validSeatLabels.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var invalidSeats = requestedSeats.Where(x => !validSeats.Contains(x)).ToList();
                 if (invalidSeats.Count > 0)
                     return BadRequest(new { message = $"Ghế không tồn tại: {string.Join(", ", invalidSeats)}" });
@@ -144,16 +148,19 @@ namespace BaseCore.APIService.Controllers
                 var bookedSeats = await _context.TicketSeats
                     .Include(x => x.Booking)
                     .Where(x =>
-                        x.Booking != null &&
-                        x.Booking.TripID == request.TripId &&
-                        (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled") &&
-                        requestedSeats.Contains(x.SeatLabel))
+                    x.Booking != null &&
+                    x.Booking.TripID == request.TripId &&
+                    (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled") &&
+                    (x.Booking.BookingStatus == null || x.Booking.BookingStatus != "Cancelled"))
                     .Select(x => x.SeatLabel)
                     .ToListAsync();
 
                 var bookedSeatSet = bookedSeats.Select(NormalizeSeatLabel).ToHashSet();
-                if (bookedSeatSet.Count > 0)
-                    return Conflict(new { message = $"Ghế đã được đặt: {string.Join(", ", bookedSeatSet)}" });
+                AddSyntheticBookedSeats(bookedSeatSet, validSeatLabels, trip.AvailableSeats);
+
+                var requestedBookedSeats = requestedSeats.Where(x => bookedSeatSet.Contains(x)).ToList();
+                if (requestedBookedSeats.Count > 0)
+                    return Conflict(new { message = $"Ghế đã được đặt: {string.Join(", ", requestedBookedSeats)}" });
 
                 var activeHolds = await _context.SeatHolds
                     .Where(x =>
@@ -207,10 +214,10 @@ namespace BaseCore.APIService.Controllers
                     message = "Giữ ghế thành công"
                 });
             }
-            catch (DbUpdateException)
+            catch (Exception ex) when (IsSeatConcurrencyException(ex))
             {
                 await transaction.RollbackAsync();
-                return Conflict(new { message = "Ghế vừa được người khác giữ. Vui lòng tải lại trạng thái ghế." });
+                return Conflict(new { message = "Ghế vừa được người khác giữ hoặc hệ thống đang bận. Vui lòng tải lại trạng thái ghế rồi thử lại." });
             }
         }
 
@@ -226,7 +233,7 @@ namespace BaseCore.APIService.Controllers
             if (request.TripId <= 0 || requestedSeats.Count == 0)
                 return BadRequest(new { message = "TripId và danh sách ghế là bắt buộc" });
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
             var now = DateTime.Now;
 
             var ownedHolds = await _context.SeatHolds
@@ -284,6 +291,41 @@ namespace BaseCore.APIService.Controllers
         {
             var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return int.TryParse(claimValue, out var userId) ? userId : null;
+        }
+
+        private static void AddSyntheticBookedSeats(HashSet<string> bookedSeatSet, List<string> seatLabels, int availableSeats)
+        {
+            var targetBookedCount = Math.Max(0, seatLabels.Count - Math.Max(availableSeats, 0));
+            var missingBookedCount = targetBookedCount - bookedSeatSet.Count;
+            if (missingBookedCount <= 0)
+                return;
+
+            foreach (var label in seatLabels.Select(NormalizeSeatLabel).Where(x => !bookedSeatSet.Contains(x)))
+            {
+                bookedSeatSet.Add(label);
+                missingBookedCount--;
+                if (missingBookedCount <= 0)
+                    break;
+            }
+        }
+
+        private static bool IsSeatConcurrencyException(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is DbUpdateException)
+                    return true;
+
+                if (current is SqlException sqlException && sqlException.Number == 1205)
+                    return true;
+
+                if (current.Message.Contains("deadlocked", StringComparison.OrdinalIgnoreCase) ||
+                    current.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) ||
+                    current.Message.Contains("unique", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool IsOwnedByCurrent(int? holdUserId, string? holdSessionId, int? currentUserId, string? sessionId)
