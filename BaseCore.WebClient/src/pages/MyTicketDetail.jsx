@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, labelBookingStatus, labelPaymentStatus, pick } from '../api';
+import { formatVND, labelBookingStatus, labelPaymentMethod, labelPaymentStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 
 function formatDateTime(value) {
@@ -160,7 +160,7 @@ export default function MyTicketDetail() {
             <div><span>Họ tên</span><strong>{pick(booking, ['customerName', 'CustomerName'], '--')}</strong></div>
             <div><span>Số điện thoại</span><strong>{pick(booking, ['customerPhone', 'CustomerPhone'], '--')}</strong></div>
             <div><span>Email</span><strong>{pick(booking, ['customerEmail', 'CustomerEmail'], '--')}</strong></div>
-            <div><span>Phương thức thanh toán</span><strong>{pick(booking, ['paymentMethod', 'PaymentMethod'], '--')}</strong></div>
+            <div><span>Phương thức thanh toán</span><strong>{labelPaymentMethod(pick(booking, ['paymentMethod', 'PaymentMethod'], '--'))}</strong></div>
           </div>
         </main>
 

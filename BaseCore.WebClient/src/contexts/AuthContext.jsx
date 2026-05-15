@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
       });
       const normalized = normalizeUser(data);
       if (!normalized.token) {
-        throw new Error('API dang nhap khong tra ve token.');
+        throw new Error('API đăng nhập không trả về token.');
       }
 
       setStoredAuth(normalized.token, normalized);

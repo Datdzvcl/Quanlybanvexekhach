@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, labelBookingStatus, pick } from '../api';
+import { formatVND, labelBookingStatus, labelPaymentMethod, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -130,7 +130,7 @@ export default function BookingSuccess() {
             <div><span>Người đặt</span><strong>{pick(booking, ['customerName', 'CustomerName'], '--')}</strong></div>
             <div><span>Số điện thoại</span><strong>{pick(booking, ['customerPhone', 'CustomerPhone'], '--')}</strong></div>
             <div><span>Email</span><strong>{pick(booking, ['customerEmail', 'CustomerEmail'], '--')}</strong></div>
-            <div><span>Phương thức</span><strong>{pick(booking, ['paymentMethod', 'PaymentMethod'], '--')}</strong></div>
+            <div><span>Phương thức</span><strong>{labelPaymentMethod(pick(booking, ['paymentMethod', 'PaymentMethod'], '--'))}</strong></div>
             <div><span>Tổng tiền</span><strong>{formatVND(pick(booking, ['totalPrice', 'TotalPrice'], 0))}</strong></div>
           </div>
         </main>

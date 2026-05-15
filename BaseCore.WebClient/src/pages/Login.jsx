@@ -20,7 +20,7 @@ export default function Login() {
       });
       navigate(isAdminRole(user.role) ? '/admin' : '/', { replace: true });
     } catch (err) {
-      alert(err.message || 'Dang nhap that bai. Kiem tra email/phone, mat khau va AuthService.');
+      alert(err.message || 'Đăng nhập thất bại. Kiểm tra email/số điện thoại, mật khẩu và AuthService.');
     } finally {
       setLoading(false);
     }
@@ -32,12 +32,12 @@ export default function Login() {
       <div className="auth-wrap">
         <div className="auth-card">
           <div className="auth-title">
-            <h2><i className="fa-solid fa-bus" /> VeXeAZ</h2>
-            <p>Dang nhap de tiep tuc</p>
+            <h2><i className="fa-solid fa-bus" /> VéXeAZ</h2>
+            <p>Đăng nhập để tiếp tục</p>
           </div>
           <form onSubmit={submit}>
             <div className="form-group">
-              <label>Email hoac so dien thoai</label>
+              <label>Email hoặc số điện thoại</label>
               <input
                 type="text"
                 value={form.emailOrPhone}
@@ -47,7 +47,7 @@ export default function Login() {
               />
             </div>
             <div className="form-group">
-              <label>Mat khau</label>
+              <label>Mật khẩu</label>
               <input
                 type="password"
                 value={form.password}
@@ -56,14 +56,14 @@ export default function Login() {
               />
             </div>
             <div className="auth-row">
-              <label><input type="checkbox" /> Nho mat khau</label>
-              <a href="#">Quen mat khau?</a>
+              <label><input type="checkbox" /> Nhớ mật khẩu</label>
+              <a href="#">Quên mật khẩu?</a>
             </div>
             <button disabled={loading} className="btn btn-primary auth-btn">
-              {loading ? 'Dang dang nhap...' : 'Dang Nhap'}
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
-          <p className="auth-bottom">Chua co tai khoan? <Link to="/register">Dang ky ngay</Link></p>
+          <p className="auth-bottom">Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link></p>
         </div>
       </div>
     </>

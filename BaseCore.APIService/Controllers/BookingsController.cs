@@ -312,7 +312,7 @@ namespace BaseCore.APIService.Controllers
                     x.StopPointID == request.PickupStopId.Value &&
                     x.TripID == request.TripId &&
                     x.IsActive &&
-                    x.StopType == 1);
+                    (x.StopType == 1 || x.StopType == 3));
 
                 if (!pickupStopValid)
                     return BadRequest(new { message = "Điểm đón không hợp lệ cho chuyến xe này" });
@@ -321,7 +321,7 @@ namespace BaseCore.APIService.Controllers
                     x.StopPointID == request.DropoffStopId.Value &&
                     x.TripID == request.TripId &&
                     x.IsActive &&
-                    x.StopType == 2);
+                    (x.StopType == 2 || x.StopType == 3));
 
                 if (!dropoffStopValid)
                     return BadRequest(new { message = "Điểm trả không hợp lệ cho chuyến xe này" });

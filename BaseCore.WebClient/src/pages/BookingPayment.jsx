@@ -9,9 +9,9 @@ const HOLD_STORAGE_KEY = 'currentSeatHold';
 const PAYMENT_EXPIRES_KEY = 'paymentExpiresAt';
 
 const paymentMethods = [
-  { value: 'Tiền mặt', label: 'Tiền mặt', icon: 'fa-money-bill-wave' },
-  { value: 'Chuyển khoản ngân hàng', label: 'Chuyển khoản ngân hàng', icon: 'fa-building-columns' },
-  { value: 'Ví điện tử/VNPay giả lập', label: 'Ví điện tử/VNPay giả lập', icon: 'fa-wallet' },
+  { value: 'Cash', label: 'Tiền mặt', icon: 'fa-money-bill-wave' },
+  { value: 'BankTransfer', label: 'Chuyển khoản ngân hàng', icon: 'fa-building-columns' },
+  { value: 'VNPay', label: 'Ví điện tử/VNPay giả lập', icon: 'fa-wallet' },
 ];
 
 function readPendingBooking() {
@@ -43,8 +43,8 @@ function formatDateTime(value) {
 export default function BookingPayment() {
   const navigate = useNavigate();
   const [pendingBooking] = useState(() => readPendingBooking());
-  const [paymentMethod, setPaymentMethod] = useState('Chuyển khoản ngân hàng');
-  const [expiresAt, setExpiresAt] = useState(() => {
+  const [paymentMethod, setPaymentMethod] = useState('BankTransfer');
+  const [expiresAt] = useState(() => {
     const stored = localStorage.getItem(PAYMENT_EXPIRES_KEY);
     if (stored && Number(stored) > Date.now()) return Number(stored);
 
@@ -113,7 +113,8 @@ export default function BookingPayment() {
       navigate(`/booking/success/${bookingId}`, { replace: true });
     } catch (err) {
       const message = err.message || 'Không thể tạo booking.';
-      if (message.toLowerCase().includes('hết thời gian giữ') || message.toLowerCase().includes('het thoi gian')) {
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes('hết thời gian giữ') || lowerMessage.includes('het thoi gian')) {
         alert('Ghế đã hết thời gian giữ, vui lòng chọn lại ghế.');
         navigate(`/trips/${pendingBooking.tripId}/seats`);
         return;

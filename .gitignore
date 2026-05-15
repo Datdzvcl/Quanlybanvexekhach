@@ -1,0 +1,50 @@
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+
+# Build results
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+[Oo]ut/
+[Ll]og/
+
+# User-specific files
+*.rsuser
+*.userosscache
+*.sln.user
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Node modules (for web client)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Local environment files
+appsettings.Local.json
+.env
+.env.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+UpgradeLog*.htm

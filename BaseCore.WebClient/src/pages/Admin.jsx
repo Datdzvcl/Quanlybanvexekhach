@@ -1333,7 +1333,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, formatVND, labelBookingStatus, labelPaymentStatus, labelRole, labelTripStatus, normalizeTrip, pick } from "../api";
+import { apiFetch, formatVND, labelBookingStatus, labelPaymentMethod, labelPaymentStatus, labelRole, labelTripStatus, normalizeTrip, pick } from "../api";
 import { busApi } from "../services/busApi";
 import { bookingApi } from "../services/bookingApi";
 import { operatorApi } from "../services/operatorApi";
@@ -1757,7 +1757,7 @@ function InvoicesManager({ bookings, trips, onRefresh }) {
                       <div className="row"><span>Ghế:</span><span>{invoiceDetail.seats.join(", ")}</span></div>
                     )}
                     <div className="row"><span>Đơn giá:</span><span>{formatVND(invoiceDetail.trip?.price || 0)}</span></div>
-                    <div className="row"><span>Phương thức:</span><span>{invoiceDetail.paymentMethod}</span></div>
+                    <div className="row"><span>Phương thức:</span><span>{labelPaymentMethod(invoiceDetail.paymentMethod)}</span></div>
                     <div className="row"><span>Trạng thái:</span><span className="badge">{invoiceDetail.paymentStatus}</span></div>
                     <div className="row total"><span>TỔNG CỘNG:</span><span>{formatVND(invoiceDetail.totalPrice)}</span></div>
                   </div>
@@ -2454,7 +2454,7 @@ export function AdminBookingDetail({ bookingId }) {
           <div><span>Số điện thoại</span><b>{pick(booking, ["customerPhone", "CustomerPhone"], "Chưa rõ")}</b></div>
           <div><span>Email</span><b>{pick(booking, ["customerEmail", "CustomerEmail"], "Chưa rõ")}</b></div>
           <div><span>Tổng số tiền</span><b>{formatVND(pick(booking, ["totalPrice", "TotalPrice"], 0))}</b></div>
-          <div><span>Phương thức thanh toán</span><b>{pick(booking, ["paymentMethod", "PaymentMethod"], "Chưa rõ")}</b></div>
+          <div><span>Phương thức thanh toán</span><b>{labelPaymentMethod(pick(booking, ["paymentMethod", "PaymentMethod"], "Chưa rõ"))}</b></div>
           <div><span>Thanh toán</span><b><span className="badge">{labelPaymentStatus(paymentStatus)}</span></b></div>
           <div><span>Trạng thái đơn</span><b><span className="badge">{labelBookingStatus(status)}</span></b></div>
         </div>
@@ -2616,7 +2616,7 @@ function TransactionsManager({ transactions }) {
                   <td>{id}</td>
                   <td>{pick(item, ["customerName", "CustomerName"])}</td>
                   <td>{pick(item, ["route", "Route"]) || "Chưa rõ tuyến"}</td>
-                  <td>{pick(item, ["paymentMethod", "PaymentMethod"], "Chưa rõ")}</td>
+                  <td>{labelPaymentMethod(pick(item, ["paymentMethod", "PaymentMethod"], "Chưa rõ"))}</td>
                   <td><span className="badge">{getPaymentStatus(item)}</span></td>
                   <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
                   <td>{formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}</td>
@@ -3661,7 +3661,7 @@ const removeItem = async (id) => {
                 <div style={{fontWeight:'bold',marginBottom:6}}>Chi tiết vé</div>
                 <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',padding:'4px 0'}}><span style={{color:'#666'}}>Số ghế:</span><span>{invoiceDetail.totalSeats}</span></div>
                 {invoiceDetail.seats?.length>0 && <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',padding:'4px 0'}}><span style={{color:'#666'}}>Ghế:</span><span>{invoiceDetail.seats.join(', ')}</span></div>}
-                <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',padding:'4px 0'}}><span style={{color:'#666'}}>Phương thức:</span><span>{invoiceDetail.paymentMethod}</span></div>
+                <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',padding:'4px 0'}}><span style={{color:'#666'}}>Phương thức:</span><span>{labelPaymentMethod(invoiceDetail.paymentMethod)}</span></div>
                 <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',padding:'4px 0'}}><span style={{color:'#666'}}>Trạng thái:</span>
                   <span style={{padding:'2px 10px',borderRadius:20,background:invoiceDetail.paymentStatus==='Paid'?'#dcfce7':invoiceDetail.paymentStatus==='Cancelled'?'#fee2e2':'#fef9c3',color:invoiceDetail.paymentStatus==='Paid'?'#16a34a':invoiceDetail.paymentStatus==='Cancelled'?'#dc2626':'#854d0e',fontWeight:'bold',fontSize:12}}>{invoiceDetail.paymentStatus}</span>
                 </div>
@@ -3745,7 +3745,7 @@ const removeItem = async (id) => {
                   <td>{pick(item,["customerName","CustomerName"])}</td>
                   <td>{pick(item,["customerPhone","CustomerPhone"])}</td>
                   <td>{formatDateTime(pick(item,["bookingDate","BookingDate"]))}</td>
-                  <td>{pick(item,["paymentMethod","PaymentMethod"],"")}</td>
+                  <td>{labelPaymentMethod(pick(item,["paymentMethod","PaymentMethod"],""))}</td>
                   <td><span className="badge">{status}</span></td>
                   <td>{formatVND(pick(item,["totalPrice","TotalPrice"],0))}</td>
                   <td className="admin-actions">

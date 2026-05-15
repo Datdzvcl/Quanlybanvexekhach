@@ -18,7 +18,7 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirmPassword) {
-      alert('Mat khau xac nhan khong khop.');
+      alert('Mật khẩu xác nhận không khớp.');
       return;
     }
 
@@ -30,10 +30,10 @@ export default function Register() {
         phone: form.phone,
         password: form.password,
       });
-      alert('Dang ky thanh cong. Vui long dang nhap.');
+      alert('Đăng ký thành công. Vui lòng đăng nhập.');
       navigate('/login');
     } catch (err) {
-      alert(err.message || 'Dang ky that bai');
+      alert(err.message || 'Đăng ký thất bại');
     } finally {
       setLoading(false);
     }
@@ -47,16 +47,16 @@ export default function Register() {
       <div className="auth-wrap">
         <div className="auth-card">
           <div className="auth-title">
-            <h2><i className="fa-solid fa-bus" /> VeXeAZ</h2>
-            <p>Tao tai khoan moi</p>
+            <h2><i className="fa-solid fa-bus" /> VéXeAZ</h2>
+            <p>Tạo tài khoản mới</p>
           </div>
           <form onSubmit={submit}>
             {[
-              ['fullName', 'Ho va ten', 'text'],
+              ['fullName', 'Họ và tên', 'text'],
               ['email', 'Email', 'email'],
-              ['phone', 'So dien thoai', 'tel'],
-              ['password', 'Mat khau', 'password'],
-              ['confirmPassword', 'Xac nhan mat khau', 'password'],
+              ['phone', 'Số điện thoại', 'tel'],
+              ['password', 'Mật khẩu', 'password'],
+              ['confirmPassword', 'Xác nhận mật khẩu', 'password'],
             ].map(([key, label, type]) => (
               <div className="form-group" key={key}>
                 <label>{label}</label>
@@ -69,10 +69,10 @@ export default function Register() {
               </div>
             ))}
             <button disabled={loading} className="btn btn-primary auth-btn">
-              {loading ? 'Dang dang ky...' : 'Dang Ky Ngay'}
+              {loading ? 'Đang đăng ký...' : 'Đăng ký ngay'}
             </button>
           </form>
-          <p className="auth-bottom">Da co tai khoan? <Link to="/login">Dang nhap</Link></p>
+          <p className="auth-bottom">Đã có tài khoản? <Link to="/login">Đăng nhập</Link></p>
         </div>
       </div>
     </>

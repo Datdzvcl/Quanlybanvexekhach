@@ -67,6 +67,32 @@ export const labelPaymentStatus = (status) => {
   return status || 'Chưa rõ';
 };
 
+export const labelPaymentMethod = (method) => {
+  const value = String(method || '').toLowerCase();
+  if (
+    value === 'cash' ||
+    value === 'tienmat' ||
+    value.includes('tiền mặt') ||
+    value.includes('tien mat') ||
+    value.includes('ti?n m?t') ||
+    value.includes('tiá»n máº·t')
+  ) return 'Tiền mặt';
+  if (
+    value === 'banktransfer' ||
+    value === 'chuyenkhoan' ||
+    value.includes('chuyển khoản') ||
+    value.includes('chuyen khoan') ||
+    value.includes('chuyá»ƒn khoáº£n')
+  ) return 'Chuyển khoản ngân hàng';
+  if (
+    value === 'vnpay' ||
+    value.includes('ví điện tử') ||
+    value.includes('vi dien tu') ||
+    value.includes('vÃ­ Ä‘iá»‡n tá»­')
+  ) return 'Ví điện tử/VNPay giả lập';
+  return method || 'Chưa rõ';
+};
+
 export const labelBookingStatus = (status) => {
   const value = String(status || '').toLowerCase();
   if (value === 'pendingconfirm') return 'Đợi xác nhận';
