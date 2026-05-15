@@ -1,7 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLayout from "../layouts/UserLayout";
-import { API_BASE } from "../api";
+
+const vietnamLocations = [
+  "An Giang",
+  "Bắc Ninh",
+  "Cà Mau",
+  "Cao Bằng",
+  "Cần Thơ",
+  "Đà Nẵng",
+  "Đắk Lắk",
+  "Điện Biên",
+  "Đồng Nai",
+  "Đồng Tháp",
+  "Gia Lai",
+  "Hà Nội",
+  "Hà Tĩnh",
+  "Hải Phòng",
+  "Huế",
+  "Hưng Yên",
+  "Khánh Hòa",
+  "Lai Châu",
+  "Lâm Đồng",
+  "Lạng Sơn",
+  "Lào Cai",
+  "Nghệ An",
+  "Ninh Bình",
+  "Phú Thọ",
+  "Quảng Ngãi",
+  "Quảng Ninh",
+  "Quảng Trị",
+  "Sơn La",
+  "Tây Ninh",
+  "Thái Nguyên",
+  "Thanh Hóa",
+  "TP. Hồ Chí Minh",
+  "Tuyên Quang",
+  "Vĩnh Long",
+];
 
 const offerItems = [
   {
@@ -67,10 +103,112 @@ function getToday() {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function formatDateLabel(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("vi-VN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function LocationPicker({ label, value, onChange, options, icon, accentClass, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const filteredOptions = useMemo(() => {
+    const keyword = normalizeText(value);
+    const source = keyword
+      ? options.filter((item) => normalizeText(item).includes(keyword))
+      : options;
+    return source.slice(0, 12);
+  }, [options, value]);
+
+  const selectLocation = (location) => {
+    onChange(location);
+    setOpen(false);
+  };
+
+  return (
+    <div className={`home-location-picker ${open ? "open" : ""}`}>
+      <i className={`fa-solid ${icon} ${accentClass}`} />
+      <label>
+        <span>{label}</span>
+        <input
+          value={value}
+          placeholder={placeholder}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setOpen(true);
+          }}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+        />
+      </label>
+
+      {open && (
+        <div className="home-location-menu">
+          <strong>Địa điểm phổ biến</strong>
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((location) => (
+              <button
+                type="button"
+                key={location}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectLocation(location)}
+              >
+                <i className="fa-solid fa-location-dot" />
+                <span>{location}</span>
+              </button>
+            ))
+          ) : (
+            <p>Không có gợi ý phù hợp. Bạn có thể nhập tay.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DatePickerField({ label, value, min, onChange, icon, emptyText }) {
+  const inputRef = useRef(null);
+
+  const openPicker = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+    input.focus();
+  };
+
+  return (
+    <button type="button" className="home-date-field" onClick={openPicker}>
+      <i className={`fa-solid ${icon}`} />
+      <span>{label}</span>
+      <strong>{value ? formatDateLabel(value) : emptyText}</strong>
+      <input
+        ref={inputRef}
+        type="date"
+        min={min}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+      />
+    </button>
+  );
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const today = useMemo(() => getToday(), []);
-  const [locations, setLocations] = useState([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     from: "",
@@ -80,11 +218,8 @@ export default function Home() {
     returnDate: "",
   });
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/trips/locations`)
-      .then((response) => (response.ok ? response.json() : []))
-      .then((data) => setLocations(Array.isArray(data) ? data : []))
-      .catch(() => setLocations([]));
+  const locationOptions = useMemo(() => {
+    return vietnamLocations;
   }, []);
 
   const updateForm = (key, value) => {
@@ -94,6 +229,15 @@ export default function Home() {
       if (key === "isRoundTrip" && !value) next.returnDate = "";
       return next;
     });
+  };
+
+  const swapLocations = () => {
+    setError("");
+    setForm((current) => ({
+      ...current,
+      from: current.to,
+      to: current.from,
+    }));
   };
 
   const validate = () => {
@@ -152,85 +296,70 @@ export default function Home() {
             </p>
           </div>
 
-          <form className="featured-search" onSubmit={submit}>
-            <div className="featured-search-head">
-              <div>
-                <strong>Tìm chuyến xe</strong>
-                <span>So sánh nhà xe và giá vé theo lịch trình của bạn</span>
-              </div>
-              <label className="round-trip-toggle">
-                <input
-                  type="checkbox"
-                  checked={form.isRoundTrip}
-                  onChange={(event) =>
-                    updateForm("isRoundTrip", event.target.checked)
-                  }
-                />
-                <span>Khứ hồi</span>
-              </label>
-            </div>
-
-            <div className="featured-search-grid">
-              <label className="search-field">
-                <span>Điểm xuất phát</span>
-                <input
-                  list="home-locations"
-                  value={form.from}
-                  onChange={(event) => updateForm("from", event.target.value)}
-                  placeholder="Ví dụ: Hà Nội"
-                />
-              </label>
-
-              <label className="search-field">
-                <span>Điểm đến</span>
-                <input
-                  list="home-locations"
-                  value={form.to}
-                  onChange={(event) => updateForm("to", event.target.value)}
-                  placeholder="Ví dụ: Đà Nẵng"
-                />
-              </label>
-
-              <label className="search-field">
-                <span>Ngày đi</span>
-                <input
-                  type="date"
-                  min={today}
-                  value={form.departureDate}
-                  onChange={(event) =>
-                    updateForm("departureDate", event.target.value)
-                  }
-                />
-              </label>
-
-              {form.isRoundTrip && (
-                <label className="search-field">
-                  <span>Ngày về</span>
-                  <input
-                    type="date"
-                    min={form.departureDate || today}
-                    value={form.returnDate}
-                    onChange={(event) =>
-                      updateForm("returnDate", event.target.value)
-                    }
-                  />
-                </label>
-              )}
+          <form className="featured-search modern-home-search" onSubmit={submit}>
+            <div className="home-search-widget">
+              <LocationPicker
+                label="Nơi xuất phát"
+                value={form.from}
+                onChange={(value) => updateForm("from", value)}
+                options={locationOptions}
+                icon="fa-circle-dot"
+                accentClass="from"
+                placeholder="Chọn điểm đi"
+              />
 
               <button
-                type="submit"
-                className="btn btn-primary featured-search-button"
+                type="button"
+                className="home-swap-button"
+                onClick={swapLocations}
+                aria-label="Đổi điểm đi và điểm đến"
               >
-                <i className="fa-solid fa-magnifying-glass" />
-                Tìm chuyến xe
+                <i className="fa-solid fa-right-left" />
+              </button>
+
+              <LocationPicker
+                label="Nơi đến"
+                value={form.to}
+                onChange={(value) => updateForm("to", value)}
+                options={locationOptions}
+                icon="fa-location-dot"
+                accentClass="to"
+                placeholder="Chọn điểm đến"
+              />
+
+              <DatePickerField
+                label="Ngày đi"
+                value={form.departureDate}
+                min={today}
+                onChange={(value) => updateForm("departureDate", value)}
+                icon="fa-calendar-days"
+                emptyText="Chọn ngày đi"
+              />
+
+              {form.isRoundTrip ? (
+                <DatePickerField
+                  label="Ngày về"
+                  value={form.returnDate}
+                  min={form.departureDate || today}
+                  onChange={(value) => updateForm("returnDate", value)}
+                  icon="fa-calendar-plus"
+                  emptyText="Chọn ngày về"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="home-return-button"
+                  onClick={() => updateForm("isRoundTrip", true)}
+                >
+                  <i className="fa-solid fa-plus" />
+                  Thêm ngày về
+                </button>
+              )}
+
+              <button type="submit" className="home-search-button">
+                Tìm kiếm
               </button>
             </div>
-
-            <datalist id="home-locations">
-              {locations.map((location) => (
-                <option key={location} value={location} />
-              ))}
-            </datalist>
 
             {error && <p className="search-error">{error}</p>}
           </form>

@@ -2143,8 +2143,9 @@ a:hover,
   min-height: 640px;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   background: #0f4fb8;
+  z-index: 1;
 }
 
 .home-hero-media {
@@ -2166,9 +2167,9 @@ a:hover,
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1fr);
-  gap: 34px;
-  align-items: center;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  align-items: start;
   padding-top: 64px;
   padding-bottom: 64px;
 }
@@ -4703,5 +4704,323 @@ a:hover,
     width: 100%;
     margin-left: 0;
     margin-top: 15px;
+  }
+}
+
+/* --- Home search box with province suggestions --- */
+.modern-home-search {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+  z-index: 30;
+}
+
+.home-search-widget {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.95fr) 170px;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(15, 79, 184, 0.2);
+  min-height: 70px;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.home-location-picker,
+.home-date-field,
+.home-return-button {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-right: 1px solid #edf2f7;
+  background: #fff;
+}
+
+.home-search-widget > .home-location-picker:first-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.home-search-widget > .home-search-button:last-child {
+  border-radius: 0 12px 12px 0;
+}
+
+.home-date-field,
+.home-return-button,
+.home-search-button {
+  min-height: 70px;
+}
+
+.home-location-picker.open {
+  box-shadow: inset 0 -3px 0 #2563eb;
+  z-index: 120;
+}
+
+.home-location-picker > i,
+.home-date-field > i {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: 1.45rem;
+}
+
+.home-location-picker > i.from,
+.home-date-field > i {
+  color: #2563eb;
+}
+
+.home-location-picker > i.to {
+  color: #ef4444;
+}
+
+.home-location-picker label,
+.home-date-field {
+  min-width: 0;
+}
+
+.home-location-picker label,
+.home-date-field {
+  cursor: pointer;
+}
+
+.home-location-picker span,
+.home-date-field span {
+  display: block;
+  color: #9ca3af;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.home-location-picker input,
+.home-date-field input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 0;
+}
+
+.home-location-picker input::placeholder {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.home-date-field {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 12px;
+  align-content: center;
+  border-top: 0;
+  border-left: 0;
+  border-bottom: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-date-field i {
+  grid-row: 1 / span 2;
+}
+
+.home-date-field input {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.home-date-field strong {
+  color: #111827;
+  font-size: 1.02rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-swap-button {
+  position: absolute;
+  z-index: 130;
+  top: 50%;
+  left: calc((100% - 170px) * 0.276);
+  transform: translate(-50%, -50%);
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #374151;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.home-swap-button:hover {
+  background: #2563eb;
+  color: #fff;
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+.home-return-button {
+  border: 0;
+  color: #2563eb;
+  font-size: 1.02rem;
+  font-weight: 800;
+  cursor: pointer;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.home-return-button i {
+  font-size: 1.25rem;
+}
+
+.home-return-button:hover {
+  background: #eff6ff;
+}
+
+.home-search-button {
+  margin: 0;
+  border: 0;
+  border-radius: 9px;
+  background: #ffd43b;
+  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.home-search-button:hover {
+  background: #ffca1a;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(217, 119, 6, 0.22);
+}
+
+.home-location-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  width: min(470px, 92vw);
+  max-height: 470px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #d7e5fb;
+  border-radius: 8px;
+  box-shadow: 0 22px 42px rgba(15, 23, 42, 0.22);
+  padding: 14px 20px 4px;
+  z-index: 999;
+}
+
+.home-location-menu strong {
+  display: block;
+  color: #9ca3af;
+  font-size: 1rem;
+  margin: 4px 0 8px;
+}
+
+.home-location-menu button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+  background: transparent;
+  color: #374151;
+  font-size: 1rem;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-location-menu button:hover {
+  color: #0f4fb8;
+  background: #f8fbff;
+}
+
+.home-location-menu button i {
+  color: #aab4c1;
+  font-size: 1.2rem;
+}
+
+.home-location-menu p {
+  color: #64748b;
+  padding: 12px 0 18px;
+}
+
+@media (max-width: 1100px) {
+  .home-search-widget {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .home-swap-button {
+    left: 50%;
+  }
+
+  .home-date-field,
+  .home-return-button,
+  .home-search-button {
+    min-height: 64px;
+    border-top: 1px solid #edf2f7;
+  }
+
+  .home-date-field {
+    grid-column: span 1;
+  }
+
+  .home-return-button {
+    grid-column: span 1;
+  }
+
+  .home-search-button {
+    grid-column: 1 / -1;
+    min-height: 58px;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-search-widget {
+    grid-template-columns: 1fr;
+  }
+
+  .home-location-picker,
+  .home-date-field,
+  .home-return-button {
+    border-right: 0;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .home-swap-button {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: rotate(90deg);
+    justify-self: center;
+    margin: -12px 0;
+  }
+
+  .home-swap-button:hover {
+    transform: rotate(270deg);
   }
 }
