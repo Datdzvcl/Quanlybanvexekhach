@@ -12,12 +12,20 @@ export const ADMIN_MENU = [
   { id: 'settings', label: 'Cài đặt', icon: 'fa-gear' },
 ];
 
-export default function AdminLayout({ active, onActiveChange, children }) {
+export default function AdminLayout({
+  active,
+  onActiveChange,
+  children,
+  menu = ADMIN_MENU,
+  brandLabel = 'VéXeAZ',
+  subtitle = 'Quản trị hệ thống đặt vé xe khách',
+  defaultTitle = 'Quản trị',
+}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const title = ADMIN_MENU.find((item) => item.id === active)?.label || 'Quản trị';
+  const title = menu.find((item) => item.id === active)?.label || defaultTitle;
   const displayName = user?.fullName || user?.email || 'Admin';
 
   useEffect(() => {
@@ -38,13 +46,20 @@ export default function AdminLayout({ active, onActiveChange, children }) {
   return (
     <div className="admin-layout">
       <aside className="admin-layout-sidebar">
-        <Link className="admin-layout-brand" to="/admin/dashboard" onClick={() => onActiveChange('dashboard')}>
+        <Link
+          className="admin-layout-brand"
+          to="/"
+          onClick={(event) => {
+            event.preventDefault();
+            onActiveChange('dashboard');
+          }}
+        >
           <span><i className="fa-solid fa-bus" /></span>
-          <strong>VéXeAZ</strong>
+          <strong>{brandLabel}</strong>
         </Link>
 
         <nav className="admin-layout-nav">
-          {ADMIN_MENU.map((item) => (
+          {menu.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -73,7 +88,7 @@ export default function AdminLayout({ active, onActiveChange, children }) {
         <header className="admin-layout-header">
           <div>
             <h1>{title}</h1>
-            <p>Quản trị hệ thống đặt vé xe khách</p>
+            <p>{subtitle}</p>
           </div>
 
           <div className="admin-layout-user" ref={dropdownRef}>

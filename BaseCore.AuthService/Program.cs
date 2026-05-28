@@ -134,6 +134,42 @@ using (var scope = app.Services.CreateScope())
         existingAdmin.Role = RoleConstant.Admin;
         await dbContext.SaveChangesAsync();
     }
+
+    var operatorSeeds = new[]
+    {
+        new { FullName = "Nha xe Phuong Trang", Email = "operator.phuongtrang@vexeaz.vn", Phone = "19006067" },
+        new { FullName = "Nha xe Thanh Buoi", Email = "operator.thanhbuoi@vexeaz.vn", Phone = "19006079" },
+        new { FullName = "Nha xe Hai Van", Email = "operator.haivan@vexeaz.vn", Phone = "19006763" },
+        new { FullName = "Nha xe Sao Viet", Email = "operator.saoviet@vexeaz.vn", Phone = "19006746" }
+    };
+
+    foreach (var seed in operatorSeeds)
+    {
+        var operatorAccount = await dbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == seed.Email || u.Phone == seed.Phone);
+
+        if (operatorAccount == null)
+        {
+            await dbContext.Users.AddAsync(new User
+            {
+                FullName = seed.FullName,
+                Email = seed.Email,
+                Phone = seed.Phone,
+                PasswordHash = TokenHelper.CreatePasswordHash("operator123"),
+                Role = RoleConstant.Operator,
+                CreatedAt = DateTime.Now
+            });
+            continue;
+        }
+
+        operatorAccount.FullName = seed.FullName;
+        operatorAccount.Email = seed.Email;
+        operatorAccount.Phone = seed.Phone;
+        operatorAccount.Role = RoleConstant.Operator;
+        operatorAccount.PasswordHash = TokenHelper.CreatePasswordHash("operator123");
+    }
+
+    await dbContext.SaveChangesAsync();
 }
 
 // Configure the HTTP request pipeline.

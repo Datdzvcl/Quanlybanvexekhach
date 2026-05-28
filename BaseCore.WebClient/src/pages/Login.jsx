@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { isAdminRole } from '../api';
+import { isAdminRole, isOperatorRole } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -18,7 +18,8 @@ export default function Login() {
         emailOrPhone: form.emailOrPhone.trim(),
         password: form.password,
       });
-      navigate(isAdminRole(user.role) ? '/admin' : '/', { replace: true });
+      const target = isAdminRole(user.role) ? '/admin' : isOperatorRole(user.role) ? '/operator' : '/';
+      navigate(target, { replace: true });
     } catch (err) {
       alert(err.message || 'Đăng nhập thất bại. Kiểm tra email/số điện thoại, mật khẩu và AuthService.');
     } finally {

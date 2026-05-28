@@ -54,6 +54,8 @@ export const normalizeUser = (data) => {
 };
 
 export const isAdminRole = (role) => String(role || '').toLowerCase() === 'admin';
+export const isOperatorRole = (role) => String(role || '').toLowerCase() === 'operator';
+export const isManagementRole = (role) => isAdminRole(role) || isOperatorRole(role);
 
 export const formatVND = (value) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
