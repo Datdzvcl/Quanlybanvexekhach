@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using BaseCore.Common;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -47,6 +48,10 @@ namespace BaseCore.APIService.Controllers
                     x.AvailableSeats,
                     x.Status,
                     BusType      = x.Bus != null ? x.Bus.BusType      : null,
+                    BusImageUrl = x.Bus != null ? x.Bus.ImageUrl : null,
+                    Amenities = x.Bus != null ? x.Bus.Amenities : null,
+                    SeatLayoutType = x.Bus != null ? x.Bus.SeatLayoutType : null,
+                    SeatLayout = x.Bus != null ? x.Bus.SeatLayout : null,
                     OperatorName = x.Bus != null && x.Bus.Operator != null ? x.Bus.Operator.Name : null
                 })
                 .ToListAsync();
@@ -126,6 +131,10 @@ namespace BaseCore.APIService.Controllers
                     x.Status,
                     BusType = x.Bus != null ? x.Bus.BusType : null,
                     LicensePlate = x.Bus != null ? x.Bus.LicensePlate : null,
+                    BusImageUrl = x.Bus != null ? x.Bus.ImageUrl : null,
+                    Amenities = x.Bus != null ? x.Bus.Amenities : null,
+                    SeatLayoutType = x.Bus != null ? x.Bus.SeatLayoutType : null,
+                    SeatLayout = x.Bus != null ? x.Bus.SeatLayout : null,
                     OperatorID = x.Bus != null ? x.Bus.OperatorID : (int?)null,
                     OperatorName = x.Bus != null && x.Bus.Operator != null ? x.Bus.Operator.Name : null
                 })
@@ -171,7 +180,11 @@ namespace BaseCore.APIService.Controllers
                         x.Bus.OperatorID,
                         x.Bus.LicensePlate,
                         x.Bus.Capacity,
-                        x.Bus.BusType
+                        x.Bus.BusType,
+                        x.Bus.ImageUrl,
+                        x.Bus.Amenities,
+                        x.Bus.SeatLayoutType,
+                        x.Bus.SeatLayout
                     },
                     Operator = x.Bus == null || x.Bus.Operator == null ? null : new
                     {
@@ -246,8 +259,8 @@ namespace BaseCore.APIService.Controllers
 
             if (!string.IsNullOrWhiteSpace(bookingStatus))
             {
-                var keyword = bookingStatus.Trim();
-                query = query.Where(x => x.BookingStatus == keyword);
+                var status = DomainCodes.ToBookingStatusCode(bookingStatus);
+                query = query.Where(x => x.BookingStatus == status);
             }
 
             if (!string.IsNullOrWhiteSpace(paymentStatus))
@@ -266,7 +279,11 @@ namespace BaseCore.APIService.Controllers
                     totalSeats = x.TotalSeats,
                     totalPrice = x.TotalPrice,
                     paymentStatus = x.PaymentStatus,
-                    bookingStatus = x.BookingStatus ?? "PendingConfirm",
+                    bookingStatus = x.BookingStatus == DomainCodes.BookingConfirmed ? "Confirmed" :
+                        x.BookingStatus == DomainCodes.BookingCancelRequested ? "CancelRequested" :
+                        x.BookingStatus == DomainCodes.BookingCancelled ? "Cancelled" :
+                        x.BookingStatus == DomainCodes.BookingCompleted ? "Completed" :
+                        "PendingConfirm",
                     bookingDate = x.BookingDate
                 })
                 .ToListAsync();
@@ -304,8 +321,8 @@ namespace BaseCore.APIService.Controllers
                 .Where(x =>
                     x.AvailableSeats > 0 &&
                     x.DepartureTime >= DateTime.Now &&
-                    x.Status != "Cancelled" &&
-                    x.Status != "Completed");
+                    x.Status != DomainCodes.TripCancelled &&
+                    x.Status != DomainCodes.TripCompleted);
 
             if (!string.IsNullOrWhiteSpace(from))
             {
@@ -365,6 +382,10 @@ namespace BaseCore.APIService.Controllers
                     operatorName = x.Bus != null && x.Bus.Operator != null ? x.Bus.Operator.Name : null,
                     operatorImageUrl = (string?)null,
                     busType = x.Bus != null ? x.Bus.BusType : null,
+                    busImageUrl = x.Bus != null ? x.Bus.ImageUrl : null,
+                    amenities = x.Bus != null ? x.Bus.Amenities : null,
+                    seatLayoutType = x.Bus != null ? x.Bus.SeatLayoutType : null,
+                    seatLayout = x.Bus != null ? x.Bus.SeatLayout : null,
                     licensePlate = x.Bus != null ? x.Bus.LicensePlate : null,
                     departureLocation = x.DepartureLocation,
                     arrivalLocation = x.ArrivalLocation,
@@ -462,20 +483,11 @@ namespace BaseCore.APIService.Controllers
             return Ok(all);
         }
 
-        private static string NormalizeStatus(string? status)
+        private static byte NormalizeStatus(string? status) => DomainCodes.ToTripStatusCode(status);
+
+        private static byte NormalizeStatus(byte status)
         {
-            var value = (status ?? string.Empty).Trim();
-            return value.ToLowerInvariant() switch
-            {
-                "active"    => "Scheduled",
-                "scheduled" => "Scheduled",
-                "on-going"  => "On-going",
-                "ongoing"   => "On-going",
-                "completed" => "Completed",
-                "cancelled" => "Cancelled",
-                "canceled"  => "Cancelled",
-                _           => "Scheduled"
-            };
+            return status <= DomainCodes.TripCancelled ? status : DomainCodes.TripScheduled;
         }
 
         private async Task<IActionResult?> ValidateTripRequest(Trip trip)
@@ -546,18 +558,18 @@ namespace BaseCore.APIService.Controllers
             return (sortBy ?? string.Empty).Trim().ToLowerInvariant() switch
             {
                 "price_asc" => query
-                    .OrderByDescending(x => x.Status == "Scheduled")
+                    .OrderByDescending(x => x.Status == DomainCodes.TripScheduled)
                     .ThenBy(x => x.Price)
                     .ThenBy(x => x.DepartureTime),
                 "price_desc" => query
-                    .OrderByDescending(x => x.Status == "Scheduled")
+                    .OrderByDescending(x => x.Status == DomainCodes.TripScheduled)
                     .ThenByDescending(x => x.Price)
                     .ThenBy(x => x.DepartureTime),
                 "departure_desc" => query
-                    .OrderByDescending(x => x.Status == "Scheduled")
+                    .OrderByDescending(x => x.Status == DomainCodes.TripScheduled)
                     .ThenByDescending(x => x.DepartureTime),
                 _ => query
-                    .OrderByDescending(x => x.Status == "Scheduled")
+                    .OrderByDescending(x => x.Status == DomainCodes.TripScheduled)
                     .ThenBy(x => x.DepartureTime)
             };
         }

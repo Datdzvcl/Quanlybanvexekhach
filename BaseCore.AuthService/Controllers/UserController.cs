@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BaseCore.Entities;
 using BaseCore.Services.Authen;
+using BaseCore.Common;
 using System.Security.Claims;
 
 namespace BaseCore.AuthService.Controllers
@@ -33,7 +34,7 @@ namespace BaseCore.AuthService.Controllers
                 FullName = u.FullName,
                 Email = u.Email,
                 Phone = u.Phone,
-                Role = u.Role,
+                Role = DomainCodes.ToRoleName(u.Role),
                 CreatedAt = u.CreatedAt
             });
 
@@ -61,7 +62,7 @@ namespace BaseCore.AuthService.Controllers
                 FullName = user.FullName,
                 Email = user.Email,
                 Phone = user.Phone,
-                Role = user.Role,
+                Role = DomainCodes.ToRoleName(user.Role),
                 CreatedAt = user.CreatedAt
             });
         }
@@ -83,7 +84,7 @@ namespace BaseCore.AuthService.Controllers
                     FullName = request.FullName ?? request.Email,
                     Email = request.Email,
                     Phone = request.Phone,
-                    Role = request.Role ?? "Customer",
+                    Role = DomainCodes.ToRoleCode(request.Role),
                     CreatedAt = DateTime.Now
                 };
 
@@ -95,7 +96,7 @@ namespace BaseCore.AuthService.Controllers
                     FullName = createdUser.FullName,
                     Email = createdUser.Email,
                     Phone = createdUser.Phone,
-                    Role = createdUser.Role,
+                    Role = DomainCodes.ToRoleName(createdUser.Role),
                     CreatedAt = createdUser.CreatedAt
                 });
             }
@@ -121,7 +122,8 @@ namespace BaseCore.AuthService.Controllers
             existingUser.Phone = request.Phone ?? existingUser.Phone;
             if (User.IsInRole("Admin"))
             {
-                existingUser.Role = request.Role ?? existingUser.Role;
+                if (!string.IsNullOrWhiteSpace(request.Role))
+                    existingUser.Role = DomainCodes.ToRoleCode(request.Role);
             }
 
             await _userService.Update(existingUser, request.Password);
@@ -132,7 +134,7 @@ namespace BaseCore.AuthService.Controllers
                 FullName = existingUser.FullName,
                 Email = existingUser.Email,
                 Phone = existingUser.Phone,
-                Role = existingUser.Role,
+                Role = DomainCodes.ToRoleName(existingUser.Role),
                 CreatedAt = existingUser.CreatedAt
             });
         }
@@ -166,7 +168,7 @@ namespace BaseCore.AuthService.Controllers
                 FullName = existingUser.FullName,
                 Email = existingUser.Email,
                 Phone = existingUser.Phone,
-                Role = existingUser.Role,
+                Role = DomainCodes.ToRoleName(existingUser.Role),
                 CreatedAt = existingUser.CreatedAt
             });
         }

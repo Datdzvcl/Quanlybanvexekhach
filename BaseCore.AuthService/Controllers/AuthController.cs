@@ -40,7 +40,7 @@ namespace BaseCore.AuthService.Controllers
             if (user == null)
                 return Unauthorized(new { message = "Invalid email/phone or password" });
 
-            var role = user.Role ?? RoleConstant.Customer;
+            var role = DomainCodes.ToRoleName(user.Role);
 
             var token = TokenHelper.GenerateToken(
                 _secretKey,
@@ -79,7 +79,7 @@ namespace BaseCore.AuthService.Controllers
                     FullName = request.FullName ?? request.Email.Trim(),
                     Email = request.Email.Trim(),
                     Phone = request.Phone.Trim(),
-                    Role = RoleConstant.Customer,
+                    Role = DomainCodes.RoleCustomer,
                     CreatedAt = DateTime.Now
                 };
 
@@ -124,7 +124,7 @@ namespace BaseCore.AuthService.Controllers
                 FullName = user.FullName,
                 Email = user.Email,
                 Phone = user.Phone,
-                Role = user.Role ?? RoleConstant.Customer
+                Role = DomainCodes.ToRoleName(user.Role)
             };
         }
     }

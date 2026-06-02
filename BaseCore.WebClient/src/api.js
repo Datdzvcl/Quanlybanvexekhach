@@ -41,6 +41,38 @@ export async function loginRequest(emailOrPhone, password) {
   return authApi.login({ emailOrPhone, password });
 }
 
+export const roleName = (role) => {
+  const value = String(role ?? '').toLowerCase();
+  if (value === '1' || value === 'admin') return 'Admin';
+  if (value === '2' || value === 'operator') return 'Operator';
+  return 'Customer';
+};
+
+export const tripStatusName = (status) => {
+  const value = String(status ?? '').toLowerCase();
+  if (value === '1' || value === 'on-going' || value === 'ongoing') return 'On-going';
+  if (value === '2' || value === 'completed') return 'Completed';
+  if (value === '3' || value === 'cancelled' || value === 'canceled') return 'Cancelled';
+  return 'Scheduled';
+};
+
+export const tripStatusCode = (status) => {
+  const name = tripStatusName(status);
+  if (name === 'On-going') return 1;
+  if (name === 'Completed') return 2;
+  if (name === 'Cancelled') return 3;
+  return 0;
+};
+
+export const bookingStatusName = (status) => {
+  const value = String(status ?? '').toLowerCase();
+  if (value === '1' || value === 'confirmed') return 'Confirmed';
+  if (value === '2' || value === 'cancelrequested') return 'CancelRequested';
+  if (value === '3' || value === 'cancelled' || value === 'canceled') return 'Cancelled';
+  if (value === '4' || value === 'completed') return 'Completed';
+  return 'PendingConfirm';
+};
+
 export const normalizeUser = (data) => {
   const rawUser = data?.user || data?.User || data || {};
   return {
@@ -49,12 +81,12 @@ export const normalizeUser = (data) => {
     fullName: rawUser?.fullName || rawUser?.FullName || rawUser?.name || '',
     email: rawUser?.email || rawUser?.Email || '',
     phone: rawUser?.phone || rawUser?.Phone || '',
-    role: rawUser?.role || rawUser?.Role || 'Customer',
+    role: roleName(rawUser?.role || rawUser?.Role || 'Customer'),
   };
 };
 
-export const isAdminRole = (role) => String(role || '').toLowerCase() === 'admin';
-export const isOperatorRole = (role) => String(role || '').toLowerCase() === 'operator';
+export const isAdminRole = (role) => roleName(role) === 'Admin';
+export const isOperatorRole = (role) => roleName(role) === 'Operator';
 export const isManagementRole = (role) => isAdminRole(role) || isOperatorRole(role);
 
 export const formatVND = (value) =>
@@ -69,48 +101,54 @@ export const labelPaymentStatus = (status) => {
   return status || 'Chưa rõ';
 };
 
+const normalizeVietnameseKeyword = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .trim()
+    .toLowerCase();
+
 export const labelPaymentMethod = (method) => {
-  const value = String(method || '').toLowerCase();
+  const value = String(method || '').trim().toLowerCase();
+  const normalized = normalizeVietnameseKeyword(value);
   if (
     value === 'cash' ||
-    value === 'tienmat' ||
-    value.includes('tiền mặt') ||
-    value.includes('tien mat') ||
-    value.includes('ti?n m?t') ||
-    value.includes('tiá»n máº·t')
+    normalized === 'tienmat' ||
+    normalized.includes('tien mat')
   ) return 'Tiền mặt';
   if (
     value === 'banktransfer' ||
-    value === 'chuyenkhoan' ||
-    value.includes('chuyển khoản') ||
-    value.includes('chuyen khoan') ||
-    value.includes('chuyá»ƒn khoáº£n')
+    normalized === 'chuyenkhoan' ||
+    normalized.includes('chuyen khoan')
   ) return 'Chuyển khoản ngân hàng';
   if (
     value === 'vnpay' ||
-    value.includes('ví điện tử') ||
-    value.includes('vi dien tu') ||
-    value.includes('vÃ­ Ä‘iá»‡n tá»­')
+    normalized.includes('vi dien tu')
   ) return 'Ví điện tử/VNPay giả lập';
   return method || 'Chưa rõ';
 };
 
 export const labelBookingStatus = (status) => {
-  const value = String(status || '').toLowerCase();
+  const normalized = bookingStatusName(status);
+  const value = normalized.toLowerCase();
   if (value === 'pendingconfirm') return 'Đợi xác nhận';
   if (value === 'confirmed') return 'Đã xác nhận';
   if (value === 'cancelrequested') return 'Yêu cầu hủy';
   if (value === 'cancelled' || value === 'canceled') return 'Đã hủy';
-  return status || 'Chưa rõ';
+  if (value === 'completed') return 'Hoàn thành';
+  return normalized || 'Chưa rõ';
 };
 
 export const labelTripStatus = (status) => {
-  const value = String(status || '').toLowerCase();
+  const normalized = tripStatusName(status);
+  const value = normalized.toLowerCase();
   if (value === 'scheduled' || value === 'active') return 'Đã lên lịch';
   if (value === 'on-going' || value === 'ongoing') return 'Đang chạy';
   if (value === 'completed') return 'Hoàn thành';
   if (value === 'cancelled' || value === 'canceled') return 'Đã hủy';
-  return status || 'Chưa rõ';
+  return normalized || 'Chưa rõ';
 };
 
 export const labelSeatStatus = (status) => {
@@ -123,11 +161,12 @@ export const labelSeatStatus = (status) => {
 };
 
 export const labelRole = (role) => {
-  const value = String(role || '').toLowerCase();
+  const normalized = roleName(role);
+  const value = normalized.toLowerCase();
   if (value === 'admin') return 'Quản trị viên';
   if (value === 'customer') return 'Khách hàng';
   if (value === 'operator') return 'Nhà xe';
-  return role || 'Chưa rõ';
+  return normalized || 'Chưa rõ';
 };
 
 export function normalizeTrip(t) {
@@ -149,6 +188,6 @@ export function normalizeTrip(t) {
     busType: pick(t, ['busType', 'BusType', 'type', 'Type'], pick(rawBus, ['busType', 'BusType'])),
     price: Number(pick(t, ['price', 'Price'], 0)),
     availableSeats: Number(pick(t, ['availableSeats', 'AvailableSeats'], 0)),
-    status: pick(t, ['status', 'Status'], ''),
+    status: tripStatusName(pick(t, ['status', 'Status'], 'Scheduled')),
   };
 }

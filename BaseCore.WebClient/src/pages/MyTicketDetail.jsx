@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, labelBookingStatus, labelPaymentMethod, labelPaymentStatus, pick } from '../api';
+import { bookingStatusName, formatVND, labelBookingStatus, labelPaymentMethod, labelPaymentStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 
 function formatDateTime(value) {
@@ -118,7 +118,7 @@ export default function MyTicketDetail() {
   const operator = booking.operatorInfo || booking.OperatorInfo || {};
   const seatLabels = booking.seatLabels || booking.SeatLabels || [];
   const paymentStatus = pick(booking, ['paymentStatus', 'PaymentStatus'], '--');
-  const bookingStatus = pick(booking, ['bookingStatus', 'BookingStatus'], '--');
+  const bookingStatus = bookingStatusName(pick(booking, ['bookingStatus', 'BookingStatus'], '--'));
   const canRequestCancel = !['Cancelled', 'CancelRequested'].includes(String(bookingStatus));
   const code = qrValue(booking);
 

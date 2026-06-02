@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
+using BaseCore.Common;
 
 namespace BaseCore.Repository
 {
@@ -39,6 +40,10 @@ namespace BaseCore.Repository
 
                 entity.Property(e => e.LicensePlate).HasMaxLength(20).IsRequired();
                 entity.Property(e => e.BusType).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.ImageUrl).HasMaxLength(500);
+                entity.Property(e => e.Amenities).HasMaxLength(500);
+                entity.Property(e => e.SeatLayoutType).HasMaxLength(50);
+                entity.Property(e => e.SeatLayout).HasMaxLength(4000);
 
                 entity.HasOne(e => e.Operator)
                       .WithMany(e => e.Buses)
@@ -54,7 +59,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.DepartureLocation).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.ArrivalLocation).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.Price).HasPrecision(18, 2);
-                entity.Property(e => e.Status).HasMaxLength(20);
+                entity.Property(e => e.Status).HasDefaultValue(DomainCodes.TripScheduled);
 
                 entity.HasOne(e => e.Bus)
                       .WithMany(e => e.Trips)
@@ -88,7 +93,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.TotalPrice).HasPrecision(18, 2);
                 entity.Property(e => e.PaymentMethod).HasMaxLength(20);
                 entity.Property(e => e.PaymentStatus).HasMaxLength(20);
-                entity.Property(e => e.BookingStatus).HasMaxLength(30);
+                entity.Property(e => e.BookingStatus).HasDefaultValue(DomainCodes.BookingPendingConfirm);
                 entity.Property(e => e.PickupStopID);
                 entity.Property(e => e.DropoffStopID);
                 entity.Property(e => e.CancelReason).HasMaxLength(300);
@@ -111,11 +116,8 @@ namespace BaseCore.Repository
 
                 entity.Property(e => e.SeatLabel).HasMaxLength(10).IsRequired();
                 entity.Property(e => e.SessionId).HasMaxLength(100);
-                entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+                entity.Property(e => e.Status).HasDefaultValue(DomainCodes.SeatHoldHolding);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("getdate()");
-                entity.HasIndex(e => new { e.TripID, e.SeatLabel })
-                      .IsUnique()
-                      .HasFilter("[Status] = 'Holding'");
 
                 entity.HasOne(e => e.Trip)
                       .WithMany(e => e.SeatHolds)
@@ -140,6 +142,7 @@ namespace BaseCore.Repository
 
                 entity.Property(e => e.SeatLabel).HasMaxLength(10).IsRequired();
                 entity.Property(e => e.QRCode);
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
 
                 entity.HasOne(e => e.Booking)
                       .WithMany(e => e.TicketSeats)
@@ -156,7 +159,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.Email).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.Phone).HasMaxLength(20).IsRequired();
                 entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
-                entity.Property(e => e.Role).HasMaxLength(20);
+                entity.Property(e => e.Role).HasDefaultValue(DomainCodes.RoleCustomer);
                 entity.Property(e => e.CreatedAt);
 
                 entity.HasIndex(e => e.Email).IsUnique();

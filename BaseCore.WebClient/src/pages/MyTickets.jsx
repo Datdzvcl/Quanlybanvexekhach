@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
-import { formatVND, labelBookingStatus, labelPaymentStatus, pick } from '../api';
+import { bookingStatusName, formatVND, labelBookingStatus, labelPaymentStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 
 function formatDateTime(value) {
@@ -85,7 +85,7 @@ export default function MyTickets() {
             {bookings.map((item) => {
               const bookingId = pick(item, ['bookingID', 'BookingID', 'bookingId', 'id']);
               const paymentStatus = pick(item, ['paymentStatus', 'PaymentStatus'], '--');
-              const bookingStatus = pick(item, ['bookingStatus', 'BookingStatus'], '--');
+              const bookingStatus = bookingStatusName(pick(item, ['bookingStatus', 'BookingStatus'], '--'));
               const seatLabels = pick(item, ['seatLabels', 'SeatLabels'], []);
               const canRequestCancel = !['Cancelled', 'CancelRequested'].includes(String(bookingStatus));
 

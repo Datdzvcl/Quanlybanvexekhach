@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using BaseCore.Common;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -39,7 +41,7 @@ namespace BaseCore.APIService.Controllers
                     scope.User.FullName,
                     scope.User.Email,
                     scope.User.Phone,
-                    scope.User.Role
+                    Role = DomainCodes.ToRoleName(scope.User.Role)
                 }
             });
         }
@@ -127,7 +129,11 @@ namespace BaseCore.APIService.Controllers
                     OperatorID = x.OperatorID,
                     LicensePlate = x.LicensePlate,
                     Capacity = x.Capacity,
-                    BusType = x.BusType
+                    BusType = x.BusType,
+                    ImageUrl = x.ImageUrl,
+                    Amenities = x.Amenities,
+                    SeatLayoutType = x.SeatLayoutType,
+                    SeatLayout = x.SeatLayout
                 })
                 .ToListAsync();
 
@@ -157,7 +163,11 @@ namespace BaseCore.APIService.Controllers
                     OperatorID = x.OperatorID,
                     LicensePlate = x.LicensePlate,
                     Capacity = x.Capacity,
-                    BusType = x.BusType
+                    BusType = x.BusType,
+                    ImageUrl = x.ImageUrl,
+                    Amenities = x.Amenities,
+                    SeatLayoutType = x.SeatLayoutType,
+                    SeatLayout = x.SeatLayout
                 })
                 .FirstOrDefaultAsync();
 
@@ -183,7 +193,11 @@ namespace BaseCore.APIService.Controllers
                 OperatorID = scope.Operator.OperatorID,
                 LicensePlate = request.LicensePlate.Trim(),
                 Capacity = request.Capacity,
-                BusType = request.BusType.Trim()
+                BusType = request.BusType.Trim(),
+                ImageUrl = NormalizeOptionalText(request.ImageUrl),
+                Amenities = NormalizeAmenitiesForStorage(request.Amenities),
+                SeatLayoutType = NormalizeOptionalText(request.SeatLayoutType),
+                SeatLayout = NormalizeOptionalText(request.SeatLayout)
             };
 
             _context.Buses.Add(bus);
@@ -195,7 +209,11 @@ namespace BaseCore.APIService.Controllers
                 OperatorID = bus.OperatorID,
                 LicensePlate = bus.LicensePlate,
                 Capacity = bus.Capacity,
-                BusType = bus.BusType
+                BusType = bus.BusType,
+                ImageUrl = bus.ImageUrl,
+                Amenities = bus.Amenities,
+                SeatLayoutType = bus.SeatLayoutType,
+                SeatLayout = bus.SeatLayout
             }));
         }
 
@@ -230,6 +248,14 @@ namespace BaseCore.APIService.Controllers
             bus.LicensePlate = request.LicensePlate.Trim();
             bus.Capacity = request.Capacity;
             bus.BusType = request.BusType.Trim();
+            if (request.ImageUrl != null)
+                bus.ImageUrl = NormalizeOptionalText(request.ImageUrl);
+            if (request.Amenities != null)
+                bus.Amenities = NormalizeAmenitiesForStorage(request.Amenities);
+            if (request.SeatLayoutType != null)
+                bus.SeatLayoutType = NormalizeOptionalText(request.SeatLayoutType);
+            if (request.SeatLayout != null)
+                bus.SeatLayout = NormalizeOptionalText(request.SeatLayout);
 
             await _context.SaveChangesAsync();
 
@@ -239,7 +265,11 @@ namespace BaseCore.APIService.Controllers
                 OperatorID = bus.OperatorID,
                 LicensePlate = bus.LicensePlate,
                 Capacity = bus.Capacity,
-                BusType = bus.BusType
+                BusType = bus.BusType,
+                ImageUrl = bus.ImageUrl,
+                Amenities = bus.Amenities,
+                SeatLayoutType = bus.SeatLayoutType,
+                SeatLayout = bus.SeatLayout
             }));
         }
 
@@ -488,7 +518,7 @@ namespace BaseCore.APIService.Controllers
                     ArrivalTime = baseTrip.ArrivalTime.AddDays(dayOffset),
                     Price = baseTrip.Price,
                     AvailableSeats = baseTrip.Bus?.Capacity ?? baseTrip.AvailableSeats,
-                    Status = "Scheduled"
+                    Status = DomainCodes.TripScheduled
                 };
 
                 _context.Trips.Add(trip);
@@ -671,7 +701,7 @@ namespace BaseCore.APIService.Controllers
                 return null;
 
             var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.UserID == userId);
-            if (user == null || !string.Equals(user.Role, "Operator", StringComparison.OrdinalIgnoreCase))
+            if (user == null || user.Role != DomainCodes.RoleOperator)
                 return null;
 
             var email = user.Email.Trim();
@@ -829,13 +859,13 @@ namespace BaseCore.APIService.Controllers
                 trip.ArrivalTime,
                 trip.Price,
                 trip.AvailableSeats,
-                trip.Status,
+                Status = DomainCodes.ToTripStatusName(trip.Status),
                 EstimatedDurationMinutes = Math.Max(0, (int)Math.Round((trip.ArrivalTime - trip.DepartureTime).TotalMinutes)),
                 BusType = trip.Bus?.BusType,
                 LicensePlate = trip.Bus?.LicensePlate,
                 Capacity = trip.Bus?.Capacity ?? 0,
-                Amenities = BuildAmenities(trip.Bus?.BusType),
-                BusImageUrl = BuildBusImageUrl(trip.Bus?.BusType)
+                Amenities = ReadAmenities(trip.Bus?.Amenities),
+                BusImageUrl = trip.Bus?.ImageUrl
             };
         }
 
@@ -851,7 +881,7 @@ namespace BaseCore.APIService.Controllers
                 trip.ArrivalTime,
                 trip.Price,
                 trip.AvailableSeats,
-                trip.Status,
+                Status = DomainCodes.ToTripStatusName(trip.Status),
                 EstimatedDurationMinutes = Math.Max(0, (int)Math.Round((trip.ArrivalTime - trip.DepartureTime).TotalMinutes)),
                 Bus = trip.Bus == null ? null : ProjectBus(new BusListItem
                 {
@@ -859,7 +889,11 @@ namespace BaseCore.APIService.Controllers
                     OperatorID = trip.Bus.OperatorID,
                     LicensePlate = trip.Bus.LicensePlate,
                     Capacity = trip.Bus.Capacity,
-                    BusType = trip.Bus.BusType
+                    BusType = trip.Bus.BusType,
+                    ImageUrl = trip.Bus.ImageUrl,
+                    Amenities = trip.Bus.Amenities,
+                    SeatLayoutType = trip.Bus.SeatLayoutType,
+                    SeatLayout = trip.Bus.SeatLayout
                 }),
                 StopPoints = trip.StopPoints
                     .Where(x => x.IsActive)
@@ -887,91 +921,68 @@ namespace BaseCore.APIService.Controllers
                 bus.LicensePlate,
                 bus.Capacity,
                 bus.BusType,
-                LayoutType = ResolveLayoutType(bus.BusType),
-                Amenities = BuildAmenities(bus.BusType),
-                ImageUrl = BuildBusImageUrl(bus.BusType),
-                SeatMap = BuildSeatMap(bus.BusType, bus.Capacity)
+                LayoutType = bus.SeatLayoutType,
+                Amenities = ReadAmenities(bus.Amenities),
+                bus.ImageUrl,
+                SeatMap = ReadSeatLayout(bus.SeatLayout)
             };
         }
 
-        private static object BuildSeatMap(string? busType, int capacity)
+        private static List<string> ReadAmenities(string? amenities)
         {
-            var layoutType = ResolveLayoutType(busType);
-            var seatsPerRow = layoutType == "Limousine" ? 3 : 4;
-            var floors = layoutType == "Sleeper" ? 2 : 1;
-            var labels = GenerateSeatLabels(capacity, layoutType);
+            if (string.IsNullOrWhiteSpace(amenities))
+                return new List<string>();
 
-            return new
+            var value = amenities.Trim();
+            if (value.StartsWith("["))
             {
-                layoutType,
-                capacity,
-                floors,
-                seatsPerRow,
-                rows = (int)Math.Ceiling(capacity / (double)seatsPerRow),
-                seats = labels
-            };
-        }
+                try
+                {
+                    return JsonSerializer.Deserialize<List<string>>(value)?
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => x.Trim())
+                        .ToList() ?? new List<string>();
+                }
+                catch (JsonException)
+                {
+                    // Fall back to delimiter parsing below for legacy text values.
+                }
+            }
 
-        private static List<string> GenerateSeatLabels(int capacity, string layoutType)
-        {
-            var prefix = layoutType == "Limousine" ? "L" : layoutType == "Sleeper" ? "G" : "S";
-            return Enumerable.Range(1, Math.Max(0, capacity))
-                .Select(x => $"{prefix}{x:00}")
+            return value
+                .Split(new[] { ',', ';', '|', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
         }
 
-        private static string ResolveLayoutType(string? busType)
+        private static string? NormalizeAmenitiesForStorage(string? amenities)
         {
-            var value = (busType ?? string.Empty).ToLowerInvariant();
-            if (value.Contains("limousine"))
-                return "Limousine";
-
-            if (value.Contains("giuong") || value.Contains("giường") || value.Contains("cabin"))
-                return "Sleeper";
-
-            return "Seater";
+            var items = ReadAmenities(amenities);
+            return items.Count == 0 ? null : JsonSerializer.Serialize(items);
         }
 
-        private static List<string> BuildAmenities(string? busType)
+        private static JsonElement? ReadSeatLayout(string? seatLayout)
         {
-            var layoutType = ResolveLayoutType(busType);
-            var amenities = new List<string> { "Wifi", "Nuoc uong", "Cong sac" };
+            if (string.IsNullOrWhiteSpace(seatLayout))
+                return null;
 
-            if (layoutType == "Limousine")
-                amenities.AddRange(new[] { "Man hinh rieng", "Ghe massage" });
-
-            if (layoutType == "Sleeper")
-                amenities.AddRange(new[] { "Chan goi", "Rèm rieng tu" });
-
-            return amenities;
-        }
-
-        private static string BuildBusImageUrl(string? busType)
-        {
-            var layoutType = ResolveLayoutType(busType);
-            return layoutType switch
+            try
             {
-                "Limousine" => "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=900&q=80",
-                "Sleeper" => "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&w=900&q=80",
-                _ => "https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?auto=format&fit=crop&w=900&q=80"
-            };
+                return JsonSerializer.Deserialize<JsonElement>(seatLayout);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
         }
 
-        private static string NormalizeStatus(string? status)
+        private static string? NormalizeOptionalText(string? value)
         {
-            var value = (status ?? string.Empty).Trim();
-            return value.ToLowerInvariant() switch
-            {
-                "active" => "Scheduled",
-                "scheduled" => "Scheduled",
-                "on-going" => "On-going",
-                "ongoing" => "On-going",
-                "completed" => "Completed",
-                "cancelled" => "Cancelled",
-                "canceled" => "Cancelled",
-                _ => "Scheduled"
-            };
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
+
+        private static byte NormalizeStatus(string? status) => DomainCodes.ToTripStatusCode(status);
 
         private sealed record OperatorScope(User User, Operator Operator);
 
@@ -982,6 +993,10 @@ namespace BaseCore.APIService.Controllers
             public string LicensePlate { get; set; } = string.Empty;
             public int Capacity { get; set; }
             public string BusType { get; set; } = string.Empty;
+            public string? ImageUrl { get; set; }
+            public string? Amenities { get; set; }
+            public string? SeatLayoutType { get; set; }
+            public string? SeatLayout { get; set; }
         }
 
         public class OperatorBusRequest
@@ -989,6 +1004,10 @@ namespace BaseCore.APIService.Controllers
             public string LicensePlate { get; set; } = string.Empty;
             public int Capacity { get; set; }
             public string BusType { get; set; } = string.Empty;
+            public string? ImageUrl { get; set; }
+            public string? Amenities { get; set; }
+            public string? SeatLayoutType { get; set; }
+            public string? SeatLayout { get; set; }
         }
 
         public class OperatorTripRequest

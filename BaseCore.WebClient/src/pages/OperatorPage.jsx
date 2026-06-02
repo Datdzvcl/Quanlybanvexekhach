@@ -6,11 +6,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { operatorPortalApi } from '../services/operatorPortalApi';
 
 const OPERATOR_MENU = [
-  { id: 'dashboard', label: 'Tong quan', icon: 'fa-chart-line' },
-  { id: 'buses', label: 'Doi xe', icon: 'fa-bus' },
-  { id: 'trips', label: 'Lich khoi hanh', icon: 'fa-route' },
+  { id: 'dashboard', label: 'Thống kê', icon: 'fa-chart-line' },
+  { id: 'buses', label: 'Quản lý đội xe', icon: 'fa-bus' },
+  { id: 'trips', label: 'Quản lý chuyến xe', icon: 'fa-route' },
   { id: 'reports', label: 'Doanh thu', icon: 'fa-money-bill-wave' },
-  { id: 'settings', label: 'Tai khoan', icon: 'fa-gear' },
+  { id: 'settings', label: 'Cài đặt', icon: 'fa-gear' },
 ];
 
 const operatorPaths = {
@@ -25,7 +25,8 @@ const EMPTY_BUS = {
   busID: null,
   licensePlate: '',
   capacity: 34,
-  busType: 'Giuong nam 34 cho',
+  busType: 'Giường nằm 34 chỗ',
+  amenities: '',
 };
 
 const EMPTY_TRIP = {
@@ -43,6 +44,13 @@ const EMPTY_TRIP = {
     { stopName: '', stopAddress: '', stopOrder: 2, stopType: 3, arrivalOffset: 0 },
     { stopName: '', stopAddress: '', stopOrder: 3, stopType: 2, arrivalOffset: 0 },
   ],
+};
+
+const BUS_TYPE_LABELS = {
+  'giuong nam 34 cho': 'Giường nằm 34 chỗ',
+  'limousine 22 phong': 'Limousine 22 phòng',
+  'ghe ngoi 45 cho': 'Ghế ngồi 45 chỗ',
+  'cabin doi 22 phong': 'Cabin đôi 22 phòng',
 };
 
 export default function OperatorPage() {
@@ -70,9 +78,9 @@ export default function OperatorPage() {
       active={active}
       onActiveChange={handleActiveChange}
       menu={OPERATOR_MENU}
-      brandLabel="Nha xe"
-      subtitle="Cong quan ly rieng cho tai khoan nha xe"
-      defaultTitle="Nha xe"
+      brandLabel="VéXeAZ"
+      subtitle="Quản lý nhà xe"
+      defaultTitle="Nhà xe"
     >
       {active === 'dashboard' && <OperatorDashboard />}
       {active === 'buses' && <OperatorBuses />}
@@ -98,7 +106,7 @@ function OperatorDashboard() {
       setProfile(me);
       setStats(dashboard);
     } catch (err) {
-      alert(err.message || 'Khong tai duoc du lieu nha xe.');
+      alert(err.message || 'Không tải được dữ liệu nhà xe.');
     } finally {
       setLoading(false);
     }
@@ -108,14 +116,14 @@ function OperatorDashboard() {
     load();
   }, []);
 
-  if (loading) return <div className="admin-card">Dang tai du lieu...</div>;
+  if (loading) return <div className="admin-card">Đang tải dữ liệu...</div>;
 
   const cards = [
-    ['Tong xe', stats?.totalBuses || 0, 'fa-bus', '#2563eb'],
-    ['Tong chuyen', stats?.totalTrips || 0, 'fa-route', '#7c3aed'],
-    ['Chuyen sap chay', stats?.upcomingTrips || 0, 'fa-clock', '#0ea5e9'],
-    ['Chuyen hom nay', stats?.todayTrips || 0, 'fa-calendar-day', '#16a34a'],
-    ['Don dat ve', stats?.totalBookings || 0, 'fa-ticket', '#db2777'],
+    ['Tổng xe', stats?.totalBuses || 0, 'fa-bus', '#2563eb'],
+    ['Tổng chuyến', stats?.totalTrips || 0, 'fa-route', '#7c3aed'],
+    ['Chuyến sắp chạy', stats?.upcomingTrips || 0, 'fa-clock', '#0ea5e9'],
+    ['Chuyến hôm nay', stats?.todayTrips || 0, 'fa-calendar-day', '#16a34a'],
+    ['Đơn đặt vé', stats?.totalBookings || 0, 'fa-ticket', '#db2777'],
     ['Doanh thu', formatVND(stats?.totalRevenue || 0), 'fa-money-bill-wave', '#ea580c'],
   ];
 
@@ -123,13 +131,13 @@ function OperatorDashboard() {
     <>
       <section className="admin-card operator-profile-card">
         <div>
-          <p>Nha xe dang quan ly</p>
-          <h3>{profile?.name || 'Chua xac dinh nha xe'}</h3>
-          <span>{profile?.description || 'Tai khoan Operator duoc map theo Email hoac SDT voi bang Operators.'}</span>
+          <p>Nhà xe đang quản lý</p>
+          <h3>{profile?.name || 'Chưa xác định nhà xe'}</h3>
+          <span>{profile?.description || 'Tài khoản Operator được liên kết theo Email hoặc SĐT với bảng Operators.'}</span>
         </div>
         <div>
-          <b>{profile?.contactPhone || 'Chua co SDT'}</b>
-          <small>{profile?.email || 'Chua co email'}</small>
+          <b>{profile?.contactPhone || 'Chưa có SĐT'}</b>
+          <small>{profile?.email || 'Chưa có email'}</small>
         </div>
       </section>
 
@@ -147,9 +155,9 @@ function OperatorDashboard() {
 
       <section className="admin-card">
         <div className="admin-section-head">
-          <h3>Chuyen xe sap khoi hanh</h3>
+          <h3>Chuyến xe sắp khởi hành</h3>
           <button className="btn btn-outline" type="button" onClick={load}>
-            <i className="fa-solid fa-rotate" /> Tai lai
+            <i className="fa-solid fa-rotate" /> Tải lại
           </button>
         </div>
         <TripsTable trips={stats?.upcoming || []} compact />
@@ -171,7 +179,7 @@ function OperatorBuses() {
       const data = await operatorPortalApi.listBuses(cleanParams({ ...filters, page, pageSize: 10 }));
       setPaged(normalizePagedResponse(data, page));
     } catch (err) {
-      alert(err.message || 'Khong tai duoc danh sach xe.');
+      alert(err.message || 'Không tải được danh sách xe.');
     } finally {
       setLoading(false);
     }
@@ -187,6 +195,7 @@ function OperatorBuses() {
       licensePlate: form.licensePlate.trim(),
       capacity: Number(form.capacity),
       busType: form.busType.trim(),
+      amenities: form.amenities.trim(),
     };
 
     try {
@@ -199,7 +208,7 @@ function OperatorBuses() {
       setForm(EMPTY_BUS);
       await load(1);
     } catch (err) {
-      alert(err.message || 'Khong luu duoc xe.');
+      alert(err.message || 'Không lưu được xe.');
     }
   };
 
@@ -208,18 +217,19 @@ function OperatorBuses() {
       busID: pick(bus, ['busID', 'BusID']),
       licensePlate: pick(bus, ['licensePlate', 'LicensePlate']),
       capacity: pick(bus, ['capacity', 'Capacity'], 34),
-      busType: pick(bus, ['busType', 'BusType'], ''),
+      busType: labelBusType(pick(bus, ['busType', 'BusType'], '')),
+      amenities: normalizeAmenities(pick(bus, ['amenities', 'Amenities'], [])).join(', '),
     });
     setShowForm(true);
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Xoa xe nay? Xe da co lich chay se khong xoa duoc.')) return;
+    if (!window.confirm('Xóa xe này? Xe đã có lịch chạy sẽ không xóa được.')) return;
     try {
       await operatorPortalApi.removeBus(id);
       await load(paged.page);
     } catch (err) {
-      alert(err.message || 'Khong xoa duoc xe.');
+      alert(err.message || 'Không xóa được xe.');
     }
   };
 
@@ -227,27 +237,28 @@ function OperatorBuses() {
     <section className="admin-card table-card">
       <div className="admin-section-head">
         <div>
-          <h3>Quan ly doi xe va so do ghe</h3>
-          <p className="muted">Loai xe quy dinh so do ghe: Giuong nam, Limousine, Ghe ngoi.</p>
+          <h3>Quản lý đội xe và sơ đồ ghế</h3>
+          <p className="muted">Loại xe quy định sơ đồ ghế: Giường nằm, Limousine, Ghế ngồi.</p>
         </div>
         <button className="btn btn-primary" type="button" onClick={() => toggleForm(showForm, setShowForm, setForm, EMPTY_BUS)}>
-          <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Dong form' : 'Them xe'}
+          <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Đóng form' : 'Thêm xe'}
         </button>
       </div>
 
       {showForm && (
         <form className="admin-form-grid" onSubmit={submit}>
-          <input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="Bien so xe" required />
+          <input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="Biển số xe" required />
           <select value={form.busType} onChange={(e) => setForm({ ...form, busType: e.target.value })}>
-            <option value="Giuong nam 34 cho">Xe giuong nam</option>
-            <option value="Limousine 22 phong">Limousine</option>
-            <option value="Ghe ngoi 45 cho">Ghe ngoi</option>
-            <option value="Cabin doi 22 phong">Cabin doi</option>
+            <option value="Giường nằm 34 chỗ">Xe giường nằm</option>
+            <option value="Limousine 22 phòng">Limousine</option>
+            <option value="Ghế ngồi 45 chỗ">Ghế ngồi</option>
+            <option value="Cabin đôi 22 phòng">Cabin đôi</option>
           </select>
-          <input type="number" min="1" max="80" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Suc chua" required />
+          <input type="number" min="1" max="80" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Sức chứa" required />
+          <input value={form.amenities} onChange={(e) => setForm({ ...form, amenities: e.target.value })} placeholder="Tiện ích, cách nhau bằng dấu phẩy" />
           <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">Luu xe</button>
-            <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}>Huy</button>
+            <button className="btn btn-primary" type="submit">Lưu xe</button>
+            <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}>Hủy</button>
           </div>
         </form>
       )}
@@ -263,7 +274,7 @@ function OperatorBuses() {
       />
 
       {loading ? (
-        <p>Dang tai...</p>
+        <p>Đang tải...</p>
       ) : (
         <>
           <div className="table-wrap">
@@ -271,17 +282,17 @@ function OperatorBuses() {
               <thead>
                 <tr>
                   <th>Xe</th>
-                  <th>Loai xe</th>
-                  <th>So do ghe</th>
-                  <th>Tien ich</th>
-                  <th>Thao tac</th>
+                  <th>Loại xe</th>
+                  <th>Sơ đồ ghế</th>
+                  <th>Tiện ích</th>
+                  <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {paged.items.map((bus) => {
                   const id = pick(bus, ['busID', 'BusID']);
                   const seatMap = pick(bus, ['seatMap', 'SeatMap'], {});
-                  const amenities = pick(bus, ['amenities', 'Amenities'], []);
+                  const amenities = normalizeAmenities(pick(bus, ['amenities', 'Amenities'], []));
                   return (
                     <tr key={id}>
                       <td>
@@ -289,19 +300,19 @@ function OperatorBuses() {
                           <img src={pick(bus, ['imageUrl', 'ImageUrl'])} alt="" />
                           <div>
                             <b>{pick(bus, ['licensePlate', 'LicensePlate'])}</b>
-                            <small>{pick(bus, ['capacity', 'Capacity'])} ghe</small>
+                            <small>{pick(bus, ['capacity', 'Capacity'])} ghế</small>
                           </div>
                         </div>
                       </td>
-                      <td>{pick(bus, ['busType', 'BusType'])}</td>
+                      <td>{labelBusType(pick(bus, ['busType', 'BusType']))}</td>
                       <td>
-                        <b>{pick(seatMap, ['layoutType', 'LayoutType'], 'Seater')}</b>
+                        <b>{labelLayoutType(pick(seatMap, ['layoutType', 'LayoutType'], 'Seater'))}</b>
                         <MiniSeatMap seats={pick(seatMap, ['seats', 'Seats'], []).slice(0, 12)} />
                       </td>
                       <td>{amenities.map((item) => <span className="badge operator-badge" key={item}>{item}</span>)}</td>
                       <td className="admin-actions">
-                        <button className="btn btn-outline" type="button" onClick={() => edit(bus)}>Sua</button>
-                        <button className="btn btn-danger" type="button" onClick={() => remove(id)}>Xoa</button>
+                        <button className="btn btn-outline" type="button" onClick={() => edit(bus)}>Sửa</button>
+                        <button className="btn btn-danger" type="button" onClick={() => remove(id)}>Xóa</button>
                       </td>
                     </tr>
                   );
@@ -335,7 +346,7 @@ function OperatorTrips() {
       setBuses(normalizePagedResponse(busData).items);
       setPaged(normalizePagedResponse(tripData, page));
     } catch (err) {
-      alert(err.message || 'Khong tai duoc lich khoi hanh.');
+      alert(err.message || 'Không tải được lịch khởi hành.');
     } finally {
       setLoading(false);
     }
@@ -358,7 +369,7 @@ function OperatorTrips() {
       setForm(EMPTY_TRIP);
       await load(1);
     } catch (err) {
-      alert(err.message || 'Khong luu duoc chuyen xe.');
+      alert(err.message || 'Không lưu được chuyến xe.');
     }
   };
 
@@ -380,24 +391,24 @@ function OperatorTrips() {
       });
       setShowForm(true);
     } catch (err) {
-      alert(err.message || 'Khong tai duoc chi tiet chuyen.');
+      alert(err.message || 'Không tải được chi tiết chuyến.');
     }
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Xoa chuyen xe nay? Chuyen da co booking se khong xoa duoc.')) return;
+    if (!window.confirm('Xóa chuyến xe này? Chuyến đã có booking sẽ không xóa được.')) return;
     try {
       await operatorPortalApi.removeTrip(id);
       await load(paged.page);
     } catch (err) {
-      alert(err.message || 'Khong xoa duoc chuyen xe.');
+      alert(err.message || 'Không xóa được chuyến xe.');
     }
   };
 
   const cloneTrip = async (e) => {
     e.preventDefault();
     if (!clone.tripId) {
-      alert('Chon chuyen can nhan ban.');
+      alert('Chọn chuyến cần nhân bản.');
       return;
     }
 
@@ -407,9 +418,9 @@ function OperatorTrips() {
         count: Number(clone.count),
       });
       await load(1);
-      alert('Da nhan ban lich trinh.');
+      alert('Đã nhân bản lịch trình.');
     } catch (err) {
-      alert(err.message || 'Khong nhan ban duoc lich trinh.');
+      alert(err.message || 'Không nhân bản được lịch trình.');
     }
   };
 
@@ -417,11 +428,11 @@ function OperatorTrips() {
     <section className="admin-card table-card">
       <div className="admin-section-head">
         <div>
-          <h3>Thiet lap gia ve va lich khoi hanh</h3>
-          <p className="muted">Moi chuyen co thong tin xe, tien ich, diem don/tra va thoi gian du kien.</p>
+          <h3>Thiết lập giá vé và lịch khởi hành</h3>
+          <p className="muted">Mỗi chuyến có thông tin xe, tiện ích, điểm đón/trả và thời gian dự kiến.</p>
         </div>
         <button className="btn btn-primary" type="button" onClick={() => toggleForm(showForm, setShowForm, setForm, EMPTY_TRIP)}>
-          <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Dong form' : 'Them chuyen'}
+          <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Đóng form' : 'Thêm chuyến'}
         </button>
       </div>
 
@@ -429,50 +440,50 @@ function OperatorTrips() {
         <form className="operator-trip-form" onSubmit={submit}>
           <div className="admin-form-grid">
             <select value={form.busID} onChange={(e) => setForm({ ...form, busID: e.target.value })} required>
-              <option value="">Chon xe</option>
+              <option value="">Chọn xe</option>
               {buses.map((bus) => (
                 <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
-                  {pick(bus, ['licensePlate', 'LicensePlate'])} - {pick(bus, ['busType', 'BusType'])}
+                  {pick(bus, ['licensePlate', 'LicensePlate'])} - {labelBusType(pick(bus, ['busType', 'BusType']))}
                 </option>
               ))}
             </select>
-            <input value={form.departureLocation} onChange={(e) => setForm({ ...form, departureLocation: e.target.value })} placeholder="Diem di" required />
-            <input value={form.arrivalLocation} onChange={(e) => setForm({ ...form, arrivalLocation: e.target.value })} placeholder="Diem den" required />
+            <input value={form.departureLocation} onChange={(e) => setForm({ ...form, departureLocation: e.target.value })} placeholder="Điểm đi" required />
+            <input value={form.arrivalLocation} onChange={(e) => setForm({ ...form, arrivalLocation: e.target.value })} placeholder="Điểm đến" required />
             <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="Scheduled">Scheduled</option>
-              <option value="On-going">On-going</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="Scheduled">Đã lên lịch</option>
+              <option value="On-going">Đang chạy</option>
+              <option value="Completed">Hoàn thành</option>
+              <option value="Cancelled">Đã hủy</option>
             </select>
             <input type="datetime-local" value={form.departureTime} onChange={(e) => setForm({ ...form, departureTime: e.target.value })} required />
             <input type="datetime-local" value={form.arrivalTime} onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })} required />
-            <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Gia ve" required />
-            <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} placeholder="Ghe trong" />
+            <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Giá vé" required />
+            <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} placeholder="Ghế trống" />
           </div>
           <StopEditor stops={form.stopPoints} onChange={(stopPoints) => setForm({ ...form, stopPoints })} />
           <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">Luu chuyen</button>
-            <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}>Huy</button>
+            <button className="btn btn-primary" type="submit">Lưu chuyến</button>
+            <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}>Hủy</button>
           </div>
         </form>
       )}
 
       <form className="operator-clone-panel" onSubmit={cloneTrip}>
         <select value={clone.tripId} onChange={(e) => setClone({ ...clone, tripId: e.target.value })}>
-          <option value="">Chon chuyen de nhan ban</option>
+          <option value="">Chọn chuyến để nhân bản</option>
           {paged.items.map((trip) => (
             <option key={pick(trip, ['tripID', 'TripID'])} value={pick(trip, ['tripID', 'TripID'])}>
-              #{pick(trip, ['tripID', 'TripID'])} - {pick(trip, ['departureLocation', 'DepartureLocation'])} den {pick(trip, ['arrivalLocation', 'ArrivalLocation'])}
+              #{pick(trip, ['tripID', 'TripID'])} - {pick(trip, ['departureLocation', 'DepartureLocation'])} đến {pick(trip, ['arrivalLocation', 'ArrivalLocation'])}
             </option>
           ))}
         </select>
         <select value={clone.repeatType} onChange={(e) => setClone({ ...clone, repeatType: e.target.value })}>
-          <option value="day">Theo ngay</option>
-          <option value="week">Theo tuan</option>
+          <option value="day">Theo ngày</option>
+          <option value="week">Theo tuần</option>
         </select>
         <input type="number" min="1" max="60" value={clone.count} onChange={(e) => setClone({ ...clone, count: e.target.value })} />
         <button className="btn btn-outline" type="submit">
-          <i className="fa-solid fa-copy" /> Nhan ban lich
+          <i className="fa-solid fa-copy" /> Nhân bản lịch
         </button>
       </form>
 
@@ -488,7 +499,7 @@ function OperatorTrips() {
       />
 
       {loading ? (
-        <p>Dang tai...</p>
+        <p>Đang tải...</p>
       ) : (
         <>
           <TripsTable trips={paged.items} onEdit={edit} onDelete={remove} />
@@ -518,7 +529,7 @@ function OperatorReports() {
       setTrips(normalizePagedResponse(tripData).items);
       setReport(reportData);
     } catch (err) {
-      alert(err.message || 'Khong tai duoc bao cao doanh thu.');
+      alert(err.message || 'Không tải được báo cáo doanh thu.');
     } finally {
       setLoading(false);
     }
@@ -532,8 +543,8 @@ function OperatorReports() {
     <section className="admin-card table-card">
       <div className="admin-section-head">
         <div>
-          <h3>Bao cao doanh thu</h3>
-          <p className="muted">Thong ke theo chuyen, theo xe hoac theo khoang thoi gian.</p>
+          <h3>Báo cáo doanh thu</h3>
+          <p className="muted">Thống kê theo chuyến, theo xe hoặc theo khoảng thời gian.</p>
         </div>
       </div>
 
@@ -541,7 +552,7 @@ function OperatorReports() {
         <input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} />
         <input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
         <select value={filters.busId} onChange={(e) => setFilters({ ...filters, busId: e.target.value, tripId: '' })}>
-          <option value="">Tat ca xe</option>
+          <option value="">Tất cả xe</option>
           {buses.map((bus) => (
             <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
               {pick(bus, ['licensePlate', 'LicensePlate'])}
@@ -549,28 +560,28 @@ function OperatorReports() {
           ))}
         </select>
         <select value={filters.tripId} onChange={(e) => setFilters({ ...filters, tripId: e.target.value })}>
-          <option value="">Tat ca chuyen</option>
+          <option value="">Tất cả chuyến</option>
           {trips.map((trip) => (
             <option key={pick(trip, ['tripID', 'TripID'])} value={pick(trip, ['tripID', 'TripID'])}>
               #{pick(trip, ['tripID', 'TripID'])} - {pick(trip, ['departureLocation', 'DepartureLocation'])}
             </option>
           ))}
         </select>
-        <button className="btn btn-primary" type="button" onClick={load}>Loc bao cao</button>
+        <button className="btn btn-primary" type="button" onClick={load}>Lọc báo cáo</button>
       </div>
 
       {loading ? (
-        <p>Dang tai...</p>
+        <p>Đang tải...</p>
       ) : (
         <>
           <section className="admin-stats">
             <div className="stat-card"><div><p>Doanh thu</p><h2>{formatVND(report?.totalRevenue || 0)}</h2></div><i className="fa-solid fa-money-bill-wave" /></div>
-            <div className="stat-card"><div><p>Don da thanh toan</p><h2>{report?.totalBookings || 0}</h2></div><i className="fa-solid fa-ticket" /></div>
-            <div className="stat-card"><div><p>So ghe ban</p><h2>{report?.totalSeats || 0}</h2></div><i className="fa-solid fa-couch" /></div>
+            <div className="stat-card"><div><p>Đơn đã thanh toán</p><h2>{report?.totalBookings || 0}</h2></div><i className="fa-solid fa-ticket" /></div>
+            <div className="stat-card"><div><p>Số ghế bán</p><h2>{report?.totalSeats || 0}</h2></div><i className="fa-solid fa-couch" /></div>
           </section>
 
           <div className="admin-grid">
-            <ReportTable title="Theo chuyen" rows={report?.byTrip || []} mode="trip" />
+            <ReportTable title="Theo chuyến" rows={report?.byTrip || []} mode="trip" />
             <ReportTable title="Theo xe" rows={report?.byBus || []} mode="bus" />
           </div>
         </>
@@ -592,49 +603,49 @@ function OperatorSettings() {
     <section className="admin-card admin-settings-card">
       <div className="admin-section-head">
         <div>
-          <h3>Thong tin tai khoan nha xe</h3>
-          <p className="muted">Tai khoan chi xem va thao tac tren nha xe duoc gan.</p>
+          <h3>Thông tin tài khoản nhà xe</h3>
+          <p className="muted">Tài khoản chỉ xem và thao tác trên nhà xe được gán.</p>
         </div>
         <button className="btn btn-danger" type="button" onClick={() => { logout(); navigate('/login', { replace: true }); }}>
-          <i className="fa-solid fa-right-from-bracket" /> Dang xuat
+          <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
         </button>
       </div>
       <div className="admin-settings-grid operator-settings-grid">
-        <div><b>Ho ten</b><span>{user?.fullName || 'Chua co'}</span></div>
-        <div><b>Email tai khoan</b><span>{user?.email || 'Chua co'}</span></div>
-        <div><b>SDT tai khoan</b><span>{user?.phone || 'Chua co'}</span></div>
-        <div><b>Vai tro</b><span>{labelRole(user?.role || 'Operator')}</span></div>
-        <div><b>Nha xe</b><span>{profile?.name || 'Chua map'}</span></div>
-        <div><b>Email nha xe</b><span>{profile?.email || 'Chua co'}</span></div>
+        <div><b>Họ tên</b><span>{user?.fullName || 'Chưa có'}</span></div>
+        <div><b>Email tài khoản</b><span>{user?.email || 'Chưa có'}</span></div>
+        <div><b>SĐT tài khoản</b><span>{user?.phone || 'Chưa có'}</span></div>
+        <div><b>Vai trò</b><span>{labelRole(user?.role || 'Operator')}</span></div>
+        <div><b>Nhà xe</b><span>{profile?.name || 'Chưa liên kết'}</span></div>
+        <div><b>Email nhà xe</b><span>{profile?.email || 'Chưa có'}</span></div>
       </div>
     </section>
   );
 }
 
 function TripsTable({ trips, onEdit, onDelete, compact = false }) {
-  if (!trips.length) return <p className="muted">Chua co du lieu.</p>;
+  if (!trips.length) return <p className="muted">Chưa có dữ liệu.</p>;
 
   return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Chuyen</th>
+            <th>Chuyến</th>
             <th>Xe</th>
-            <th>Khoi hanh</th>
-            <th>Gia ve</th>
-            <th>Chi tiet</th>
-            {!compact && <th>Thao tac</th>}
+            <th>Khởi hành</th>
+            <th>Giá vé</th>
+            <th>Chi tiết</th>
+            {!compact && <th>Thao tác</th>}
           </tr>
         </thead>
         <tbody>
           {trips.map((trip) => {
             const id = pick(trip, ['tripID', 'TripID']);
-            const amenities = pick(trip, ['amenities', 'Amenities'], []);
+            const amenities = normalizeAmenities(pick(trip, ['amenities', 'Amenities'], []));
             return (
               <tr key={id}>
                 <td>
-                  <b>{pick(trip, ['departureLocation', 'DepartureLocation'])}</b> den <b>{pick(trip, ['arrivalLocation', 'ArrivalLocation'])}</b>
+                  <b>{pick(trip, ['departureLocation', 'DepartureLocation'])}</b> đến <b>{pick(trip, ['arrivalLocation', 'ArrivalLocation'])}</b>
                   <br />
                   <span className="badge">{labelTripStatus(pick(trip, ['status', 'Status']))}</span>
                 </td>
@@ -642,21 +653,21 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
                   <div className="operator-bus-cell">
                     <img src={pick(trip, ['busImageUrl', 'BusImageUrl'])} alt="" />
                     <div>
-                      <b>{pick(trip, ['licensePlate', 'LicensePlate'], 'Chua ro')}</b>
-                      <small>{pick(trip, ['busType', 'BusType'], 'Chua ro')}</small>
+                      <b>{pick(trip, ['licensePlate', 'LicensePlate'], 'Chưa rõ')}</b>
+                      <small>{labelBusType(pick(trip, ['busType', 'BusType'], 'Chưa rõ'))}</small>
                     </div>
                   </div>
                 </td>
                 <td>{formatDateTime(pick(trip, ['departureTime', 'DepartureTime']))}</td>
                 <td>{formatVND(pick(trip, ['price', 'Price'], 0))}</td>
                 <td>
-                  <div>{Math.round((pick(trip, ['estimatedDurationMinutes', 'EstimatedDurationMinutes'], 0) || 0) / 60)} gio du kien</div>
+                  <div>{Math.round((pick(trip, ['estimatedDurationMinutes', 'EstimatedDurationMinutes'], 0) || 0) / 60)} giờ dự kiến</div>
                   <div>{amenities.slice(0, 3).map((item) => <span className="badge operator-badge" key={item}>{item}</span>)}</div>
                 </td>
                 {!compact && (
                   <td className="admin-actions">
-                    <button className="btn btn-outline" type="button" onClick={() => onEdit(trip)}>Sua</button>
-                    <button className="btn btn-danger" type="button" onClick={() => onDelete(id)}>Xoa</button>
+                    <button className="btn btn-outline" type="button" onClick={() => onEdit(trip)}>Sửa</button>
+                    <button className="btn btn-danger" type="button" onClick={() => onDelete(id)}>Xóa</button>
                   </td>
                 )}
               </tr>
@@ -676,25 +687,25 @@ function StopEditor({ stops, onChange }) {
   return (
     <div className="operator-stop-editor">
       <div className="operator-stop-head">
-        <b>Diem don/tra cu the</b>
+        <b>Điểm đón/trả cụ thể</b>
         <button
           className="btn btn-outline"
           type="button"
           onClick={() => onChange([...stops, { stopName: '', stopAddress: '', stopOrder: stops.length + 1, stopType: 3, arrivalOffset: 0 }])}
         >
-          <i className="fa-solid fa-plus" /> Them diem
+          <i className="fa-solid fa-plus" /> Thêm điểm
         </button>
       </div>
       {stops.map((stop, index) => (
         <div className="operator-stop-row" key={`${index}-${stop.stopOrder}`}>
-          <input value={stop.stopName} onChange={(e) => update(index, 'stopName', e.target.value)} placeholder="Ten diem" />
-          <input value={stop.stopAddress || ''} onChange={(e) => update(index, 'stopAddress', e.target.value)} placeholder="Dia chi" />
+          <input value={stop.stopName} onChange={(e) => update(index, 'stopName', e.target.value)} placeholder="Tên điểm" />
+          <input value={stop.stopAddress || ''} onChange={(e) => update(index, 'stopAddress', e.target.value)} placeholder="Địa chỉ" />
           <select value={stop.stopType} onChange={(e) => update(index, 'stopType', Number(e.target.value))}>
-            <option value={1}>Diem don</option>
-            <option value={2}>Diem tra</option>
-            <option value={3}>Don/tra</option>
+            <option value={1}>Điểm đón</option>
+            <option value={2}>Điểm trả</option>
+            <option value={3}>Đón/trả</option>
           </select>
-          <input type="number" min="0" value={stop.arrivalOffset || 0} onChange={(e) => update(index, 'arrivalOffset', Number(e.target.value))} placeholder="Phut tu gio di" />
+          <input type="number" min="0" value={stop.arrivalOffset || 0} onChange={(e) => update(index, 'arrivalOffset', Number(e.target.value))} placeholder="Phút từ giờ đi" />
         </div>
       ))}
     </div>
@@ -709,9 +720,9 @@ function ReportTable({ title, rows, mode }) {
         <table>
           <thead>
             <tr>
-              <th>{mode === 'trip' ? 'Chuyen' : 'Xe'}</th>
-              <th>Don</th>
-              <th>Ghe</th>
+              <th>{mode === 'trip' ? 'Chuyến' : 'Xe'}</th>
+              <th>Đơn</th>
+              <th>Ghế</th>
               <th>Doanh thu</th>
             </tr>
           </thead>
@@ -720,8 +731,8 @@ function ReportTable({ title, rows, mode }) {
               <tr key={`${mode}-${pick(row, ['tripID', 'TripID', 'busID', 'BusID'])}`}>
                 <td>
                   {mode === 'trip'
-                    ? `#${pick(row, ['tripID', 'TripID'])} - ${pick(row, ['departureLocation', 'DepartureLocation'])} den ${pick(row, ['arrivalLocation', 'ArrivalLocation'])}`
-                    : `${pick(row, ['licensePlate', 'LicensePlate'])} - ${pick(row, ['busType', 'BusType'])}`}
+                    ? `#${pick(row, ['tripID', 'TripID'])} - ${pick(row, ['departureLocation', 'DepartureLocation'])} đến ${pick(row, ['arrivalLocation', 'ArrivalLocation'])}`
+                    : `${pick(row, ['licensePlate', 'LicensePlate'])} - ${labelBusType(pick(row, ['busType', 'BusType']))}`}
                 </td>
                 <td>{pick(row, ['bookingCount', 'BookingCount'], 0)}</td>
                 <td>{pick(row, ['seatCount', 'SeatCount'], 0)}</td>
@@ -729,7 +740,7 @@ function ReportTable({ title, rows, mode }) {
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={4}>Chua co doanh thu trong bo loc nay.</td></tr>
+              <tr><td colSpan={4}>Chưa có doanh thu trong bộ lọc này.</td></tr>
             )}
           </tbody>
         </table>
@@ -741,10 +752,10 @@ function ReportTable({ title, rows, mode }) {
 function FilterBar({ filters, setFilters, onSearch, onClear }) {
   return (
     <div className="operator-filter-bar">
-      <input value={filters.licensePlate} onChange={(e) => setFilters({ ...filters, licensePlate: e.target.value })} placeholder="Tim bien so" />
-      <input value={filters.busType} onChange={(e) => setFilters({ ...filters, busType: e.target.value })} placeholder="Tim loai xe" />
-      <button className="btn btn-primary" type="button" onClick={onSearch}>Loc</button>
-      <button className="btn btn-outline" type="button" onClick={onClear}>Xoa loc</button>
+      <input value={filters.licensePlate} onChange={(e) => setFilters({ ...filters, licensePlate: e.target.value })} placeholder="Tìm biển số" />
+      <input value={filters.busType} onChange={(e) => setFilters({ ...filters, busType: e.target.value })} placeholder="Tìm loại xe" />
+      <button className="btn btn-primary" type="button" onClick={onSearch}>Lọc</button>
+      <button className="btn btn-outline" type="button" onClick={onClear}>Xóa lọc</button>
     </div>
   );
 }
@@ -752,10 +763,10 @@ function FilterBar({ filters, setFilters, onSearch, onClear }) {
 function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
   return (
     <div className="operator-filter-bar">
-      <input value={filters.route} onChange={(e) => setFilters({ ...filters, route: e.target.value })} placeholder="Tim diem di/den" />
+      <input value={filters.route} onChange={(e) => setFilters({ ...filters, route: e.target.value })} placeholder="Tìm điểm đi/đến" />
       <input type="date" value={filters.departureDate} onChange={(e) => setFilters({ ...filters, departureDate: e.target.value })} />
       <select value={filters.busId} onChange={(e) => setFilters({ ...filters, busId: e.target.value })}>
-        <option value="">Tat ca xe</option>
+        <option value="">Tất cả xe</option>
         {buses.map((bus) => (
           <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
             {pick(bus, ['licensePlate', 'LicensePlate'])}
@@ -763,14 +774,14 @@ function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
         ))}
       </select>
       <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-        <option value="">Tat ca trang thai</option>
-        <option value="Scheduled">Scheduled</option>
-        <option value="On-going">On-going</option>
-        <option value="Completed">Completed</option>
-        <option value="Cancelled">Cancelled</option>
+        <option value="">Tất cả trạng thái</option>
+        <option value="Scheduled">Đã lên lịch</option>
+        <option value="On-going">Đang chạy</option>
+        <option value="Completed">Hoàn thành</option>
+        <option value="Cancelled">Đã hủy</option>
       </select>
-      <button className="btn btn-primary" type="button" onClick={onSearch}>Loc</button>
-      <button className="btn btn-outline" type="button" onClick={onClear}>Xoa loc</button>
+      <button className="btn btn-primary" type="button" onClick={onSearch}>Lọc</button>
+      <button className="btn btn-outline" type="button" onClick={onClear}>Xóa lọc</button>
     </div>
   );
 }
@@ -786,7 +797,7 @@ function MiniSeatMap({ seats }) {
 function Pagination({ page, totalPages, onPageChange }) {
   return (
     <div className="admin-pagination">
-      <button className="btn btn-outline" type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Truoc</button>
+      <button className="btn btn-outline" type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Trước</button>
       <span>Trang {page}/{totalPages}</span>
       <button className="btn btn-outline" type="button" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>Sau</button>
     </div>
@@ -871,7 +882,7 @@ function toDateTimeInput(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return 'Chua co';
+  if (!value) return 'Chưa có';
   return new Date(value).toLocaleString('vi-VN', {
     hour: '2-digit',
     minute: '2-digit',
@@ -879,4 +890,39 @@ function formatDateTime(value) {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function labelBusType(value) {
+  const text = String(value || '').trim();
+  const key = text.toLowerCase();
+  return BUS_TYPE_LABELS[key] || text;
+}
+
+function normalizeAmenities(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+
+  const text = String(value).trim();
+  if (!text) return [];
+
+  if (text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return text
+    .split(/[,;|\r\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function labelLayoutType(value) {
+  const layout = String(value || '').toLowerCase();
+  if (layout === 'sleeper') return 'Giường nằm';
+  if (layout === 'limousine') return 'Limousine';
+  return 'Ghế ngồi';
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using BaseCore.Common;
 using System.Data;
 using System.Security.Claims;
 
@@ -78,8 +79,8 @@ namespace BaseCore.APIService.Controllers
 
             if (!string.IsNullOrWhiteSpace(bookingStatus))
             {
-                var status = bookingStatus.Trim();
-                query = query.Where(x => x.BookingStatus == status || (x.BookingStatus == null && status == "PendingConfirm"));
+                var status = DomainCodes.ToBookingStatusCode(bookingStatus);
+                query = query.Where(x => x.BookingStatus == status);
             }
 
             if (fromDate.HasValue)
@@ -119,7 +120,11 @@ namespace BaseCore.APIService.Controllers
                     totalPrice = x.TotalPrice,
                     paymentMethod = x.PaymentMethod,
                     paymentStatus = x.PaymentStatus,
-                    bookingStatus = x.BookingStatus ?? "PendingConfirm",
+                    bookingStatus = x.BookingStatus == DomainCodes.BookingConfirmed ? "Confirmed" :
+                        x.BookingStatus == DomainCodes.BookingCancelRequested ? "CancelRequested" :
+                        x.BookingStatus == DomainCodes.BookingCancelled ? "Cancelled" :
+                        x.BookingStatus == DomainCodes.BookingCompleted ? "Completed" :
+                        "PendingConfirm",
                     bookingDate = x.BookingDate,
                     cancelledAt = x.CancelledAt,
                     refundAmount = x.RefundAmount,
@@ -168,7 +173,11 @@ namespace BaseCore.APIService.Controllers
                         : x.TicketSeats.Select(s => s.SeatLabel).ToList(),
                     totalPrice = x.TotalPrice,
                     paymentStatus = x.PaymentStatus,
-                    bookingStatus = x.BookingStatus ?? "PendingConfirm",
+                    bookingStatus = x.BookingStatus == DomainCodes.BookingConfirmed ? "Confirmed" :
+                        x.BookingStatus == DomainCodes.BookingCancelRequested ? "CancelRequested" :
+                        x.BookingStatus == DomainCodes.BookingCancelled ? "Cancelled" :
+                        x.BookingStatus == DomainCodes.BookingCompleted ? "Completed" :
+                        "PendingConfirm",
                     pickupStop = _context.StopPoints
                         .Where(s => s.StopPointID == x.PickupStopID)
                         .Select(s => new { s.StopPointID, s.StopName, s.StopAddress, s.StopType })
@@ -204,7 +213,11 @@ namespace BaseCore.APIService.Controllers
                     totalPrice = x.TotalPrice,
                     paymentMethod = x.PaymentMethod,
                     paymentStatus = x.PaymentStatus,
-                    bookingStatus = x.BookingStatus ?? "PendingConfirm",
+                    bookingStatus = x.BookingStatus == DomainCodes.BookingConfirmed ? "Confirmed" :
+                        x.BookingStatus == DomainCodes.BookingCancelRequested ? "CancelRequested" :
+                        x.BookingStatus == DomainCodes.BookingCancelled ? "Cancelled" :
+                        x.BookingStatus == DomainCodes.BookingCompleted ? "Completed" :
+                        "PendingConfirm",
                     bookingDate = x.BookingDate,
                     pickupStopID = x.PickupStopID,
                     dropoffStopID = x.DropoffStopID,
@@ -333,14 +346,14 @@ namespace BaseCore.APIService.Controllers
                 var expiredHolds = await _context.SeatHolds
                     .Where(x =>
                         x.TripID == request.TripId &&
-                        x.Status == "Holding" &&
+                        x.Status == DomainCodes.SeatHoldHolding &&
                         x.HoldExpiresAt <= now &&
                         seatLabels.Contains(x.SeatLabel.ToUpper()))
                     .ToListAsync();
 
                 foreach (var expiredHold in expiredHolds)
                 {
-                    expiredHold.Status = "Expired";
+                    expiredHold.Status = DomainCodes.SeatHoldReleased;
                 }
 
                 if (expiredHolds.Count > 0)
@@ -349,7 +362,7 @@ namespace BaseCore.APIService.Controllers
                 var holds = await _context.SeatHolds
                     .Where(x =>
                         x.TripID == request.TripId &&
-                        x.Status == "Holding" &&
+                        x.Status == DomainCodes.SeatHoldHolding &&
                         x.HoldExpiresAt > now &&
                         seatLabels.Contains(x.SeatLabel.ToUpper()))
                     .ToListAsync();
@@ -374,8 +387,10 @@ namespace BaseCore.APIService.Controllers
                     .Include(x => x.Booking)
                     .Where(x =>
                         x.Booking != null &&
+                        x.IsActive &&
                         x.Booking.TripID == request.TripId &&
                         (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled") &&
+                        x.Booking.BookingStatus != DomainCodes.BookingCancelled &&
                         seatLabels.Contains(x.SeatLabel.ToUpper()))
                     .Select(x => x.SeatLabel)
                     .ToListAsync();
@@ -401,7 +416,7 @@ namespace BaseCore.APIService.Controllers
                     TotalPrice = totalPrice,
                     PaymentMethod = NormalizeOptionalText(request.PaymentMethod) ?? "Chuyển khoản",
                     PaymentStatus = "Paid",
-                    BookingStatus = "PendingConfirm",
+                    BookingStatus = DomainCodes.BookingPendingConfirm,
                     BookingDate = now,
                     PickupStopID = request.PickupStopId,
                     DropoffStopID = request.DropoffStopId
@@ -416,13 +431,14 @@ namespace BaseCore.APIService.Controllers
                     {
                         BookingID = booking.BookingID,
                         SeatLabel = seatLabel,
-                        QRCode = $"BOOKING:{booking.BookingID};TRIP:{booking.TripID};SEAT:{seatLabel};PHONE:{booking.CustomerPhone}"
+                        QRCode = $"BOOKING:{booking.BookingID};TRIP:{booking.TripID};SEAT:{seatLabel};PHONE:{booking.CustomerPhone}",
+                        IsActive = true
                     });
                 }
 
                 foreach (var hold in holds.Where(x => ownedHoldSeats.Contains(NormalizeSeatLabel(x.SeatLabel))))
                 {
-                    hold.Status = "ConvertedToBooking";
+                    hold.Status = DomainCodes.SeatHoldConvertedToBooking;
                     hold.BookingID = booking.BookingID;
                 }
 
@@ -434,7 +450,7 @@ namespace BaseCore.APIService.Controllers
                 return Ok(new
                 {
                     bookingID = booking.BookingID,
-                    bookingStatus = booking.BookingStatus,
+                    bookingStatus = DomainCodes.ToBookingStatusName(booking.BookingStatus),
                     booking.TripID,
                     booking.UserID,
                     booking.CustomerName,
@@ -481,17 +497,17 @@ namespace BaseCore.APIService.Controllers
             if (booking == null)
                 return NotFound(new { message = "Khong tim thay booking" });
 
-            var currentStatus = booking.BookingStatus ?? "PendingConfirm";
-            if (currentStatus != "PendingConfirm")
+            var currentStatus = booking.BookingStatus;
+            if (currentStatus != DomainCodes.BookingPendingConfirm)
                 return BadRequest(new { message = "Chi co the xac nhan don co BookingStatus = PendingConfirm" });
 
-            booking.BookingStatus = "Confirmed";
+            booking.BookingStatus = DomainCodes.BookingConfirmed;
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
                 bookingID = booking.BookingID,
-                bookingStatus = booking.BookingStatus,
+                bookingStatus = DomainCodes.ToBookingStatusName(booking.BookingStatus),
                 message = "Da xac nhan don dat ve"
             });
         }
@@ -510,11 +526,11 @@ namespace BaseCore.APIService.Controllers
             if (booking == null)
                 return NotFound(new { message = "Khong tim thay booking" });
 
-            var currentStatus = booking.BookingStatus ?? "PendingConfirm";
-            if (currentStatus != "CancelRequested")
+            var currentStatus = booking.BookingStatus;
+            if (currentStatus != DomainCodes.BookingCancelRequested)
                 return BadRequest(new { message = "Chi co the duyet huy don co BookingStatus = CancelRequested" });
 
-            booking.BookingStatus = "Cancelled";
+            booking.BookingStatus = DomainCodes.BookingCancelled;
             booking.PaymentStatus = "Cancelled";
             booking.CancelledAt = DateTime.Now;
 
@@ -530,7 +546,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(new
             {
                 bookingID = booking.BookingID,
-                bookingStatus = booking.BookingStatus,
+                bookingStatus = DomainCodes.ToBookingStatusName(booking.BookingStatus),
                 paymentStatus = booking.PaymentStatus,
                 booking.CancelledAt,
                 booking.RefundAmount,
@@ -548,12 +564,13 @@ namespace BaseCore.APIService.Controllers
             if (booking == null)
                 return NotFound(new { message = "Khong tim thay booking" });
 
-            var currentStatus = booking.BookingStatus ?? "PendingConfirm";
-            if (currentStatus != "CancelRequested")
+            var currentStatus = booking.BookingStatus;
+            if (currentStatus != DomainCodes.BookingCancelRequested)
                 return BadRequest(new { message = "Chi co the tu choi huy don co BookingStatus = CancelRequested" });
 
-            var restoreStatus = NormalizeOptionalText(request?.BookingStatus) ?? "Confirmed";
-            if (restoreStatus != "Confirmed" && restoreStatus != "PendingConfirm")
+            var restoreStatusText = NormalizeOptionalText(request?.BookingStatus) ?? "Confirmed";
+            var restoreStatus = DomainCodes.ToBookingStatusCode(restoreStatusText);
+            if (restoreStatus != DomainCodes.BookingConfirmed && restoreStatus != DomainCodes.BookingPendingConfirm)
                 return BadRequest(new { message = "BookingStatus khoi phuc chi duoc la Confirmed hoac PendingConfirm" });
 
             booking.BookingStatus = restoreStatus;
@@ -563,7 +580,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(new
             {
                 bookingID = booking.BookingID,
-                bookingStatus = booking.BookingStatus,
+                bookingStatus = DomainCodes.ToBookingStatusName(booking.BookingStatus),
                 rejectReason = request?.RejectReason,
                 message = "Da tu choi yeu cau huy don"
             });
@@ -621,14 +638,14 @@ namespace BaseCore.APIService.Controllers
             if (booking.Trip != null && booking.Trip.DepartureTime <= DateTime.Now)
                 return BadRequest(new { message = "Chuyến xe đã chạy, không thể yêu cầu hủy vé" });
 
-            var currentStatus = booking.BookingStatus ?? "PendingConfirm";
-            if (currentStatus == "Cancelled" || booking.PaymentStatus == "Cancelled")
+            var currentStatus = booking.BookingStatus;
+            if (currentStatus == DomainCodes.BookingCancelled || booking.PaymentStatus == "Cancelled")
                 return BadRequest(new { message = "Booking đã bị hủy, không thể yêu cầu hủy lại" });
 
-            if (currentStatus == "CancelRequested")
+            if (currentStatus == DomainCodes.BookingCancelRequested)
                 return BadRequest(new { message = "Booking đã gửi yêu cầu hủy trước đó" });
 
-            booking.BookingStatus = "CancelRequested";
+            booking.BookingStatus = DomainCodes.BookingCancelRequested;
             booking.CancelReason = NormalizeOptionalText(request?.CancelReason);
 
             await _context.SaveChangesAsync();
@@ -636,7 +653,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(new
             {
                 bookingID = booking.BookingID,
-                bookingStatus = booking.BookingStatus,
+                bookingStatus = DomainCodes.ToBookingStatusName(booking.BookingStatus),
                 booking.CancelReason,
                 message = "Đã gửi yêu cầu hủy vé"
             });

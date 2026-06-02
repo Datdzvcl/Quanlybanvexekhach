@@ -10,7 +10,7 @@ namespace BaseCore.Entities
         public int? BookingID { get; set; }
         public DateTime HoldExpiresAt { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public byte Status { get; set; }
 
         public Trip? Trip { get; set; }
         public User? User { get; set; }

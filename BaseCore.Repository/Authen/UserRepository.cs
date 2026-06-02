@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
+using BaseCore.Common;
 
 namespace BaseCore.Repository.Authen
 {
@@ -95,11 +96,13 @@ namespace BaseCore.Repository.Authen
             {
                 var keywordLower = keyword.ToLower();
 
+                var roleCode = DomainCodes.IsValidRole(keywordLower) ? DomainCodes.ToRoleCode(keywordLower) : (byte?)null;
+
                 query = query.Where(u =>
                     u.FullName.ToLower().Contains(keywordLower) ||
                     u.Email.ToLower().Contains(keywordLower) ||
                     u.Phone.ToLower().Contains(keywordLower) ||
-                    (u.Role != null && u.Role.ToLower().Contains(keywordLower)));
+                    (roleCode.HasValue && u.Role == roleCode.Value));
             }
 
             var totalCount = await query.CountAsync();

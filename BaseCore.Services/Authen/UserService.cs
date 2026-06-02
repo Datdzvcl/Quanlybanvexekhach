@@ -67,7 +67,6 @@ namespace BaseCore.Services.Authen
             user.Email = user.Email.Trim();
             user.Phone = user.Phone.Trim();
             user.FullName = string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName.Trim();
-            user.Role = string.IsNullOrWhiteSpace(user.Role) ? RoleConstant.Customer : user.Role;
             user.PasswordHash = TokenHelper.CreatePasswordHash(password);
             user.CreatedAt ??= DateTime.Now;
 

@@ -1,4 +1,5 @@
 using BaseCore.Repository;
+using BaseCore.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,23 +22,20 @@ namespace BaseCore.APIService.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var user = await _context.Users
-                .Where(x => x.UserID == id)
-                .Select(x => new
-                {
-                    x.UserID,
-                    x.FullName,
-                    x.Email,
-                    x.Phone,
-                    x.Role,
-                    x.CreatedAt
-                })
-                .FirstOrDefaultAsync();
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.UserID == id);
 
             if (user == null) return NotFound(new { message = "User not found" });
             if (!CanAccessUser(user.UserID, user.Email)) return Forbid();
 
-            return Ok(user);
+            return Ok(new
+            {
+                user.UserID,
+                user.FullName,
+                user.Email,
+                user.Phone,
+                Role = DomainCodes.ToRoleName(user.Role),
+                user.CreatedAt
+            });
         }
 
         [HttpPut("{id:int}")]
@@ -61,7 +59,7 @@ namespace BaseCore.APIService.Controllers
                 user.FullName,
                 user.Email,
                 user.Phone,
-                user.Role,
+                Role = DomainCodes.ToRoleName(user.Role),
                 user.CreatedAt
             });
         }

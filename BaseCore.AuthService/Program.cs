@@ -122,7 +122,7 @@ using (var scope = app.Services.CreateScope())
             Email = "admin@robotvibot.com",
             Phone = "0123456789",
             PasswordHash = TokenHelper.CreatePasswordHash("admin123"),
-            Role = RoleConstant.Admin,
+            Role = DomainCodes.RoleAdmin,
             CreatedAt = DateTime.Now
         });
 
@@ -131,7 +131,7 @@ using (var scope = app.Services.CreateScope())
     else if (!TokenHelper.VerifyPasswordHash("admin123", existingAdmin.PasswordHash))
     {
         existingAdmin.PasswordHash = TokenHelper.CreatePasswordHash("admin123");
-        existingAdmin.Role = RoleConstant.Admin;
+        existingAdmin.Role = DomainCodes.RoleAdmin;
         await dbContext.SaveChangesAsync();
     }
 
@@ -156,7 +156,7 @@ using (var scope = app.Services.CreateScope())
                 Email = seed.Email,
                 Phone = seed.Phone,
                 PasswordHash = TokenHelper.CreatePasswordHash("operator123"),
-                Role = RoleConstant.Operator,
+                Role = DomainCodes.RoleOperator,
                 CreatedAt = DateTime.Now
             });
             continue;
@@ -165,7 +165,7 @@ using (var scope = app.Services.CreateScope())
         operatorAccount.FullName = seed.FullName;
         operatorAccount.Email = seed.Email;
         operatorAccount.Phone = seed.Phone;
-        operatorAccount.Role = RoleConstant.Operator;
+        operatorAccount.Role = DomainCodes.RoleOperator;
         operatorAccount.PasswordHash = TokenHelper.CreatePasswordHash("operator123");
     }
 

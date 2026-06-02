@@ -13,7 +13,7 @@ namespace BaseCore.Entities
         public decimal TotalPrice { get; set; }
         public string? PaymentMethod { get; set; }   // ← thêm ?
         public string? PaymentStatus { get; set; }   // ← thêm ?
-        public string? BookingStatus { get; set; }
+        public byte BookingStatus { get; set; }
         public DateTime? BookingDate { get; set; }
         public int? PickupStopID { get; set; }
         public int? DropoffStopID { get; set; }

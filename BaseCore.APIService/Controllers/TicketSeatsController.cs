@@ -20,7 +20,7 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetByTrip(int tripId)
         {
             var seats = await _context.TicketSeats
-                .Where(x => x.Booking.TripID == tripId)
+                .Where(x => x.IsActive && x.Booking.TripID == tripId)
                 .Select(x => new
                 {
                     x.TicketSeatID,
@@ -37,7 +37,7 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetByBooking(int bookingId)
         {
             var seats = await _context.TicketSeats
-                .Where(x => x.BookingID == bookingId)
+                .Where(x => x.IsActive && x.BookingID == bookingId)
                 .Select(x => new
                 {
                     x.TicketSeatID,
@@ -68,10 +68,16 @@ namespace BaseCore.APIService.Controllers
                     .Include(x => x.Booking)
                     .AnyAsync(x =>
                         x.Booking.TripID == booking.TripID &&
+                        x.IsActive &&
                         x.SeatLabel == seat.SeatLabel);
 
                 if (exists)
                     return BadRequest($"Ghế {seat.SeatLabel} đã được đặt");
+            }
+
+            foreach (var seat in seats)
+            {
+                seat.IsActive = true;
             }
 
             _context.TicketSeats.AddRange(seats);

@@ -12,7 +12,7 @@ namespace BaseCore.Entities
 
         public string PasswordHash { get; set; } = string.Empty;
 
-        public string? Role { get; set; }
+        public byte Role { get; set; }
 
         public DateTime? CreatedAt { get; set; }
 

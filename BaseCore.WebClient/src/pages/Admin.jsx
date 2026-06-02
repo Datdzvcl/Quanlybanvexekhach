@@ -8,8 +8,12 @@ import {
   labelPaymentStatus,
   labelRole,
   labelTripStatus,
+  bookingStatusName,
   normalizeTrip,
   pick,
+  roleName,
+  tripStatusCode,
+  tripStatusName,
 } from "../api";
 import { busApi } from "../services/busApi";
 import { bookingApi } from "../services/bookingApi";
@@ -962,7 +966,7 @@ function UsersManager({ onRefresh }) {
       fullName: pick(item, ["fullName", "FullName"], ""),
       email: pick(item, ["email", "Email"], ""),
       phone: pick(item, ["phone", "Phone"], ""),
-      role: pick(item, ["role", "Role"], "Customer"),
+      role: roleName(pick(item, ["role", "Role"], "Customer")),
       password: "",
     });
     setShowForm(true);
@@ -1120,7 +1124,7 @@ function UsersManager({ onRefresh }) {
           <tbody>
             {rows.map((item) => {
               const id = pick(item, ["userID", "UserID"]);
-              const role = pick(item, ["role", "Role"], "Customer");
+              const role = roleName(pick(item, ["role", "Role"], "Customer"));
               return (
                 <tr key={id}>
                   <td>{id}</td>
@@ -1251,7 +1255,7 @@ function TripsManager({ buses, operators, onRefresh }) {
         arrivalTime: form.arrivalTime,
         price: Number(form.price || 0),
         availableSeats: Number(form.availableSeats || 0),
-        status: form.status || "Scheduled",
+        status: tripStatusCode(form.status || "Scheduled"),
       };
       if (
         !payload.busID ||
@@ -1291,7 +1295,7 @@ function TripsManager({ buses, operators, onRefresh }) {
       arrivalTime: toDateTimeLocal(item.arrivalTime),
       price: item.price || "",
       availableSeats: item.availableSeats || "",
-      status: item.status || "Scheduled",
+      status: tripStatusName(item.status || "Scheduled"),
     });
     setShowForm(true);
   };
@@ -1533,7 +1537,7 @@ export function AdminTripDetail({ tripId }) {
   const bus = trip.bus || trip.Bus || {};
   const operator =
     trip.operator || trip.Operator || bus.operator || bus.Operator || {};
-  const status = pick(trip, ["status", "Status"], "Scheduled");
+  const status = tripStatusName(pick(trip, ["status", "Status"], "Scheduled"));
   const filterButtons = [
     { label: "Tất cả", bookingStatus: "", paymentStatus: "" },
     {
@@ -2058,10 +2062,8 @@ export function AdminBookingDetail({ bookingId }) {
       </>
     );
 
-  const status = pick(
-    booking,
-    ["bookingStatus", "BookingStatus"],
-    "PendingConfirm",
+  const status = bookingStatusName(
+    pick(booking, ["bookingStatus", "BookingStatus"], "PendingConfirm"),
   );
   const paymentStatus = pick(
     booking,
@@ -3755,7 +3757,7 @@ function OrdersManager({ bookings, trips, operators, onRefresh }) {
             includesText(t.operator, fSearch)) &&
           (!fOperator || t.operator === fOperator) &&
           (!fDate || dateOnly(t.departureTime) === fDate) &&
-          (!fStatus || (t.status || "").toLowerCase() === fStatus.toLowerCase())
+          (!fStatus || tripStatusName(t.status).toLowerCase() === fStatus.toLowerCase())
         );
       }),
     [trips, fSearch, fOperator, fDate, fStatus],
@@ -4608,7 +4610,7 @@ function OrdersManager({ bookings, trips, operators, onRefresh }) {
                   <td>{formatVND(t.price)}</td>
                   <td>{t.availableSeats}</td>
                   <td>
-                    <span className="badge">{t.status || "Scheduled"}</span>
+                    <span className="badge">{labelTripStatus(t.status)}</span>
                   </td>
                   <td>
                     <button

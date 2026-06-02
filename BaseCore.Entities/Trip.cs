@@ -10,7 +10,7 @@ namespace BaseCore.Entities
         public DateTime ArrivalTime { get; set; }
         public decimal Price { get; set; }
         public int AvailableSeats { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public byte Status { get; set; }
 
         public Bus? Bus { get; set; }
         public List<Booking> Bookings { get; set; } = new();

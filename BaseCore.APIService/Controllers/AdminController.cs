@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Repository;
 using BaseCore.Entities;
+using BaseCore.Common;
 using System.Linq.Expressions;
 
 namespace BaseCore.APIService.Controllers
@@ -135,6 +136,10 @@ namespace BaseCore.APIService.Controllers
                     x.LicensePlate,
                     x.Capacity,
                     x.BusType,
+                    x.ImageUrl,
+                    x.Amenities,
+                    x.SeatLayoutType,
+                    x.SeatLayout,
                     OperatorName = x.Operator != null ? x.Operator.Name : null
                 })
                 .ToListAsync());
@@ -221,23 +226,28 @@ namespace BaseCore.APIService.Controllers
                 x.AvailableSeats,
                 x.Status,
                 BusType = x.Bus != null ? x.Bus.BusType : null,
+                BusImageUrl = x.Bus != null ? x.Bus.ImageUrl : null,
+                Amenities = x.Bus != null ? x.Bus.Amenities : null,
+                SeatLayoutType = x.Bus != null ? x.Bus.SeatLayoutType : null,
+                SeatLayout = x.Bus != null ? x.Bus.SeatLayout : null,
                 OperatorName = x.Bus != null && x.Bus.Operator != null ? x.Bus.Operator.Name : null
             };
         }
         [HttpGet("users")]
         public async Task<IActionResult> Users()
         {
-            return Ok(await _context.Users
+            var users = await _context.Users
                 .OrderByDescending(x => x.CreatedAt)
-                .Select(x => new {
-                    x.UserID,
-                    x.FullName,
-                    x.Email,
-                    x.Phone,
-                    x.Role,
-                    x.CreatedAt
-                })
-                .ToListAsync());
+                .ToListAsync();
+
+            return Ok(users.Select(x => new {
+                x.UserID,
+                x.FullName,
+                x.Email,
+                x.Phone,
+                Role = DomainCodes.ToRoleName(x.Role),
+                x.CreatedAt
+            }));
         }
 
         [HttpGet("revenue-stats")]
@@ -286,6 +296,10 @@ namespace BaseCore.APIService.Controllers
                     booking.Trip.ArrivalTime,
                     booking.Trip.Price,
                     BusType = booking.Trip.Bus != null ? booking.Trip.Bus.BusType : null,
+                    BusImageUrl = booking.Trip.Bus != null ? booking.Trip.Bus.ImageUrl : null,
+                    Amenities = booking.Trip.Bus != null ? booking.Trip.Bus.Amenities : null,
+                    SeatLayoutType = booking.Trip.Bus != null ? booking.Trip.Bus.SeatLayoutType : null,
+                    SeatLayout = booking.Trip.Bus != null ? booking.Trip.Bus.SeatLayout : null,
                     OperatorName = booking.Trip.Bus != null && booking.Trip.Bus.Operator != null
                         ? booking.Trip.Bus.Operator.Name : null,
                     LicensePlate = booking.Trip.Bus != null ? booking.Trip.Bus.LicensePlate : null

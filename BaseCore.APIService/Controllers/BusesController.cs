@@ -61,6 +61,10 @@ namespace BaseCore.APIService.Controllers
                     x.LicensePlate,
                     x.Capacity,
                     x.BusType,
+                    x.ImageUrl,
+                    x.Amenities,
+                    x.SeatLayoutType,
+                    x.SeatLayout,
                     OperatorName = x.Operator != null ? x.Operator.Name : null
                 })
                 .ToListAsync();
@@ -89,6 +93,10 @@ namespace BaseCore.APIService.Controllers
                     x.LicensePlate,
                     x.Capacity,
                     x.BusType,
+                    x.ImageUrl,
+                    x.Amenities,
+                    x.SeatLayoutType,
+                    x.SeatLayout,
                     OperatorName = x.Operator != null ? x.Operator.Name : null
                 })
                 .FirstOrDefaultAsync();
