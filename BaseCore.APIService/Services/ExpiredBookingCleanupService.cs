@@ -39,6 +39,9 @@ namespace BaseCore.APIService.Services
                 }
                 catch (Exception ex)
                 {
+                    if (stoppingToken.IsCancellationRequested)
+                        break;
+
                     _logger.LogError(ex, "Lỗi khi dọn booking hết hạn.");
                 }
 

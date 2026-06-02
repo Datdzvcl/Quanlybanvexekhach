@@ -6,6 +6,7 @@ using BaseCore.Entities;
 using BaseCore.Common;
 using System.Data;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -31,7 +32,9 @@ namespace BaseCore.APIService.Controllers
                 {
                     x.TripID,
                     x.AvailableSeats,
-                    Capacity = x.Bus != null ? x.Bus.Capacity : 0
+                    Capacity = x.Bus != null ? x.Bus.Capacity : 0,
+                    SeatLayoutType = x.Bus != null ? x.Bus.SeatLayoutType : null,
+                    SeatLayout = x.Bus != null ? x.Bus.SeatLayout : null
                 })
                 .FirstOrDefaultAsync();
 
@@ -39,7 +42,7 @@ namespace BaseCore.APIService.Controllers
                 return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
             var capacity = Math.Max(trip.Capacity, 0);
-            var seatLabels = GenerateSeatLabels(capacity);
+            var seatLabels = ResolveSeatLabels(trip.SeatLayout, capacity);
             var currentUserId = GetCurrentUserId();
             var now = DateTime.Now;
 
@@ -110,6 +113,7 @@ namespace BaseCore.APIService.Controllers
             {
                 tripID = trip.TripID,
                 capacity,
+                layoutType = trip.SeatLayoutType,
                 seats
             });
         }
@@ -136,7 +140,7 @@ namespace BaseCore.APIService.Controllers
                 if (trip == null)
                     return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
-                var validSeatLabels = GenerateSeatLabels(Math.Max(trip.Bus?.Capacity ?? 0, 0));
+                var validSeatLabels = ResolveSeatLabels(trip.Bus?.SeatLayout, Math.Max(trip.Bus?.Capacity ?? 0, 0));
                 var validSeats = validSeatLabels.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var invalidSeats = requestedSeats.Where(x => !validSeats.Contains(x)).ToList();
                 if (invalidSeats.Count > 0)
@@ -357,6 +361,77 @@ namespace BaseCore.APIService.Controllers
         private static string? NormalizeSessionId(string? sessionId)
         {
             return string.IsNullOrWhiteSpace(sessionId) ? null : sessionId.Trim();
+        }
+
+        private static List<string> ResolveSeatLabels(string? seatLayout, int capacity)
+        {
+            var labels = ReadSeatLabels(seatLayout);
+            return labels.Count > 0 ? labels : GenerateSeatLabels(capacity);
+        }
+
+        private static List<string> ReadSeatLabels(string? seatLayout)
+        {
+            if (string.IsNullOrWhiteSpace(seatLayout))
+                return new List<string>();
+
+            try
+            {
+                using var document = JsonDocument.Parse(seatLayout);
+                var root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("seats", out var seatsElement) ||
+                        root.TryGetProperty("Seats", out seatsElement))
+                    {
+                        return ReadSeatLabels(seatsElement);
+                    }
+
+                    return new List<string>();
+                }
+
+                return ReadSeatLabels(root);
+            }
+            catch (JsonException)
+            {
+                return new List<string>();
+            }
+        }
+
+        private static List<string> ReadSeatLabels(JsonElement seatsElement)
+        {
+            if (seatsElement.ValueKind != JsonValueKind.Array)
+                return new List<string>();
+
+            var seats = new List<string>();
+            foreach (var item in seatsElement.EnumerateArray())
+            {
+                var label = item.ValueKind == JsonValueKind.String
+                    ? item.GetString()
+                    : TryReadSeatLabel(item);
+
+                if (!string.IsNullOrWhiteSpace(label))
+                    seats.Add(NormalizeSeatLabel(label));
+            }
+
+            return seats
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string? TryReadSeatLabel(JsonElement item)
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+                return null;
+
+            if (item.TryGetProperty("seatLabel", out var seatLabel) ||
+                item.TryGetProperty("SeatLabel", out seatLabel) ||
+                item.TryGetProperty("label", out seatLabel) ||
+                item.TryGetProperty("Label", out seatLabel))
+            {
+                return seatLabel.ValueKind == JsonValueKind.String ? seatLabel.GetString() : null;
+            }
+
+            return null;
         }
 
         private static List<string> GenerateSeatLabels(int capacity)

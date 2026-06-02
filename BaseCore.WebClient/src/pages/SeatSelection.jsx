@@ -61,6 +61,16 @@ function formatCountdown(ms) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function isTwoFloorLayout(value) {
+  const key = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+  return ['2tang', 'haitang', 'twofloor', '2floor', 'sleeper', 'giuongnam'].includes(key);
+}
+
 export default function SeatSelection() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -68,6 +78,7 @@ export default function SeatSelection() {
   const [sessionId] = useState(() => ensureSessionId());
   const [trip, setTrip] = useState(null);
   const [seats, setSeats] = useState([]);
+  const [seatLayoutType, setSeatLayoutType] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [holdExpiresAt, setHoldExpiresAt] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -78,6 +89,7 @@ export default function SeatSelection() {
   const loadSeats = useCallback(async () => {
     const response = await seatApi.getByTrip(tripId, { sessionId });
     const nextSeats = response?.seats || response?.Seats || [];
+    setSeatLayoutType(response?.layoutType || response?.LayoutType || '');
     setSeats(nextSeats);
     setSelectedSeats(nextSeats.filter((seat) => getSeatStatus(seat) === 'HoldingByMe').map(getSeatLabel));
   }, [sessionId, tripId]);
@@ -143,7 +155,25 @@ export default function SeatSelection() {
       status: getSeatStatus(seat),
     }));
 
-    if ((trip?.capacity || allSeats.length) > 40) {
+    if (isTwoFloorLayout(seatLayoutType)) {
+      const firstFloor = allSeats.filter((seat) => /^A/i.test(seat.label));
+      const secondFloor = allSeats.filter((seat) => /^B/i.test(seat.label));
+
+      if (firstFloor.length + secondFloor.length === allSeats.length) {
+        return [
+          { name: 'Tầng 1', seats: firstFloor },
+          { name: 'Tầng 2', seats: secondFloor },
+        ];
+      }
+
+      const half = Math.ceil(allSeats.length / 2);
+      return [
+        { name: 'Tầng 1', seats: allSeats.slice(0, half) },
+        { name: 'Tầng 2', seats: allSeats.slice(half) },
+      ];
+    }
+
+    if (!seatLayoutType && (trip?.capacity || allSeats.length) > 40) {
       const half = Math.ceil(allSeats.length / 2);
       return [
         { name: 'Tầng 1', seats: allSeats.slice(0, half) },
@@ -152,7 +182,7 @@ export default function SeatSelection() {
     }
 
     return [{ name: 'Sơ đồ ghế', seats: allSeats }];
-  }, [seats, trip?.capacity]);
+  }, [seats, seatLayoutType, trip?.capacity]);
 
   const holdSeat = async (seatLabel) => {
     setBusySeat(seatLabel);

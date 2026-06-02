@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
 using BaseCore.Common;
+using System.Globalization;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 
 namespace BaseCore.APIService.Controllers
@@ -14,6 +16,10 @@ namespace BaseCore.APIService.Controllers
     [Authorize(Roles = "Operator")]
     public class OperatorPortalController : ControllerBase
     {
+        private const string LayoutLimousine = "Limousine";
+        private const string LayoutOneFloor = "1 tầng";
+        private const string LayoutTwoFloors = "2 tầng";
+
         private readonly MySqlDbContext _context;
 
         public OperatorPortalController(MySqlDbContext context)
@@ -82,9 +88,9 @@ namespace BaseCore.APIService.Controllers
         {
             return Ok(new[]
             {
-                new { key = "Sleeper", name = "Xe giuong nam", suggestedCapacity = 34, description = "So do 2 tang, moi hang 4 giuong" },
-                new { key = "Limousine", name = "Limousine", suggestedCapacity = 22, description = "So do phong/ghe rieng, rong hon xe thuong" },
-                new { key = "Seater", name = "Ghe ngoi", suggestedCapacity = 45, description = "So do ghe ngoi 4 ghe moi hang" }
+                new { key = LayoutLimousine, name = "Limousine", suggestedCapacity = 22, description = "Sơ đồ phòng/ghế riêng cho xe Limousine" },
+                new { key = LayoutTwoFloors, name = "Xe giường nằm 2 tầng", suggestedCapacity = 34, description = "Sơ đồ chia tầng 1 và tầng 2" },
+                new { key = LayoutOneFloor, name = "Xe giường nằm 1 tầng", suggestedCapacity = 22, description = "Sơ đồ một tầng cho xe giường nằm hoặc ghế ngồi" }
             });
         }
 
@@ -188,6 +194,8 @@ namespace BaseCore.APIService.Controllers
             if (validation != null)
                 return validation;
 
+            var layoutType = NormalizeSeatLayoutType(request.SeatLayoutType, request.BusType, request.Capacity);
+
             var bus = new Bus
             {
                 OperatorID = scope.Operator.OperatorID,
@@ -196,8 +204,8 @@ namespace BaseCore.APIService.Controllers
                 BusType = request.BusType.Trim(),
                 ImageUrl = NormalizeOptionalText(request.ImageUrl),
                 Amenities = NormalizeAmenitiesForStorage(request.Amenities),
-                SeatLayoutType = NormalizeOptionalText(request.SeatLayoutType),
-                SeatLayout = NormalizeOptionalText(request.SeatLayout)
+                SeatLayoutType = layoutType,
+                SeatLayout = NormalizeSeatLayoutForStorage(request.SeatLayout, layoutType, request.Capacity)
             };
 
             _context.Buses.Add(bus);
@@ -252,10 +260,9 @@ namespace BaseCore.APIService.Controllers
                 bus.ImageUrl = NormalizeOptionalText(request.ImageUrl);
             if (request.Amenities != null)
                 bus.Amenities = NormalizeAmenitiesForStorage(request.Amenities);
-            if (request.SeatLayoutType != null)
-                bus.SeatLayoutType = NormalizeOptionalText(request.SeatLayoutType);
-            if (request.SeatLayout != null)
-                bus.SeatLayout = NormalizeOptionalText(request.SeatLayout);
+            var layoutType = NormalizeSeatLayoutType(request.SeatLayoutType, request.BusType, request.Capacity);
+            bus.SeatLayoutType = layoutType;
+            bus.SeatLayout = NormalizeSeatLayoutForStorage(request.SeatLayout, layoutType, request.Capacity);
 
             await _context.SaveChangesAsync();
 
@@ -382,7 +389,6 @@ namespace BaseCore.APIService.Controllers
                 return OperatorScopeNotFound();
 
             var bus = await _context.Buses
-                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.BusID == request.BusID && x.OperatorID == scope.Operator.OperatorID);
 
             if (bus == null)
@@ -391,6 +397,8 @@ namespace BaseCore.APIService.Controllers
             var validation = ValidateTripRequest(request, bus.Capacity);
             if (validation != null)
                 return validation;
+
+            ApplySeatLayoutToBus(bus, request.SeatLayoutType, request.SeatLayout);
 
             var trip = new Trip
             {
@@ -431,7 +439,6 @@ namespace BaseCore.APIService.Controllers
                 return NotFound(new { message = "Khong tim thay chuyen xe cua nha xe hien tai" });
 
             var bus = await _context.Buses
-                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.BusID == request.BusID && x.OperatorID == scope.Operator.OperatorID);
 
             if (bus == null)
@@ -440,6 +447,8 @@ namespace BaseCore.APIService.Controllers
             var validation = ValidateTripRequest(request, bus.Capacity);
             if (validation != null)
                 return validation;
+
+            ApplySeatLayoutToBus(bus, request.SeatLayoutType, request.SeatLayout);
 
             trip.BusID = request.BusID;
             trip.DepartureLocation = request.DepartureLocation.Trim();
@@ -704,17 +713,104 @@ namespace BaseCore.APIService.Controllers
             if (user == null || user.Role != DomainCodes.RoleOperator)
                 return null;
 
-            var email = user.Email.Trim();
-            var phone = user.Phone.Trim();
+            var email = NormalizeEmail(user.Email);
+            var phone = NormalizePhone(user.Phone);
             var operatorInfo = await _context.Operators
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
-                    (!string.IsNullOrWhiteSpace(email) && x.Email == email) ||
-                    (!string.IsNullOrWhiteSpace(phone) && x.ContactPhone == phone));
+                    (!string.IsNullOrWhiteSpace(email) && x.Email.Trim().ToLower() == email) ||
+                    (!string.IsNullOrWhiteSpace(phone) && x.ContactPhone.Replace(" ", "").Replace("-", "").Replace(".", "") == phone));
+
+            if (operatorInfo != null)
+                return new OperatorScope(user, operatorInfo);
+
+            operatorInfo = await FindOperatorByProfileName(user);
 
             return operatorInfo == null ? null : new OperatorScope(user, operatorInfo);
         }
 
+        private async Task<Operator?> FindOperatorByProfileName(User user)
+        {
+            var userKeys = GetOperatorNameKeys(user).ToList();
+            if (userKeys.Count == 0)
+                return null;
+
+            var operators = await _context.Operators
+                .AsNoTracking()
+                .OrderBy(x => x.OperatorID)
+                .ToListAsync();
+
+            return operators.FirstOrDefault(operatorInfo =>
+            {
+                var operatorKey = NormalizeOperatorName(operatorInfo.Name);
+                return !string.IsNullOrWhiteSpace(operatorKey) &&
+                    userKeys.Any(userKey =>
+                        operatorKey == userKey ||
+                        operatorKey.Contains(userKey) ||
+                        userKey.Contains(operatorKey));
+            });
+        }
+
+        private static IEnumerable<string> GetOperatorNameKeys(User user)
+        {
+            var keys = new[]
+            {
+                NormalizeOperatorName(user.FullName),
+                NormalizeOperatorName(user.Email.Split('@')[0])
+            };
+
+            return keys
+                .Where(x => x.Length >= 4)
+                .Distinct();
+        }
+
+        private static string NormalizeEmail(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : value.Trim().ToLowerInvariant();
+        }
+
+        private static string NormalizePhone(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            return new string(value.Where(char.IsDigit).ToArray());
+        }
+
+        private static string NormalizeOperatorName(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var normalized = RemoveVietnameseSigns(value)
+                .ToLowerInvariant()
+                .Where(char.IsLetterOrDigit)
+                .Aggregate(new StringBuilder(), (builder, ch) => builder.Append(ch), builder => builder.ToString());
+
+            foreach (var prefix in new[] { "nhaxe", "operator" })
+            {
+                if (normalized.StartsWith(prefix))
+                    normalized = normalized[prefix.Length..];
+            }
+
+            return normalized;
+        }
+
+        private static string RemoveVietnameseSigns(string value)
+        {
+            var normalized = value.Replace('đ', 'd').Replace('Đ', 'D').Normalize(NormalizationForm.FormD);
+            var builder = new StringBuilder(normalized.Length);
+
+            foreach (var ch in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                    builder.Append(ch);
+            }
+
+            return builder.ToString().Normalize(NormalizationForm.FormC);
+        }
         private IActionResult OperatorScopeNotFound()
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
@@ -736,6 +832,10 @@ namespace BaseCore.APIService.Controllers
 
             if (request.Capacity <= 0 || request.Capacity > 80)
                 return BadRequest(new { message = "Suc chua xe phai tu 1 den 80" });
+
+            var seatLayoutValidation = ValidateSeatLayoutRequest(request.SeatLayoutType, request.SeatLayout);
+            if (seatLayoutValidation != null)
+                return seatLayoutValidation;
 
             return null;
         }
@@ -762,6 +862,30 @@ namespace BaseCore.APIService.Controllers
 
             if (request.AvailableSeats > busCapacity)
                 return BadRequest(new { message = "So ghe trong khong duoc lon hon suc chua xe" });
+
+            var seatLayoutValidation = ValidateSeatLayoutRequest(request.SeatLayoutType, request.SeatLayout);
+            if (seatLayoutValidation != null)
+                return seatLayoutValidation;
+
+            return null;
+        }
+
+        private IActionResult? ValidateSeatLayoutRequest(string? layoutType, string? seatLayout)
+        {
+            if (!string.IsNullOrWhiteSpace(layoutType) && !IsKnownSeatLayoutType(layoutType))
+                return BadRequest(new { message = "Loai so do ghe phai la Limousine, 1 tang hoac 2 tang" });
+
+            if (!string.IsNullOrWhiteSpace(seatLayout))
+            {
+                try
+                {
+                    JsonDocument.Parse(seatLayout);
+                }
+                catch (JsonException)
+                {
+                    return BadRequest(new { message = "SeatLayout phai la JSON hop le" });
+                }
+            }
 
             return null;
         }
@@ -849,6 +973,8 @@ namespace BaseCore.APIService.Controllers
 
         private static object ProjectTripSummary(Trip trip)
         {
+            var layoutType = NormalizeSeatLayoutType(trip.Bus?.SeatLayoutType, trip.Bus?.BusType, trip.Bus?.Capacity ?? 0);
+
             return new
             {
                 trip.TripID,
@@ -864,6 +990,8 @@ namespace BaseCore.APIService.Controllers
                 BusType = trip.Bus?.BusType,
                 LicensePlate = trip.Bus?.LicensePlate,
                 Capacity = trip.Bus?.Capacity ?? 0,
+                LayoutType = layoutType,
+                SeatMap = ProjectSeatMap(trip.Bus?.SeatLayout, layoutType, trip.Bus?.Capacity ?? 0),
                 Amenities = ReadAmenities(trip.Bus?.Amenities),
                 BusImageUrl = trip.Bus?.ImageUrl
             };
@@ -914,6 +1042,8 @@ namespace BaseCore.APIService.Controllers
 
         private static object ProjectBus(BusListItem bus)
         {
+            var layoutType = NormalizeSeatLayoutType(bus.SeatLayoutType, bus.BusType, bus.Capacity);
+
             return new
             {
                 bus.BusID,
@@ -921,10 +1051,10 @@ namespace BaseCore.APIService.Controllers
                 bus.LicensePlate,
                 bus.Capacity,
                 bus.BusType,
-                LayoutType = bus.SeatLayoutType,
+                LayoutType = layoutType,
                 Amenities = ReadAmenities(bus.Amenities),
                 bus.ImageUrl,
-                SeatMap = ReadSeatLayout(bus.SeatLayout)
+                SeatMap = ProjectSeatMap(bus.SeatLayout, layoutType, bus.Capacity)
             };
         }
 
@@ -960,6 +1090,201 @@ namespace BaseCore.APIService.Controllers
         {
             var items = ReadAmenities(amenities);
             return items.Count == 0 ? null : JsonSerializer.Serialize(items);
+        }
+
+        private void ApplySeatLayoutToBus(Bus bus, string? requestedLayoutType, string? requestedSeatLayout)
+        {
+            if (string.IsNullOrWhiteSpace(requestedLayoutType) && string.IsNullOrWhiteSpace(requestedSeatLayout))
+                return;
+
+            var layoutType = NormalizeSeatLayoutType(requestedLayoutType, bus.BusType, bus.Capacity);
+            bus.SeatLayoutType = layoutType;
+            bus.SeatLayout = NormalizeSeatLayoutForStorage(requestedSeatLayout, layoutType, bus.Capacity);
+        }
+
+        private static string NormalizeSeatLayoutType(string? layoutType, string? busType, int capacity)
+        {
+            if (TryMapSeatLayoutType(layoutType, capacity, out var normalized))
+                return normalized;
+
+            return InferSeatLayoutType(busType, capacity);
+        }
+
+        private static string InferSeatLayoutType(string? busType, int capacity)
+        {
+            var key = NormalizeLayoutKey(busType);
+            if (key.Contains("limousine"))
+                return LayoutLimousine;
+
+            if (key.Contains("giuong") || key.Contains("sleeper") || key.Contains("cabin"))
+                return capacity <= 24 ? LayoutOneFloor : LayoutTwoFloors;
+
+            return LayoutOneFloor;
+        }
+
+        private static bool IsKnownSeatLayoutType(string layoutType)
+        {
+            return TryMapSeatLayoutType(layoutType, 0, out _);
+        }
+
+        private static bool TryMapSeatLayoutType(string? layoutType, int capacity, out string normalized)
+        {
+            normalized = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(layoutType))
+                return false;
+
+            var key = NormalizeLayoutKey(layoutType);
+            if (key == "limousine")
+            {
+                normalized = LayoutLimousine;
+                return true;
+            }
+
+            if (key is "1tang" or "mottang" or "onefloor" or "1floor" or "seater" or "ghengoi")
+            {
+                normalized = LayoutOneFloor;
+                return true;
+            }
+
+            if (key is "2tang" or "haitang" or "twofloor" or "2floor")
+            {
+                normalized = LayoutTwoFloors;
+                return true;
+            }
+
+            if (key is "sleeper" or "giuongnam")
+            {
+                normalized = capacity > 0 && capacity <= 24 ? LayoutOneFloor : LayoutTwoFloors;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static string NormalizeLayoutKey(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            return new string(RemoveVietnameseSigns(value)
+                .ToLowerInvariant()
+                .Where(char.IsLetterOrDigit)
+                .ToArray());
+        }
+
+        private static string NormalizeSeatLayoutForStorage(string? seatLayout, string layoutType, int capacity)
+        {
+            var seats = ReadSeatLabels(seatLayout);
+            if (seats.Count == 0)
+                seats = BuildSeatLabels(layoutType, capacity);
+
+            return JsonSerializer.Serialize(new
+            {
+                layoutType,
+                seats
+            });
+        }
+
+        private static object ProjectSeatMap(string? seatLayout, string layoutType, int capacity)
+        {
+            var parsed = ReadSeatLayout(seatLayout);
+            if (parsed.HasValue)
+                return parsed.Value;
+
+            return new
+            {
+                layoutType,
+                seats = BuildSeatLabels(layoutType, capacity)
+            };
+        }
+
+        private static List<string> ReadSeatLabels(string? seatLayout)
+        {
+            if (string.IsNullOrWhiteSpace(seatLayout))
+                return new List<string>();
+
+            try
+            {
+                using var document = JsonDocument.Parse(seatLayout);
+                var root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("seats", out var seatsElement) ||
+                        root.TryGetProperty("Seats", out seatsElement))
+                    {
+                        return ReadSeatLabels(seatsElement);
+                    }
+
+                    return new List<string>();
+                }
+
+                return ReadSeatLabels(root);
+            }
+            catch (JsonException)
+            {
+                return new List<string>();
+            }
+        }
+
+        private static List<string> ReadSeatLabels(JsonElement seatsElement)
+        {
+            if (seatsElement.ValueKind != JsonValueKind.Array)
+                return new List<string>();
+
+            var seats = new List<string>();
+            foreach (var item in seatsElement.EnumerateArray())
+            {
+                var label = item.ValueKind == JsonValueKind.String
+                    ? item.GetString()
+                    : TryReadSeatLabel(item);
+
+                if (!string.IsNullOrWhiteSpace(label))
+                    seats.Add(label.Trim());
+            }
+
+            return seats
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string? TryReadSeatLabel(JsonElement item)
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+                return null;
+
+            if (item.TryGetProperty("seatLabel", out var seatLabel) ||
+                item.TryGetProperty("SeatLabel", out seatLabel) ||
+                item.TryGetProperty("label", out seatLabel) ||
+                item.TryGetProperty("Label", out seatLabel))
+            {
+                return seatLabel.ValueKind == JsonValueKind.String ? seatLabel.GetString() : null;
+            }
+
+            return null;
+        }
+
+        private static List<string> BuildSeatLabels(string layoutType, int capacity)
+        {
+            capacity = Math.Clamp(capacity, 0, 80);
+            if (capacity == 0)
+                return new List<string>();
+
+            if (layoutType == LayoutTwoFloors)
+            {
+                var firstFloorCount = (int)Math.Ceiling(capacity / 2d);
+                var secondFloorCount = capacity - firstFloorCount;
+
+                return Enumerable.Range(1, firstFloorCount)
+                    .Select(index => $"A{index:00}")
+                    .Concat(Enumerable.Range(1, secondFloorCount).Select(index => $"B{index:00}"))
+                    .ToList();
+            }
+
+            var prefix = layoutType == LayoutLimousine ? "L" : "G";
+            return Enumerable.Range(1, capacity)
+                .Select(index => $"{prefix}{index:00}")
+                .ToList();
         }
 
         private static JsonElement? ReadSeatLayout(string? seatLayout)
@@ -1020,6 +1345,8 @@ namespace BaseCore.APIService.Controllers
             public decimal Price { get; set; }
             public int AvailableSeats { get; set; }
             public string? Status { get; set; }
+            public string? SeatLayoutType { get; set; }
+            public string? SeatLayout { get; set; }
             public List<OperatorStopPointRequest>? StopPoints { get; set; }
         }
 

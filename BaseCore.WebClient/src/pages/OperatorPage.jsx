@@ -27,6 +27,8 @@ const EMPTY_BUS = {
   capacity: 34,
   busType: 'Giường nằm 34 chỗ',
   amenities: '',
+  seatLayoutType: '2 tầng',
+  seatLayoutSeats: '',
 };
 
 const EMPTY_TRIP = {
@@ -39,6 +41,9 @@ const EMPTY_TRIP = {
   price: '',
   availableSeats: '',
   status: 'Scheduled',
+  seatLayoutType: '2 tầng',
+  seatLayoutSeats: '',
+  seatLayoutCapacity: 0,
   stopPoints: [
     { stopName: '', stopAddress: '', stopOrder: 1, stopType: 1, arrivalOffset: 0 },
     { stopName: '', stopAddress: '', stopOrder: 2, stopType: 3, arrivalOffset: 0 },
@@ -52,6 +57,12 @@ const BUS_TYPE_LABELS = {
   'ghe ngoi 45 cho': 'Ghế ngồi 45 chỗ',
   'cabin doi 22 phong': 'Cabin đôi 22 phòng',
 };
+
+const SEAT_LAYOUT_OPTIONS = [
+  { value: 'Limousine', label: 'Limousine' },
+  { value: '2 tầng', label: 'Xe giường nằm 2 tầng' },
+  { value: '1 tầng', label: 'Xe giường nằm 1 tầng' },
+];
 
 export default function OperatorPage() {
   const [active, setActive] = useState('dashboard');
@@ -191,11 +202,15 @@ function OperatorBuses() {
 
   const submit = async (e) => {
     e.preventDefault();
+    const capacity = Number(form.capacity);
+    const seatLayoutType = normalizeLayoutType(form.seatLayoutType, form.busType, capacity);
     const payload = {
       licensePlate: form.licensePlate.trim(),
-      capacity: Number(form.capacity),
+      capacity,
       busType: form.busType.trim(),
       amenities: form.amenities.trim(),
+      seatLayoutType,
+      seatLayout: buildSeatLayoutJson(seatLayoutType, form.seatLayoutSeats, capacity),
     };
 
     try {
@@ -213,12 +228,14 @@ function OperatorBuses() {
   };
 
   const edit = (bus) => {
+    const layoutState = buildSeatLayoutFormState(bus);
     setForm({
       busID: pick(bus, ['busID', 'BusID']),
       licensePlate: pick(bus, ['licensePlate', 'LicensePlate']),
       capacity: pick(bus, ['capacity', 'Capacity'], 34),
       busType: labelBusType(pick(bus, ['busType', 'BusType'], '')),
       amenities: normalizeAmenities(pick(bus, ['amenities', 'Amenities'], [])).join(', '),
+      ...layoutState,
     });
     setShowForm(true);
   };
@@ -248,7 +265,17 @@ function OperatorBuses() {
       {showForm && (
         <form className="admin-form-grid" onSubmit={submit}>
           <input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="Biển số xe" required />
-          <select value={form.busType} onChange={(e) => setForm({ ...form, busType: e.target.value })}>
+          <select
+            value={form.busType}
+            onChange={(e) => {
+              const busType = e.target.value;
+              setForm({
+                ...form,
+                busType,
+                seatLayoutType: inferSeatLayoutType(busType, Number(form.capacity)),
+              });
+            }}
+          >
             <option value="Giường nằm 34 chỗ">Xe giường nằm</option>
             <option value="Limousine 22 phòng">Limousine</option>
             <option value="Ghế ngồi 45 chỗ">Ghế ngồi</option>
@@ -256,6 +283,12 @@ function OperatorBuses() {
           </select>
           <input type="number" min="1" max="80" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Sức chứa" required />
           <input value={form.amenities} onChange={(e) => setForm({ ...form, amenities: e.target.value })} placeholder="Tiện ích, cách nhau bằng dấu phẩy" />
+          <SeatLayoutEditor
+            layoutType={form.seatLayoutType}
+            seatsText={form.seatLayoutSeats}
+            capacity={Number(form.capacity)}
+            onChange={(updates) => setForm({ ...form, ...updates })}
+          />
           <div className="admin-form-actions">
             <button className="btn btn-primary" type="submit">Lưu xe</button>
             <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}>Hủy</button>
@@ -291,7 +324,8 @@ function OperatorBuses() {
               <tbody>
                 {paged.items.map((bus) => {
                   const id = pick(bus, ['busID', 'BusID']);
-                  const seatMap = pick(bus, ['seatMap', 'SeatMap'], {});
+                  const layoutType = getEntityLayoutType(bus);
+                  const seatLabels = getEntitySeatLabels(bus);
                   const amenities = normalizeAmenities(pick(bus, ['amenities', 'Amenities'], []));
                   return (
                     <tr key={id}>
@@ -306,8 +340,8 @@ function OperatorBuses() {
                       </td>
                       <td>{labelBusType(pick(bus, ['busType', 'BusType']))}</td>
                       <td>
-                        <b>{labelLayoutType(pick(seatMap, ['layoutType', 'LayoutType'], 'Seater'))}</b>
-                        <MiniSeatMap seats={pick(seatMap, ['seats', 'Seats'], []).slice(0, 12)} />
+                        <b>{labelLayoutType(layoutType)}</b>
+                        <MiniSeatMap seats={seatLabels.slice(0, 12)} />
                       </td>
                       <td>{amenities.map((item) => <span className="badge operator-badge" key={item}>{item}</span>)}</td>
                       <td className="admin-actions">
@@ -356,6 +390,12 @@ function OperatorTrips() {
     load(1);
   }, []);
 
+  const selectBus = (busID) => {
+    const selectedBus = buses.find((bus) => String(pick(bus, ['busID', 'BusID'])) === String(busID));
+    const layoutState = selectedBus ? buildSeatLayoutFormState(selectedBus) : {};
+    setForm({ ...form, busID, ...layoutState });
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     const payload = buildTripPayload(form);
@@ -377,6 +417,8 @@ function OperatorTrips() {
     try {
       const id = pick(trip, ['tripID', 'TripID']);
       const detail = await operatorPortalApi.getTrip(id);
+      const bus = pick(detail, ['bus', 'Bus'], {});
+      const layoutState = buildSeatLayoutFormState(bus);
       setForm({
         tripID: id,
         busID: String(pick(detail, ['busID', 'BusID'], '')),
@@ -388,6 +430,7 @@ function OperatorTrips() {
         availableSeats: pick(detail, ['availableSeats', 'AvailableSeats'], ''),
         status: pick(detail, ['status', 'Status'], 'Scheduled'),
         stopPoints: normalizeStops(pick(detail, ['stopPoints', 'StopPoints'], [])),
+        ...layoutState,
       });
       setShowForm(true);
     } catch (err) {
@@ -439,7 +482,7 @@ function OperatorTrips() {
       {showForm && (
         <form className="operator-trip-form" onSubmit={submit}>
           <div className="admin-form-grid">
-            <select value={form.busID} onChange={(e) => setForm({ ...form, busID: e.target.value })} required>
+            <select value={form.busID} onChange={(e) => selectBus(e.target.value)} required>
               <option value="">Chọn xe</option>
               {buses.map((bus) => (
                 <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
@@ -460,6 +503,12 @@ function OperatorTrips() {
             <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Giá vé" required />
             <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} placeholder="Ghế trống" />
           </div>
+          <SeatLayoutEditor
+            layoutType={form.seatLayoutType}
+            seatsText={form.seatLayoutSeats}
+            capacity={Number(form.seatLayoutCapacity || form.availableSeats || 0)}
+            onChange={(updates) => setForm({ ...form, ...updates })}
+          />
           <StopEditor stops={form.stopPoints} onChange={(stopPoints) => setForm({ ...form, stopPoints })} />
           <div className="admin-form-actions">
             <button className="btn btn-primary" type="submit">Lưu chuyến</button>
@@ -786,6 +835,46 @@ function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
   );
 }
 
+function SeatLayoutEditor({ layoutType, seatsText, capacity, onChange }) {
+  const normalizedLayoutType = normalizeLayoutType(layoutType, '', capacity);
+  const previewSeats = parseSeatLabels(seatsText);
+
+  const regenerate = () => {
+    onChange({
+      seatLayoutType: normalizedLayoutType,
+      seatLayoutSeats: seatLabelsToText(buildSeatLabels(normalizedLayoutType, Number(capacity || 0))),
+    });
+  };
+
+  return (
+    <div className="operator-seat-layout-editor">
+      <div className="operator-seat-layout-head">
+        <div>
+          <b>Sơ đồ ghế</b>
+          <small>{Number(capacity || 0)} ghế</small>
+        </div>
+        <button className="btn btn-outline" type="button" onClick={regenerate}>
+          <i className="fa-solid fa-rotate-right" /> Tạo lại ghế
+        </button>
+      </div>
+      <div className="operator-seat-layout-controls">
+        <select value={normalizedLayoutType} onChange={(e) => onChange({ seatLayoutType: e.target.value })}>
+          {SEAT_LAYOUT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <textarea
+          value={seatsText}
+          onChange={(e) => onChange({ seatLayoutSeats: e.target.value })}
+          placeholder="A01, A02, B01, B02..."
+          rows={3}
+        />
+      </div>
+      <MiniSeatMap seats={(previewSeats.length ? previewSeats : buildSeatLabels(normalizedLayoutType, Number(capacity || 0))).slice(0, 16)} />
+    </div>
+  );
+}
+
 function MiniSeatMap({ seats }) {
   return (
     <div className="operator-mini-seat-map">
@@ -826,6 +915,9 @@ function cleanParams(params) {
 }
 
 function buildTripPayload(form) {
+  const capacity = Number(form.seatLayoutCapacity || form.availableSeats || 0);
+  const seatLayoutType = normalizeLayoutType(form.seatLayoutType, '', capacity);
+
   return {
     busID: Number(form.busID),
     departureLocation: form.departureLocation.trim(),
@@ -835,6 +927,8 @@ function buildTripPayload(form) {
     price: Number(form.price),
     availableSeats: Number(form.availableSeats || 0),
     status: form.status,
+    seatLayoutType,
+    seatLayout: buildSeatLayoutJson(seatLayoutType, form.seatLayoutSeats, capacity),
     stopPoints: form.stopPoints
       .filter((stop) => stop.stopName.trim())
       .map((stop, index) => ({
@@ -921,8 +1015,109 @@ function normalizeAmenities(value) {
 }
 
 function labelLayoutType(value) {
-  const layout = String(value || '').toLowerCase();
-  if (layout === 'sleeper') return 'Giường nằm';
-  if (layout === 'limousine') return 'Limousine';
-  return 'Ghế ngồi';
+  return normalizeLayoutType(value);
+}
+
+function buildSeatLayoutFormState(entity) {
+  const capacity = Number(pick(entity, ['capacity', 'Capacity'], 0));
+  const busType = pick(entity, ['busType', 'BusType'], '');
+  const layoutType = getEntityLayoutType(entity);
+  const seats = getEntitySeatLabels(entity);
+
+  return {
+    seatLayoutType: layoutType,
+    seatLayoutSeats: seatLabelsToText(seats.length ? seats : buildSeatLabels(layoutType, capacity)),
+    seatLayoutCapacity: capacity,
+  };
+}
+
+function getEntityLayoutType(entity) {
+  const seatMap = pick(entity, ['seatMap', 'SeatMap'], {});
+  const capacity = Number(pick(entity, ['capacity', 'Capacity'], 0));
+  const busType = pick(entity, ['busType', 'BusType'], '');
+  const layoutType = pick(entity, ['layoutType', 'LayoutType'], pick(seatMap, ['layoutType', 'LayoutType'], ''));
+  return normalizeLayoutType(layoutType, busType, capacity);
+}
+
+function getEntitySeatLabels(entity) {
+  const seatMap = pick(entity, ['seatMap', 'SeatMap'], {});
+  const seats = pick(seatMap, ['seats', 'Seats'], []);
+
+  if (!Array.isArray(seats)) return [];
+
+  return seats
+    .map((seat) => {
+      if (typeof seat === 'string') return seat;
+      return pick(seat, ['seatLabel', 'SeatLabel', 'label', 'Label'], '');
+    })
+    .map((seat) => String(seat || '').trim())
+    .filter(Boolean);
+}
+
+function buildSeatLayoutJson(layoutType, seatsText, capacity) {
+  const normalizedLayoutType = normalizeLayoutType(layoutType, '', capacity);
+  const seats = parseSeatLabels(seatsText);
+
+  return JSON.stringify({
+    layoutType: normalizedLayoutType,
+    seats: seats.length ? seats : buildSeatLabels(normalizedLayoutType, Number(capacity || 0)),
+  });
+}
+
+function normalizeLayoutType(value, busType = '', capacity = 0) {
+  const key = normalizeText(value).replace(/[^a-z0-9]/g, '');
+
+  if (key === 'limousine') return 'Limousine';
+  if (['2tang', 'haitang', 'twofloor', '2floor', 'twofloors', '2floors'].includes(key)) return '2 tầng';
+  if (['1tang', 'mottang', 'onefloor', '1floor', 'onefloors', '1floors', 'seater', 'ghengoi'].includes(key)) return '1 tầng';
+  if (['sleeper', 'giuongnam'].includes(key)) return Number(capacity) > 0 && Number(capacity) <= 24 ? '1 tầng' : '2 tầng';
+
+  return inferSeatLayoutType(busType, capacity);
+}
+
+function inferSeatLayoutType(busType, capacity = 0) {
+  const key = normalizeText(busType).replace(/[^a-z0-9]/g, '');
+
+  if (key.includes('limousine')) return 'Limousine';
+  if (key.includes('giuong') || key.includes('sleeper') || key.includes('cabin')) {
+    return Number(capacity) > 0 && Number(capacity) <= 24 ? '1 tầng' : '2 tầng';
+  }
+
+  return '1 tầng';
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function parseSeatLabels(value) {
+  return String(value || '')
+    .split(/[\s,;|]+/)
+    .map((seat) => seat.trim().toUpperCase())
+    .filter(Boolean)
+    .filter((seat, index, seats) => seats.indexOf(seat) === index);
+}
+
+function seatLabelsToText(seats) {
+  return (seats || []).join(', ');
+}
+
+function buildSeatLabels(layoutType, capacity) {
+  const total = Math.max(0, Math.min(80, Number(capacity || 0)));
+  if (!total) return [];
+
+  if (layoutType === '2 tầng') {
+    const firstFloorCount = Math.ceil(total / 2);
+    const secondFloorCount = total - firstFloorCount;
+    return [
+      ...Array.from({ length: firstFloorCount }, (_, index) => `A${String(index + 1).padStart(2, '0')}`),
+      ...Array.from({ length: secondFloorCount }, (_, index) => `B${String(index + 1).padStart(2, '0')}`),
+    ];
+  }
+
+  const prefix = layoutType === 'Limousine' ? 'L' : 'G';
+  return Array.from({ length: total }, (_, index) => `${prefix}${String(index + 1).padStart(2, '0')}`);
 }

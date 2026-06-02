@@ -4512,6 +4512,54 @@ a:hover,
   background: #fbfdff;
 }
 
+.operator-seat-layout-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 12px;
+  border: 1px solid #d7e0ec;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.operator-seat-layout-head,
+.operator-seat-layout-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.operator-seat-layout-head b,
+.operator-seat-layout-head small {
+  display: block;
+}
+
+.operator-seat-layout-head small {
+  color: #64748b;
+}
+
+.operator-seat-layout-controls select,
+.operator-seat-layout-controls textarea {
+  width: 100%;
+  border: 1px solid #d7e0ec;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.operator-seat-layout-controls select {
+  max-width: 240px;
+  min-height: 40px;
+}
+
+.operator-seat-layout-controls textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
 .operator-stop-editor {
   margin: 10px 0 14px;
 }
@@ -4587,6 +4635,14 @@ a:hover,
   .operator-stop-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .operator-seat-layout-head,
+  .operator-seat-layout-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .operator-seat-layout-controls select {
+    max-width: none;
   }
   .operator-profile-card b,
   .operator-profile-card small {
