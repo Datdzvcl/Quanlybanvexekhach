@@ -24,6 +24,21 @@ namespace BaseCore.Services.Authen
             _userRepository = userRepository;
         }
 
+        // public async Task<User?> Authenticate(string loginIdentifier, string password)
+        // {
+        //     if (string.IsNullOrWhiteSpace(loginIdentifier) || string.IsNullOrWhiteSpace(password))
+        //         return null;
+
+        //     var user = await _userRepository.GetByLoginIdentifierAsync(loginIdentifier.Trim());
+
+        //     if (user == null)
+        //         return null;
+
+        //     if (!TokenHelper.VerifyPasswordHash(password, user.PasswordHash))
+        //         return null;
+
+        //     return user;
+        // }
         public async Task<User?> Authenticate(string loginIdentifier, string password)
         {
             if (string.IsNullOrWhiteSpace(loginIdentifier) || string.IsNullOrWhiteSpace(password))
@@ -34,12 +49,21 @@ namespace BaseCore.Services.Authen
             if (user == null)
                 return null;
 
-            if (!TokenHelper.VerifyPasswordHash(password, user.PasswordHash))
-                return null;
+            // Check hash trước (PBKDF2$HMACSHA256$...)
+            if (user.PasswordHash.StartsWith("PBKDF2$"))
+            {
+                if (!TokenHelper.VerifyPasswordHash(password, user.PasswordHash))
+                    return null;
+            }
+            else
+            {
+                // Fallback: so sánh plain text
+                if (user.PasswordHash != password)
+                    return null;
+            }
 
             return user;
         }
-
         public async Task<List<User>> GetAll()
         {
             return await _userRepository.GetAllAsync();
