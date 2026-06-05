@@ -116,3 +116,7 @@ logs/
 # Temp
 *.tmp
 *.temp
+
+BaseCore.WebClient/node_modules/
+BaseCore.WebClient/node_modules/.vite/
+BaseCore.WebClient/dist/

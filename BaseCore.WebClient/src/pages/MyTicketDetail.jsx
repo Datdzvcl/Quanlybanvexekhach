@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { bookingStatusName, formatVND, labelBookingStatus, labelPaymentMethod, labelPaymentStatus, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
+// Thêm import này ở đầu file
+import { QRCodeSVG } from 'qrcode.react';
+
 
 function formatDateTime(value) {
   if (!value) return '--';
@@ -164,7 +167,7 @@ export default function MyTicketDetail() {
           </div>
         </main>
 
-        <aside className="ticket-detail-side">
+        {/* <aside className="ticket-detail-side">
           <h2>Mã QR</h2>
           <PseudoQrCode value={code} />
           <p>{code}</p>
@@ -177,7 +180,35 @@ export default function MyTicketDetail() {
           >
             {bookingStatus === 'CancelRequested' ? 'Đã yêu cầu hủy' : 'Yêu cầu hủy vé'}
           </button>
-        </aside>
+        </aside> */}
+        <aside className="ticket-detail-side">
+        <div className="qr-card">
+          <h2>Mã QR</h2>
+          <div className="qr-wrapper">
+            <QRCodeSVG
+              value={code}
+              size={180}
+              bgColor="#ffffff"
+              fgColor="#1a1a2e"
+              level="M"
+              includeMargin={true}
+            />
+          </div>
+          <p className="qr-code-text">{code}</p>
+          <p className="qr-hint">
+            <i className="fa-solid fa-circle-info" /> Xuất trình mã này khi lên xe
+          </p>
+        </div>
+        <Link className="btn btn-outline" to="/my-tickets">Quay lại danh sách</Link>
+        <button
+          type="button"
+          className="btn btn-danger"
+          disabled={!canRequestCancel || actionLoading}
+          onClick={requestCancel}
+        >
+          {bookingStatus === 'CancelRequested' ? 'Đã yêu cầu hủy' : 'Yêu cầu hủy vé'}
+        </button>
+      </aside>
       </section>
     </UserLayout>
   );
