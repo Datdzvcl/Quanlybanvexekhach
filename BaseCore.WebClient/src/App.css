@@ -22,7 +22,8 @@
 }
 
 body {
-  font-family: "Be Vietnam Pro", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    "Be Vietnam Pro", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   color: var(--text-dark);
   line-height: 1.6;
   background-color: var(--bg-light);
@@ -1114,7 +1115,11 @@ a {
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .admin-layout-nav button i,
@@ -1333,7 +1338,11 @@ a {
   gap: 9px;
   font-weight: 800;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .admin-toggle span {
@@ -1428,7 +1437,9 @@ a {
 }
 
 @keyframes admin-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .clickable-row {
@@ -1499,7 +1510,11 @@ a {
   padding: 9px 13px;
   font-weight: 800;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .admin-filter-pills button:hover,
@@ -1519,7 +1534,10 @@ a {
 .pickup-card,
 .payment-card,
 .success-card {
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .admin-card:hover,
@@ -2169,7 +2187,12 @@ a:hover,
 .home-hero-shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(6, 32, 77, 0.82), rgba(15, 79, 184, 0.62), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(
+    90deg,
+    rgba(6, 32, 77, 0.82),
+    rgba(15, 79, 184, 0.62),
+    rgba(255, 255, 255, 0.05)
+  );
 }
 
 .home-hero-inner {
@@ -4269,7 +4292,10 @@ a:hover,
   justify-content: space-between;
   align-items: center;
   border: 1px solid #e8eef7;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 .stat-card:hover {
   transform: translateY(-3px);
@@ -5019,7 +5045,9 @@ a:hover,
 .home-search-widget {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.95fr) 170px;
+  grid-template-columns:
+    minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr)
+    minmax(0, 0.95fr) 170px;
   align-items: stretch;
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -5169,7 +5197,10 @@ a:hover,
   color: #374151;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
   cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .home-swap-button:hover {
@@ -5205,7 +5236,10 @@ a:hover,
   font-size: 1.15rem;
   font-weight: 900;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .home-search-button:hover {
@@ -5322,3 +5356,146 @@ a:hover,
     transform: rotate(270deg);
   }
 }
+
+.bank-transfer-box {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid #dbe7ff;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.08);
+}
+
+.bank-transfer-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.bank-transfer-header i {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 20px;
+}
+
+.bank-transfer-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #102a56;
+}
+
+.bank-transfer-header p {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.bank-transfer-content {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.bank-qr-wrapper {
+  padding: 8px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5edff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 270px;
+}
+
+.bank-qr-image {
+  width: 250px;
+  height: 250px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+}
+
+.bank-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bank-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #edf2ff;
+}
+
+.bank-info-row span {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.bank-info-row strong {
+  color: #102a56;
+  font-weight: 800;
+  text-align: right;
+}
+
+.bank-info-row.highlight {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.bank-info-row.highlight strong {
+  color: #f59e0b;
+  font-size: 1.15rem;
+}
+
+.bank-transfer-note {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.bank-transfer-note i {
+  margin-top: 3px;
+}
+
+@media (max-width: 768px) {
+  .bank-transfer-content {
+    grid-template-columns: 1fr;
+  }
+
+  .bank-qr-wrapper {
+    max-width: 260px;
+    margin: 0 auto;
+  }
+
+  .bank-info-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bank-info-row strong {
+    text-align: left;
+  }
+}
+
