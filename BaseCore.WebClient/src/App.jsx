@@ -23,6 +23,7 @@ import { formatVND } from './api';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminRoute from './routes/AdminRoute';
 import OperatorRoute from './routes/OperatorRoute';
+import OrderHistory from './pages/OrderHistory';
 
 // Component hiển thị thông báo giữ chỗ toàn cục
 function HoldSeatNotification() {
@@ -149,6 +150,7 @@ export default function App() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
         <Route path="/my-tickets/:id" element={<ProtectedRoute><MyTicketDetail /></ProtectedRoute>} />
+        <Route path="/order-history" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/operator/*" element={<OperatorRoute><OperatorPage /></OperatorRoute>} />

@@ -88,6 +88,10 @@ export default function Header({ simple = false }) {
                     <i className="fa-solid fa-ticket" />
                     Vé của tôi
                   </Link>
+                  <Link to="/order-history" onClick={closeMenus}>
+                    <i className="fa-solid fa-clock-rotate-left" />
+                    Lịch sử đơn hàng
+                  </Link>
                   {isAdminRole(user.role) && (
                     <Link to="/admin" onClick={closeMenus}>
                       <i className="fa-solid fa-gauge-high" />

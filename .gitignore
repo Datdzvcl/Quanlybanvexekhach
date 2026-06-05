@@ -48,3 +48,71 @@ Thumbs.db
 
 # Build artifacts
 UpgradeLog*.htm
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+
+# Build results - BIN & OBJ (DLL, EXE...)
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+[Oo]ut/
+[Ll]og/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.ilk
+*.map
+*.exp
+*.lib
+
+# User-specific files
+*.rsuser
+*.userosscache
+*.sln.user
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Sensitive config - KHÔNG PUSH LÊN GIT
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+.env
+.env.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# wwwroot
+wwwroot/
+
+# Logs
+logs/
+*.log
+
+# Temp
+*.tmp
+*.temp
