@@ -202,8 +202,8 @@ export default function BookingPayment() {
       const message = err.message || "Không thể tạo booking.";
       const lowerMessage = message.toLowerCase();
       if (
-        lowerMessage.includes("hết thời gian giữ") ||
-        lowerMessage.includes("het thoi gian")
+        lowerMessage.includes("Hết thời gian giữ") ||
+        lowerMessage.includes("Het thoi gian")
       ) {
         alert("Ghế đã hết thời gian giữ, vui lòng chọn lại ghế.");
         navigate(`/trips/${pendingBooking.tripId}/seats`);
