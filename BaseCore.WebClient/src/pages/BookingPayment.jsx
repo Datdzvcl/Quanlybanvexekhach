@@ -122,6 +122,32 @@ export default function BookingPayment() {
   );
   const remainingMs = expiresAt - now;
 
+  const bankId = "970422";
+  const accountNo = "3901092005";
+  const accountName = "PHAM THANH DAT";
+
+  const transferContent = useMemo(() => {
+    const phone = pendingBooking?.contact?.customerPhone || "";
+    const seats = bookingsToPay
+      .map((booking) => booking.seatLabels?.join("-"))
+      .filter(Boolean)
+      .join("-");
+
+    return `VE XE ${pendingBooking?.tripId || ""} ${seats} ${phone}`.trim();
+  }, [
+    pendingBooking?.tripId,
+    pendingBooking?.contact?.customerPhone,
+    bookingsToPay,
+  ]);
+
+  const vietQrUrl = useMemo(() => {
+    const amount = Math.round(Number(totalPrice || 0));
+
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(
+      transferContent,
+    )}&accountName=${encodeURIComponent(accountName)}`;
+  }, [totalPrice, transferContent]);
+
   const summary = useMemo(
     () => ({
       route: `${pick(trip, ["departureLocation", "DepartureLocation"], "--")} → ${pick(trip, ["arrivalLocation", "ArrivalLocation"], "--")}`,
@@ -263,7 +289,7 @@ export default function BookingPayment() {
               <div className="bank-transfer-content">
                 <div className="bank-qr-wrapper">
                   <img
-                    src="/images/qr-bank.jpg"
+                    src={vietQrUrl}
                     alt="QR chuyển khoản"
                     className="bank-qr-image"
                   />
@@ -292,7 +318,7 @@ export default function BookingPayment() {
 
                   <div className="bank-info-row">
                     <span>Nội dung</span>
-                    <strong>Thanh toan ve xe</strong>
+                    <strong>{transferContent}</strong>
                   </div>
                 </div>
               </div>
