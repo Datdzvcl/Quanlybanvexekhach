@@ -5567,6 +5567,148 @@ a:hover,
   margin-top: 3px;
 }
 
+.admin-form-span-2 {
+  grid-column: span 2;
+}
+
+.promotion-manager-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.promotion-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0 22px;
+}
+
+.promotion-summary-grid div {
+  padding: 16px 18px;
+  border: 1px solid #dbe7ff;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.promotion-summary-grid b {
+  display: block;
+  color: #12356f;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.promotion-summary-grid span,
+.promotion-table-sub {
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.promotion-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.promotion-status-chip.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.promotion-status-chip.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.promotion-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 6px;
+  color: #12356f;
+  font-weight: 700;
+}
+
+.payment-promotion-box {
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid #dbe7ff;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.payment-promotion-head h3 {
+  margin: 0;
+  color: #102a56;
+}
+
+.payment-promotion-head p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.payment-promotion-list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.payment-promo-chip {
+  min-width: 140px;
+  padding: 12px 14px;
+  border: 1px solid #cfe0ff;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #12356f;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.payment-promo-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-promotion-form {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.payment-promotion-form input {
+  flex: 1;
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid #d7e3ff;
+  padding: 0 16px;
+  font-size: 1rem;
+}
+
+.payment-promotion-message {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.payment-promotion-message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.payment-promotion-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 @media (max-width: 768px) {
   .bank-transfer-content {
     grid-template-columns: 1fr;
@@ -5584,5 +5726,17 @@ a:hover,
 
   .bank-info-row strong {
     text-align: left;
+  }
+
+  .promotion-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-promotion-form {
+    flex-direction: column;
+  }
+
+  .admin-form-span-2 {
+    grid-column: span 1;
   }
 }

@@ -155,6 +155,7 @@ namespace BaseCore.APIService.Controllers
             var bookings = await _context.Bookings
                 .AsNoTracking()
                 .Include(x => x.Trip).ThenInclude(x => x.Bus).ThenInclude(x => x.Operator)
+                .Include(x => x.Promotion)
                 .Include(x => x.TicketSeats)
                 .Where(x => x.UserID == currentUserId.Value)
                 .OrderByDescending(x => x.BookingDate)
@@ -172,6 +173,8 @@ namespace BaseCore.APIService.Controllers
                         ? new List<string>()
                         : x.TicketSeats.Select(s => s.SeatLabel).ToList(),
                     totalPrice = x.TotalPrice,
+                    discountAmount = x.DiscountAmount,
+                    promotionCode = x.Promotion != null ? x.Promotion.Code : null,
                     paymentStatus = x.PaymentStatus,
                     bookingStatus = x.BookingStatus == DomainCodes.BookingConfirmed ? "Confirmed" :
                         x.BookingStatus == DomainCodes.BookingCancelRequested ? "CancelRequested" :
@@ -199,6 +202,7 @@ namespace BaseCore.APIService.Controllers
             var booking = await _context.Bookings
                 .AsNoTracking()
                 .Include(x => x.Trip).ThenInclude(x => x.Bus).ThenInclude(x => x.Operator)
+                .Include(x => x.Promotion)
                 .Include(x => x.TicketSeats)
                 .Where(x => x.BookingID == id)
                 .Select(x => new
@@ -224,6 +228,9 @@ namespace BaseCore.APIService.Controllers
                     cancelReason = x.CancelReason,
                     cancelledAt = x.CancelledAt,
                     refundAmount = x.RefundAmount,
+                    promotionID = x.PromotionID,
+                    promotionCode = x.Promotion != null ? x.Promotion.Code : null,
+                    discountAmount = x.DiscountAmount,
                     operatorName = x.Trip != null && x.Trip.Bus != null && x.Trip.Bus.Operator != null
                         ? x.Trip.Bus.Operator.Name
                         : null,
@@ -404,7 +411,33 @@ namespace BaseCore.APIService.Controllers
                     return Conflict(new { message = $"Ghế đã được đặt: {string.Join(", ", bookedSeatSet)}" });
 
                 var totalSeats = seatLabels.Count;
-                var totalPrice = totalSeats * trip.Price;
+                var subtotal = totalSeats * trip.Price;
+                var totalPrice = subtotal;
+                int? promotionId = null;
+                decimal discountAmount = 0;
+                Promotion? promotion = null;
+
+                if (!string.IsNullOrWhiteSpace(request.PromotionCode))
+                {
+                    var normalizedPromotionCode = request.PromotionCode.Trim().ToUpperInvariant();
+                    promotion = await _context.Promotions.FirstOrDefaultAsync(x => x.Code == normalizedPromotionCode);
+                    if (promotion == null)
+                        return BadRequest(new { message = "Mã giảm giá không tồn tại." });
+
+                    var promotionResult = PromotionsController.ValidatePromotionEntity(
+                        promotion,
+                        subtotal,
+                        currentUserId,
+                        now);
+
+                    if (!promotionResult.Valid)
+                        return BadRequest(new { message = promotionResult.Message });
+
+                    promotionId = promotion.PromotionID;
+                    discountAmount = promotionResult.DiscountAmount;
+                    totalPrice = promotionResult.FinalAmount;
+                }
+
                 var booking = new Booking
                 {
                     TripID = request.TripId,
@@ -419,7 +452,9 @@ namespace BaseCore.APIService.Controllers
                     BookingStatus = DomainCodes.BookingPendingConfirm,
                     BookingDate = now,
                     PickupStopID = request.PickupStopId,
-                    DropoffStopID = request.DropoffStopId
+                    DropoffStopID = request.DropoffStopId,
+                    PromotionID = promotionId,
+                    DiscountAmount = discountAmount > 0 ? discountAmount : null
                 };
 
                 _context.Bookings.Add(booking);
@@ -443,6 +478,8 @@ namespace BaseCore.APIService.Controllers
                 }
 
                 trip.AvailableSeats -= totalSeats;
+                if (promotion != null)
+                    promotion.UsedCount += 1;
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -457,6 +494,9 @@ namespace BaseCore.APIService.Controllers
                     booking.CustomerPhone,
                     booking.CustomerEmail,
                     booking.TotalSeats,
+                    subtotal,
+                    booking.DiscountAmount,
+                    booking.PromotionID,
                     booking.TotalPrice,
                     booking.PaymentMethod,
                     booking.PaymentStatus,
@@ -734,6 +774,7 @@ namespace BaseCore.APIService.Controllers
         public int? PickupStopId { get; set; }
         public int? DropoffStopId { get; set; }
         public string? PaymentMethod { get; set; }
+        public string? PromotionCode { get; set; }
     }
 
     public class RequestCancelBookingRequest

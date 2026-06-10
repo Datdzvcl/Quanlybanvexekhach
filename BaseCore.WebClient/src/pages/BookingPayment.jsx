@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import UserLayout from "../layouts/UserLayout";
 import { formatVND, pick } from "../api";
 import { bookingApi } from "../services/bookingApi";
+import { promotionApi } from "../services/promotionApi";
 
 const PENDING_BOOKING_KEY = "pendingBooking";
 const HOLD_STORAGE_KEY = "currentSeatHold";
@@ -11,13 +12,13 @@ const ROUND_TRIP_KEY = "roundTripBooking";
 const SUCCESS_BOOKINGS_KEY = "lastSuccessfulBookingIds";
 
 const paymentMethods = [
-  { value: "Cash", label: "Tiền mặt", icon: "fa-money-bill-wave" },
+  { value: "Cash", label: "Tien mat", icon: "fa-money-bill-wave" },
   {
     value: "BankTransfer",
-    label: "Chuyển khoản ngân hàng",
+    label: "Chuyen khoan ngan hang",
     icon: "fa-building-columns",
   },
-  { value: "VNPay", label: "Ví điện tử/VNPay giả lập", icon: "fa-wallet" },
+  { value: "VNPay", label: "Vi dien tu/VNPay gia lap", icon: "fa-wallet" },
 ];
 
 function readPendingBooking() {
@@ -36,7 +37,7 @@ function readRoundTripBooking() {
   }
 }
 
-function buildBookingRequest(booking, paymentMethod) {
+function buildBookingRequest(booking, paymentMethod, promotionCode) {
   return {
     tripId: booking.tripId,
     sessionId: booking.sessionId,
@@ -47,6 +48,7 @@ function buildBookingRequest(booking, paymentMethod) {
     pickupStopId: booking.pickupStopId,
     dropoffStopId: booking.dropoffStopId,
     paymentMethod,
+    promotionCode: promotionCode || null,
   };
 }
 
@@ -83,6 +85,11 @@ export default function BookingPayment() {
   });
   const [now, setNow] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
+  const [promotionCode, setPromotionCode] = useState("");
+  const [promotionResult, setPromotionResult] = useState(null);
+  const [promotionMessage, setPromotionMessage] = useState("");
+  const [promotionLoading, setPromotionLoading] = useState(false);
+  const [availablePromotions, setAvailablePromotions] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -90,8 +97,17 @@ export default function BookingPayment() {
   }, []);
 
   useEffect(() => {
+    promotionApi
+      .listPublic()
+      .then((items) =>
+        setAvailablePromotions(Array.isArray(items) ? items.slice(0, 3) : []),
+      )
+      .catch(() => setAvailablePromotions([]));
+  }, []);
+
+  useEffect(() => {
     if (expiresAt > now) return;
-    alert("Đã hết thời gian thanh toán. Vui lòng chọn lại ghế.");
+    alert("Da het thoi gian thanh toan. Vui long chon lai ghe.");
     localStorage.removeItem(PAYMENT_EXPIRES_KEY);
     navigate(
       pendingBooking?.tripId
@@ -112,13 +128,22 @@ export default function BookingPayment() {
     }
     return pendingBooking ? [pendingBooking] : [];
   }, [pendingBooking, roundTripBooking]);
-  const totalPrice = useMemo(
+
+  const subtotalPrice = useMemo(
     () =>
       bookingsToPay.reduce(
         (sum, booking) => sum + Number(booking?.totalPrice || 0),
         0,
       ),
     [bookingsToPay],
+  );
+  const canApplyPromotion = bookingsToPay.length === 1;
+  const discountAmount = Number(
+    promotionResult?.discountAmount || promotionResult?.DiscountAmount || 0,
+  );
+  const finalPrice = Math.max(
+    0,
+    canApplyPromotion ? subtotalPrice - discountAmount : subtotalPrice,
   );
   const remainingMs = expiresAt - now;
 
@@ -141,35 +166,80 @@ export default function BookingPayment() {
   ]);
 
   const vietQrUrl = useMemo(() => {
-    const amount = Math.round(Number(totalPrice || 0));
+    const amount = Math.round(Number(finalPrice || 0));
 
     return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(
       transferContent,
     )}&accountName=${encodeURIComponent(accountName)}`;
-  }, [totalPrice, transferContent]);
+  }, [finalPrice, transferContent]);
 
   const summary = useMemo(
     () => ({
-      route: `${pick(trip, ["departureLocation", "DepartureLocation"], "--")} → ${pick(trip, ["arrivalLocation", "ArrivalLocation"], "--")}`,
+      route: `${pick(trip, ["departureLocation", "DepartureLocation"], "--")} -> ${pick(trip, ["arrivalLocation", "ArrivalLocation"], "--")}`,
       departureTime: pick(trip, ["departureTime", "DepartureTime"]),
-      operatorName: pick(trip, ["operatorName", "OperatorName"], "Nhà xe"),
-      busType: pick(trip, ["busType", "BusType"], "Xe khách"),
+      operatorName: pick(trip, ["operatorName", "OperatorName"], "Nha xe"),
+      busType: pick(trip, ["busType", "BusType"], "Xe khach"),
     }),
     [trip],
   );
+
+  const applyPromotion = async (inputCode = promotionCode) => {
+    const code = String(inputCode || "").trim().toUpperCase();
+
+    if (!canApplyPromotion) {
+      setPromotionResult(null);
+      setPromotionMessage(
+        "Ma giam gia hien chi ap dung cho mot luot thanh toan.",
+      );
+      return;
+    }
+
+    if (!code) {
+      setPromotionResult(null);
+      setPromotionMessage("Vui long nhap ma giam gia.");
+      return;
+    }
+
+    setPromotionLoading(true);
+    setPromotionMessage("");
+    setPromotionCode(code);
+    try {
+      const result = await promotionApi.validate({
+        code,
+        orderValue: subtotalPrice,
+      });
+
+      if (result?.valid || result?.Valid) {
+        setPromotionResult(result);
+        setPromotionMessage(
+          result.message || result.Message || "Ap dung ma thanh cong.",
+        );
+      } else {
+        setPromotionResult(null);
+        setPromotionMessage(
+          result?.message || result?.Message || "Ma giam gia khong hop le.",
+        );
+      }
+    } catch (err) {
+      setPromotionResult(null);
+      setPromotionMessage(err.message || "Khong the kiem tra ma giam gia.");
+    } finally {
+      setPromotionLoading(false);
+    }
+  };
 
   const submit = async () => {
     if (
       bookingsToPay.length === 0 ||
       bookingsToPay.some((booking) => !booking?.tripId || !booking?.contact)
     ) {
-      alert("Thiếu dữ liệu đặt vé. Vui lòng thực hiện lại từ bước chọn ghế.");
+      alert("Thieu du lieu dat ve. Vui long thuc hien lai tu buoc chon ghe.");
       navigate("/search-results");
       return;
     }
 
     if (remainingMs <= 0) {
-      alert("Đã hết thời gian thanh toán. Vui lòng chọn lại ghế.");
+      alert("Da het thoi gian thanh toan. Vui long chon lai ghe.");
       navigate(`/trips/${pendingBooking.tripId}/seats`);
       return;
     }
@@ -177,9 +247,15 @@ export default function BookingPayment() {
     setSubmitting(true);
     try {
       const responses = [];
-      for (const booking of bookingsToPay) {
+      for (const [index, booking] of bookingsToPay.entries()) {
         const response = await bookingApi.create(
-          buildBookingRequest(booking, paymentMethod),
+          buildBookingRequest(
+            booking,
+            paymentMethod,
+            canApplyPromotion && index === 0 && promotionResult
+              ? promotionCode
+              : null,
+          ),
         );
         responses.push(response);
       }
@@ -199,13 +275,13 @@ export default function BookingPayment() {
 
       navigate(`/booking/success/${bookingId}`, { replace: true });
     } catch (err) {
-      const message = err.message || "Không thể tạo booking.";
+      const message = err.message || "Khong the tao booking.";
       const lowerMessage = message.toLowerCase();
       if (
-        lowerMessage.includes("Hết thời gian giữ") ||
-        lowerMessage.includes("Het thoi gian")
+        lowerMessage.includes("het thoi gian giu") ||
+        lowerMessage.includes("het thoi gian")
       ) {
-        alert("Ghế đã hết thời gian giữ, vui lòng chọn lại ghế.");
+        alert("Ghe da het thoi gian giu, vui long chon lai ghe.");
         navigate(`/trips/${pendingBooking.tripId}/seats`);
         return;
       }
@@ -220,17 +296,17 @@ export default function BookingPayment() {
     return (
       <UserLayout>
         <div className="container pickup-placeholder">
-          <h1>Chưa có dữ liệu thanh toán</h1>
+          <h1>Chua co du lieu thanh toan</h1>
           <p>
-            Vui lòng chọn chuyến, giữ ghế và nhập thông tin liên hệ trước khi
-            thanh toán.
+            Vui long chon chuyen, giu ghe va nhap thong tin lien he truoc khi
+            thanh toan.
           </p>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => navigate("/search-results")}
           >
-            Tìm chuyến
+            Tim chuyen
           </button>
         </div>
       </UserLayout>
@@ -241,9 +317,9 @@ export default function BookingPayment() {
     <UserLayout>
       <section className="payment-flow-hero">
         <div className="container">
-          <span>Thanh toán</span>
-          <h1>Hoàn tất đặt vé</h1>
-          <p>Vui lòng hoàn tất thanh toán trong thời gian quy định.</p>
+          <span>Thanh toan</span>
+          <h1>Hoan tat dat ve</h1>
+          <p>Vui long hoan tat thanh toan trong thoi gian quy dinh.</p>
         </div>
       </section>
 
@@ -251,13 +327,13 @@ export default function BookingPayment() {
         <main className="payment-method-card">
           <div className="payment-countdown-panel">
             <div>
-              <span>Thời gian thanh toán còn lại</span>
+              <span>Thoi gian thanh toan con lai</span>
               <strong>{formatCountdown(remainingMs)}</strong>
             </div>
             <i className="fa-solid fa-clock" />
           </div>
 
-          <h2>Chọn phương thức thanh toán</h2>
+          <h2>Chon phuong thuc thanh toan</h2>
           <div className="payment-method-list">
             {paymentMethods.map((method) => (
               <label
@@ -281,8 +357,8 @@ export default function BookingPayment() {
               <div className="bank-transfer-header">
                 <i className="fa-solid fa-qrcode" />
                 <div>
-                  <h3>Thông tin chuyển khoản</h3>
-                  <p>Quét mã QR hoặc chuyển khoản theo thông tin bên dưới</p>
+                  <h3>Thong tin chuyen khoan</h3>
+                  <p>Quet QR hoac chuyen khoan theo thong tin ben duoi</p>
                 </div>
               </div>
 
@@ -290,34 +366,34 @@ export default function BookingPayment() {
                 <div className="bank-qr-wrapper">
                   <img
                     src={vietQrUrl}
-                    alt="QR chuyển khoản"
+                    alt="QR chuyen khoan"
                     className="bank-qr-image"
                   />
                 </div>
 
                 <div className="bank-info-list">
                   <div className="bank-info-row">
-                    <span>Ngân hàng</span>
+                    <span>Ngan hang</span>
                     <strong>MB Bank</strong>
                   </div>
 
                   <div className="bank-info-row">
-                    <span>Số tài khoản</span>
+                    <span>So tai khoan</span>
                     <strong>3901092005</strong>
                   </div>
 
                   <div className="bank-info-row">
-                    <span>Chủ tài khoản</span>
+                    <span>Chu tai khoan</span>
                     <strong>PHAM THANH DAT</strong>
                   </div>
 
                   <div className="bank-info-row highlight">
-                    <span>Số tiền</span>
-                    <strong>{formatVND(totalPrice)}</strong>
+                    <span>So tien</span>
+                    <strong>{formatVND(finalPrice)}</strong>
                   </div>
 
                   <div className="bank-info-row">
-                    <span>Nội dung</span>
+                    <span>Noi dung</span>
                     <strong>{transferContent}</strong>
                   </div>
                 </div>
@@ -326,12 +402,88 @@ export default function BookingPayment() {
               <div className="bank-transfer-note">
                 <i className="fa-solid fa-circle-info" />
                 <span>
-                  Vui lòng chuyển đúng số tiền và nội dung để hệ thống/admin xác
-                  nhận thanh toán.
+                  Vui long chuyen dung so tien va noi dung de he thong/admin
+                  xac nhan thanh toan.
                 </span>
               </div>
             </div>
           )}
+
+          <div className="payment-promotion-box">
+            <div className="payment-promotion-head">
+              <div>
+                <h3>Ma giam gia</h3>
+                <p>
+                  {canApplyPromotion
+                    ? "Nhap hoac chon nhanh mot ma dang mo."
+                    : "Thanh toan nhieu luot tam thoi khong ap ma de tranh tinh sai giam gia."}
+                </p>
+              </div>
+            </div>
+
+            {availablePromotions.length > 0 && (
+              <div className="payment-promotion-list">
+                {availablePromotions.map((item) => {
+                  const code = pick(item, ["code", "Code"], "");
+                  const discountType = Number(
+                    pick(item, ["discountType", "DiscountType"], 1),
+                  );
+                  const discountValue = pick(
+                    item,
+                    ["discountValue", "DiscountValue"],
+                    0,
+                  );
+
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      className="payment-promo-chip"
+                      disabled={!canApplyPromotion}
+                      onClick={() => applyPromotion(code)}
+                    >
+                      <strong>{code}</strong>
+                      <span>
+                        {discountType === 1
+                          ? `${discountValue}%`
+                          : formatVND(discountValue)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="payment-promotion-form">
+              <input
+                type="text"
+                placeholder="Nhap ma giam gia"
+                value={promotionCode}
+                disabled={!canApplyPromotion}
+                onChange={(event) => {
+                  setPromotionCode(event.target.value.toUpperCase());
+                  setPromotionResult(null);
+                  setPromotionMessage("");
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={promotionLoading || !canApplyPromotion}
+                onClick={() => applyPromotion()}
+              >
+                {promotionLoading ? "Dang kiem tra..." : "Ap dung"}
+              </button>
+            </div>
+
+            {promotionMessage && (
+              <div
+                className={`payment-promotion-message ${promotionResult ? "success" : "error"}`}
+              >
+                {promotionMessage}
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
@@ -339,27 +491,27 @@ export default function BookingPayment() {
             disabled={submitting}
             onClick={submit}
           >
-            {submitting ? "Đang xử lý..." : "Thanh toán"}
+            {submitting ? "Dang xu ly..." : "Thanh toan"}
             <i className="fa-solid fa-arrow-right" />
           </button>
         </main>
 
         <aside className="payment-summary-card">
-          <h2>Tóm tắt đơn</h2>
+          <h2>Tom tat don</h2>
           {bookingsToPay.map((booking, index) => {
             const itemTrip = booking.trip || {};
             const itemSummary = {
-              route: `${pick(itemTrip, ["departureLocation", "DepartureLocation"], "--")} → ${pick(itemTrip, ["arrivalLocation", "ArrivalLocation"], "--")}`,
+              route: `${pick(itemTrip, ["departureLocation", "DepartureLocation"], "--")} -> ${pick(itemTrip, ["arrivalLocation", "ArrivalLocation"], "--")}`,
               departureTime: pick(itemTrip, ["departureTime", "DepartureTime"]),
               operatorName: pick(
                 itemTrip,
                 ["operatorName", "OperatorName"],
-                index === 0 ? summary.operatorName : "Nhà xe",
+                index === 0 ? summary.operatorName : "Nha xe",
               ),
               busType: pick(
                 itemTrip,
                 ["busType", "BusType"],
-                index === 0 ? summary.busType : "Xe khách",
+                index === 0 ? summary.busType : "Xe khach",
               ),
             };
 
@@ -371,8 +523,8 @@ export default function BookingPayment() {
                 <strong>
                   {bookingsToPay.length > 1
                     ? index === 0
-                      ? "Lượt đi"
-                      : "Lượt về"
+                      ? "Luot di"
+                      : "Luot ve"
                     : itemSummary.operatorName}
                 </strong>
                 {bookingsToPay.length > 1 && (
@@ -381,14 +533,14 @@ export default function BookingPayment() {
                 <span>{itemSummary.busType}</span>
                 <p>{itemSummary.route}</p>
                 <small>
-                  {formatDateTime(itemSummary.departureTime)} - Ghế{" "}
+                  {formatDateTime(itemSummary.departureTime)} - Ghe{" "}
                   {booking.seatLabels?.join(", ") || "--"}
                 </small>
               </div>
             );
           })}
           <div className="contact-summary-line">
-            <span>Ghế</span>
+            <span>Ghe</span>
             <strong>
               {bookingsToPay
                 .map((booking) => booking.seatLabels?.join(", ") || "--")
@@ -396,20 +548,27 @@ export default function BookingPayment() {
             </strong>
           </div>
           <div className="contact-summary-line">
-            <span>Người đi</span>
+            <span>Nguoi di</span>
             <strong>{pendingBooking.contact?.customerName || "--"}</strong>
           </div>
           <div className="contact-summary-line">
-            <span>Số điện thoại</span>
+            <span>So dien thoai</span>
             <strong>{pendingBooking.contact?.customerPhone || "--"}</strong>
           </div>
+          <div className="contact-summary-line">
+            <span>Tam tinh</span>
+            <strong>{formatVND(subtotalPrice)}</strong>
+          </div>
+          <div className="contact-summary-line">
+            <span>Giam gia</span>
+            <strong>-{formatVND(canApplyPromotion ? discountAmount : 0)}</strong>
+          </div>
           <div className="contact-summary-total">
-            <span>Tổng tiền</span>
-            <strong>{formatVND(totalPrice)}</strong>
+            <span>Tong tien</span>
+            <strong>{formatVND(finalPrice)}</strong>
           </div>
         </aside>
       </section>
     </UserLayout>
   );
 }
-

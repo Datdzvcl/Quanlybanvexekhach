@@ -14,6 +14,7 @@ namespace BaseCore.Repository
         public DbSet<Bus> Buses { get; set; }
         public DbSet<Trip> Trips { get; set; }
         public DbSet<Booking> Bookings { get; set; }
+        public DbSet<Promotion> Promotions { get; set; }
         public DbSet<TicketSeat> TicketSeats { get; set; }
         public DbSet<StopPoint> StopPoints { get; set; }
         public DbSet<SeatHold> SeatHolds { get; set; }
@@ -98,6 +99,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.DropoffStopID);
                 entity.Property(e => e.CancelReason).HasMaxLength(300);
                 entity.Property(e => e.RefundAmount).HasPrecision(18, 2);
+                entity.Property(e => e.DiscountAmount).HasPrecision(18, 2);
 
                 entity.HasOne(e => e.Trip)
                       .WithMany(e => e.Bookings)
@@ -105,6 +107,32 @@ namespace BaseCore.Repository
                       .OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(e => e.User)
                       .WithMany(e => e.Bookings)
+                      .HasForeignKey(e => e.UserID)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Promotion)
+                      .WithMany(e => e.Bookings)
+                      .HasForeignKey(e => e.PromotionID)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Promotion>(entity =>
+            {
+                entity.ToTable("Promotions");
+                entity.HasKey(e => e.PromotionID);
+
+                entity.Property(e => e.Code).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.DiscountValue).HasPrecision(18, 2);
+                entity.Property(e => e.MinOrderValue).HasPrecision(18, 2);
+                entity.Property(e => e.MaxDiscount).HasPrecision(18, 2);
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+                entity.Property(e => e.IsPublic).HasDefaultValue(true);
+                entity.Property(e => e.UsedCount).HasDefaultValue(0);
+
+                entity.HasIndex(e => e.Code).IsUnique();
+
+                entity.HasOne(e => e.User)
+                      .WithMany(e => e.Promotions)
                       .HasForeignKey(e => e.UserID)
                       .OnDelete(DeleteBehavior.Restrict);
             });

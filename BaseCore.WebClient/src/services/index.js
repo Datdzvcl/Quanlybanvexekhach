@@ -7,3 +7,4 @@ export { busApi } from './busApi';
 export { operatorApi } from './operatorApi';
 export { userApi } from './userApi';
 export { dashboardApi } from './dashboardApi';
+export { promotionApi } from './promotionApi';

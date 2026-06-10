@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import { formatVND, labelRole, labelTripStatus, pick } from '../api';
+import PromotionManager from '../components/PromotionManager';
 import { useAuth } from '../contexts/AuthContext';
 import { operatorPortalApi } from '../services/operatorPortalApi';
 
 const OPERATOR_MENU = [
+  { id: 'promotions', label: 'Khuyen mai', icon: 'fa-tags' },
   { id: 'dashboard', label: 'Thống kê', icon: 'fa-chart-line' },
   { id: 'buses', label: 'Quản lý đội xe', icon: 'fa-bus' },
   { id: 'trips', label: 'Quản lý chuyến xe', icon: 'fa-route' },
@@ -15,6 +17,7 @@ const OPERATOR_MENU = [
 ];
 
 const operatorPaths = {
+  promotions: '/operator/promotions',
   dashboard: '/operator/dashboard',
   buses: '/operator/buses',
   trips: '/operator/trips',
@@ -97,6 +100,9 @@ export default function OperatorPage() {
       {active === 'dashboard' && <OperatorDashboard />}
       {active === 'buses' && <OperatorBuses />}
       {active === 'trips' && <OperatorTrips />}
+      {active === 'promotions' && (
+        <PromotionManager mode="operator" ModalComponent={OperatorFormModal} />
+      )}
       {active === 'reports' && <OperatorReports />}
       {active === 'settings' && <OperatorSettings />}
     </AdminLayout>

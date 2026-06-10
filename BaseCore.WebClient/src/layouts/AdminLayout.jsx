@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export const ADMIN_MENU = [
-  { id: 'dashboard', label: 'Thống kê', icon: 'fa-chart-line' },
-  { id: 'buses', label: 'Quản lý xe', icon: 'fa-bus' },
-  { id: 'trips', label: 'Quản lý chuyến xe', icon: 'fa-route' },
-  { id: 'operators', label: 'Quản lý nhà xe', icon: 'fa-building' },
-  { id: 'users', label: 'Quản lý người dùng', icon: 'fa-users' },
-  { id: 'orders', label: 'Quản lý đơn đặt vé', icon: 'fa-ticket' },
-  { id: 'settings', label: 'Cài đặt', icon: 'fa-gear' },
+  { id: 'dashboard', label: 'Thong ke', icon: 'fa-chart-line' },
+  { id: 'buses', label: 'Quan ly xe', icon: 'fa-bus' },
+  { id: 'trips', label: 'Quan ly chuyen xe', icon: 'fa-route' },
+  { id: 'operators', label: 'Quan ly nha xe', icon: 'fa-building' },
+  { id: 'users', label: 'Quan ly nguoi dung', icon: 'fa-users' },
+  { id: 'orders', label: 'Quan ly don dat ve', icon: 'fa-ticket' },
+  { id: 'promotions', label: 'Khuyen mai', icon: 'fa-tags' },
+  { id: 'settings', label: 'Cai dat', icon: 'fa-gear' },
 ];
 
 export default function AdminLayout({
@@ -17,9 +18,9 @@ export default function AdminLayout({
   onActiveChange,
   children,
   menu = ADMIN_MENU,
-  brandLabel = 'VéXeAZ',
-  subtitle = 'Quản trị hệ thống đặt vé xe khách',
-  defaultTitle = 'Quản trị',
+  brandLabel = 'VeXeAZ',
+  subtitle = 'Quan tri he thong dat ve xe khach',
+  defaultTitle = 'Quan tri',
 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -75,11 +76,11 @@ export default function AdminLayout({
         <div className="admin-layout-sidebar-actions">
           <Link to="/" className="admin-layout-link">
             <i className="fa-solid fa-house" />
-            <span>Xem trang chủ</span>
+            <span>Xem trang chu</span>
           </Link>
           <button type="button" className="admin-layout-link danger" onClick={handleLogout}>
             <i className="fa-solid fa-right-from-bracket" />
-            <span>Đăng xuất</span>
+            <span>Dang xuat</span>
           </button>
         </div>
       </aside>
@@ -102,7 +103,7 @@ export default function AdminLayout({
               <div className="admin-layout-dropdown">
                 <Link to="/profile" onClick={() => setOpen(false)}>
                   <i className="fa-regular fa-user" />
-                  <span>Thông tin cá nhân</span>
+                  <span>Thong tin ca nhan</span>
                 </Link>
                 <button
                   type="button"
@@ -112,11 +113,11 @@ export default function AdminLayout({
                   }}
                 >
                   <i className="fa-solid fa-gear" />
-                  <span>Cài đặt</span>
+                  <span>Cai dat</span>
                 </button>
                 <button type="button" className="danger" onClick={handleLogout}>
                   <i className="fa-solid fa-right-from-bracket" />
-                  <span>Đăng xuất</span>
+                  <span>Dang xuat</span>
                 </button>
               </div>
             )}

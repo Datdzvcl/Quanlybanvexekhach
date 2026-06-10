@@ -22,6 +22,7 @@ import { operatorApi } from "../services/operatorApi";
 import { tripApi } from "../services/tripApi";
 import { userApi } from "../services/userApi";
 import { useAuth } from "../contexts/AuthContext";
+import PromotionManager from "../components/PromotionManager";
 const includesText = (value, query) =>
   String(value || "")
     .toLowerCase()
@@ -82,6 +83,7 @@ const cleanParams = (params) =>
 //   ["users", "Người dùng", "fa-users"],
 // ];
 const tabs = [
+  ["promotions", "Khuyến mãi", "fa-tags"],
   ["dashboard", "Tổng quan", "fa-chart-line"],
   ["trips", "Chuyến xe", "fa-route"],
   ["orders", "Đơn hàng", "fa-file-invoice"], // ← gộp 3 tab
@@ -301,6 +303,7 @@ function AdminContent({
     );
   if (active === "users")
     return <UsersManager users={users} onRefresh={onRefresh} />;
+  if (active === "promotions") return <PromotionManager mode="admin" />;
   if (active === "settings") return <AdminSettings />;
   return <OperatorsManager operators={operators} onRefresh={onRefresh} />;
 }

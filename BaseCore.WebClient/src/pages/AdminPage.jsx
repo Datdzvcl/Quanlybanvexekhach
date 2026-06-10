@@ -10,6 +10,7 @@ const adminPaths = {
   operators: '/admin/operators',
   users: '/admin/users',
   orders: '/admin/bookings',
+  promotions: '/admin/promotions',
   settings: '/admin/settings',
 };
 

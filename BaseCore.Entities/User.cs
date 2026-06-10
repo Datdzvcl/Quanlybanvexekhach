@@ -17,6 +17,7 @@ namespace BaseCore.Entities
         public DateTime? CreatedAt { get; set; }
 
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+        public ICollection<Promotion> Promotions { get; set; } = new List<Promotion>();
         public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
     }
 }
