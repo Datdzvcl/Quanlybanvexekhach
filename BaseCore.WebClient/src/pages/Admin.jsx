@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   apiFetch,
@@ -1024,62 +1025,82 @@ function UsersManager({ onRefresh }) {
       <SectionHeader
         title="Quản lý người dùng"
         showForm={showForm}
-        onToggle={() => (showForm ? setShowForm(false) : openCreate())}
+        onToggle={openCreate}
       />
       {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
-        <form className="admin-form-grid" onSubmit={submit}>
-          <input
-            value={form.fullName}
-            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            placeholder="Họ tên"
-            required
-          />
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="Email"
-            required
-          />
-          <input
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="Số điện thoại"
-            required
-          />
-          <select
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-          >
-            <option value="Customer">Khách hàng</option>
-            <option value="Operator">Nhà xe</option>
-            <option value="Admin">Quản trị viên</option>
-          </select>
-          <input
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder={form.userID ? "Mật khẩu mới nếu muốn đổi" : "Mật khẩu"}
-            required={!form.userID}
-          />
-          <div className="admin-form-actions">
-            <button
-              className="btn btn-primary"
-              type="submit"
-              disabled={loading}
+        <AdminFormModal
+          title={form.userID ? "Sửa người dùng" : "Thêm người dùng"}
+          subtitle="Nhập thông tin tài khoản và quyền truy cập."
+          onClose={() => cancelForm(setShowForm, setForm, {
+            userID: null,
+            fullName: "",
+            email: "",
+            phone: "",
+            role: "Customer",
+            password: "",
+          })}
+        >
+          <form className="admin-form-grid admin-form-grid-modal" onSubmit={submit}>
+            <input
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              placeholder="Họ tên"
+              required
+            />
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="Email"
+              required
+            />
+            <input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="Số điện thoại"
+              required
+            />
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
-              {form.userID ? "Cập nhật" : "Lưu user"}
-            </button>
-            <button
-              className="btn btn-outline"
-              type="button"
-              onClick={() => setShowForm(false)}
-            >
-              Hủy
-            </button>
-          </div>
-        </form>
+              <option value="Customer">Khách hàng</option>
+              <option value="Operator">Nhà xe</option>
+              <option value="Admin">Quản trị viên</option>
+            </select>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder={form.userID ? "Mật khẩu mới nếu muốn đổi" : "Mật khẩu"}
+              required={!form.userID}
+            />
+            <div className="admin-form-actions">
+              <button
+                className="btn btn-primary"
+                type="submit"
+                disabled={loading}
+              >
+                {form.userID ? "Cập nhật" : "Lưu user"}
+              </button>
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={() => cancelForm(setShowForm, setForm, {
+                  userID: null,
+                  fullName: "",
+                  email: "",
+                  phone: "",
+                  role: "Customer",
+                  password: "",
+                })}
+              >
+                Hủy
+              </button>
+            </div>
+          </form>
+        </AdminFormModal>
       )}
       <div className="admin-filter-grid">
         <input
@@ -1242,6 +1263,11 @@ function TripsManager({ buses, operators, onRefresh }) {
     setPage(1);
   };
 
+  const openCreate = () => {
+    setForm(EMPTY_BUS);
+    setShowForm(true);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setNotice(null);
@@ -1321,97 +1347,102 @@ function TripsManager({ buses, operators, onRefresh }) {
       <SectionHeader
         title="Quản lý chuyến xe"
         showForm={showForm}
-        onToggle={() =>
-          toggleCreateForm(showForm, setShowForm, setForm, EMPTY_TRIP)
-        }
+        onToggle={openCreate}
       />
       {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
-        <form className="admin-form-grid" onSubmit={submit}>
-          <select
-            value={form.busID}
-            onChange={(e) => setForm({ ...form, busID: e.target.value })}
-            required
-          >
-            <option value="">Chọn xe</option>
-            {buses.map((b) => {
-              const busId = pick(b, ["busID", "BusID"]);
-              return (
-                <option key={busId} value={busId}>
-                  Xe #{busId} - {pick(b, ["licensePlate", "LicensePlate"])} (
-                  {pick(b, ["busType", "BusType"])}) -{" "}
-                  {pick(
-                    b,
-                    ["operatorName", "OperatorName"],
-                    findOperatorName(
-                      operators,
-                      pick(b, ["operatorID", "OperatorID"]),
-                    ),
-                  )}
-                </option>
-              );
-            })}
-          </select>
-          <input
-            value={form.departureLocation}
-            onChange={(e) =>
-              setForm({ ...form, departureLocation: e.target.value })
-            }
-            placeholder="Điểm đi"
-            required
-          />
-          <input
-            value={form.arrivalLocation}
-            onChange={(e) =>
-              setForm({ ...form, arrivalLocation: e.target.value })
-            }
-            placeholder="Điểm đến"
-            required
-          />
-          <input
-            type="datetime-local"
-            value={form.departureTime}
-            onChange={(e) =>
-              setForm({ ...form, departureTime: e.target.value })
-            }
-            required
-          />
-          <input
-            type="datetime-local"
-            value={form.arrivalTime}
-            onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })}
-            required
-          />
-          <input
-            type="number"
-            min="0"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            placeholder="Giá vé"
-            required
-          />
-          <select
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value })}
-          >
-            <option value="Scheduled">Đã lên lịch</option>
-            <option value="On-going">Đang chạy</option>
-            <option value="Completed">Hoàn thành</option>
-            <option value="Cancelled">Đã hủy</option>
-          </select>
-          <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">
-              {form.tripID ? "Cập nhật" : "Lưu chuyến xe"}
-            </button>
-            <button
-              className="btn btn-outline"
-              type="button"
-              onClick={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}
+        <AdminFormModal
+          title={form.tripID ? "Sửa chuyến xe" : "Thêm chuyến xe"}
+          subtitle="Thiết lập xe, lộ trình, thời gian và giá vé."
+          size="wide"
+          onClose={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}
+        >
+          <form className="admin-form-grid admin-form-grid-modal" onSubmit={submit}>
+            <select
+              value={form.busID}
+              onChange={(e) => setForm({ ...form, busID: e.target.value })}
+              required
             >
-              Hủy
-            </button>
-          </div>
-        </form>
+              <option value="">Chọn xe</option>
+              {buses.map((b) => {
+                const busId = pick(b, ["busID", "BusID"]);
+                return (
+                  <option key={busId} value={busId}>
+                    Xe #{busId} - {pick(b, ["licensePlate", "LicensePlate"])} (
+                    {pick(b, ["busType", "BusType"])}) -{" "}
+                    {pick(
+                      b,
+                      ["operatorName", "OperatorName"],
+                      findOperatorName(
+                        operators,
+                        pick(b, ["operatorID", "OperatorID"]),
+                      ),
+                    )}
+                  </option>
+                );
+              })}
+            </select>
+            <input
+              value={form.departureLocation}
+              onChange={(e) =>
+                setForm({ ...form, departureLocation: e.target.value })
+              }
+              placeholder="Điểm đi"
+              required
+            />
+            <input
+              value={form.arrivalLocation}
+              onChange={(e) =>
+                setForm({ ...form, arrivalLocation: e.target.value })
+              }
+              placeholder="Điểm đến"
+              required
+            />
+            <input
+              type="datetime-local"
+              value={form.departureTime}
+              onChange={(e) =>
+                setForm({ ...form, departureTime: e.target.value })
+              }
+              required
+            />
+            <input
+              type="datetime-local"
+              value={form.arrivalTime}
+              onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })}
+              required
+            />
+            <input
+              type="number"
+              min="0"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              placeholder="Giá vé"
+              required
+            />
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              <option value="Scheduled">Đã lên lịch</option>
+              <option value="On-going">Đang chạy</option>
+              <option value="Completed">Hoàn thành</option>
+              <option value="Cancelled">Đã hủy</option>
+            </select>
+            <div className="admin-form-actions">
+              <button className="btn btn-primary" type="submit">
+                {form.tripID ? "Cập nhật" : "Lưu chuyến xe"}
+              </button>
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}
+              >
+                Hủy
+              </button>
+            </div>
+          </form>
+        </AdminFormModal>
       )}
       <div className="admin-filter-grid">
         <input
@@ -2599,66 +2630,75 @@ function BusesManager({ operators: initialOperators = [], onRefresh }) {
     }
   };
 
+  const openCreate = () => {
+    setForm(EMPTY_BUS);
+    setShowForm(true);
+  };
+
   return (
     <section className="admin-card table-card">
       <SectionHeader
         title="Quản lý xe"
         showForm={showForm}
-        onToggle={() =>
-          toggleCreateForm(showForm, setShowForm, setForm, EMPTY_BUS)
-        }
+        onToggle={openCreate}
       />
       {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
-        <form className="admin-form-grid" onSubmit={submit}>
-          <select
-            value={form.operatorID}
-            onChange={(e) => setForm({ ...form, operatorID: e.target.value })}
-            required
-          >
-            <option value="">Chọn nhà xe</option>
-            {operators.map((o) => (
-              <option
-                key={pick(o, ["operatorID", "OperatorID"])}
-                value={pick(o, ["operatorID", "OperatorID"])}
-              >
-                {pick(o, ["name", "Name"])}
-              </option>
-            ))}
-          </select>
-          <input
-            value={form.licensePlate}
-            onChange={(e) => setForm({ ...form, licensePlate: e.target.value })}
-            placeholder="Biển số"
-            required
-          />
-          <input
-            type="number"
-            min="1"
-            value={form.capacity}
-            onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-            placeholder="Sức chứa"
-            required
-          />
-          <input
-            value={form.busType}
-            onChange={(e) => setForm({ ...form, busType: e.target.value })}
-            placeholder="Loại xe"
-            required
-          />
-          <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">
-              {form.busID ? "Cập nhật" : "Lưu xe"}
-            </button>
-            <button
-              className="btn btn-outline"
-              type="button"
-              onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}
+        <AdminFormModal
+          title={form.busID ? "Sửa xe" : "Thêm xe"}
+          subtitle="Khai báo nhà xe, biển số, loại xe và sức chứa."
+          onClose={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}
+        >
+          <form className="admin-form-grid admin-form-grid-modal" onSubmit={submit}>
+            <select
+              value={form.operatorID}
+              onChange={(e) => setForm({ ...form, operatorID: e.target.value })}
+              required
             >
-              Hủy
-            </button>
-          </div>
-        </form>
+              <option value="">Chọn nhà xe</option>
+              {operators.map((o) => (
+                <option
+                  key={pick(o, ["operatorID", "OperatorID"])}
+                  value={pick(o, ["operatorID", "OperatorID"])}
+                >
+                  {pick(o, ["name", "Name"])}
+                </option>
+              ))}
+            </select>
+            <input
+              value={form.licensePlate}
+              onChange={(e) => setForm({ ...form, licensePlate: e.target.value })}
+              placeholder="Biển số"
+              required
+            />
+            <input
+              type="number"
+              min="1"
+              value={form.capacity}
+              onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+              placeholder="Sức chứa"
+              required
+            />
+            <input
+              value={form.busType}
+              onChange={(e) => setForm({ ...form, busType: e.target.value })}
+              placeholder="Loại xe"
+              required
+            />
+            <div className="admin-form-actions">
+              <button className="btn btn-primary" type="submit">
+                {form.busID ? "Cập nhật" : "Lưu xe"}
+              </button>
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}
+              >
+                Hủy
+              </button>
+            </div>
+          </form>
+        </AdminFormModal>
       )}
       <div className="admin-filter-grid">
         <input
@@ -2796,6 +2836,11 @@ function OperatorsManager({ onRefresh }) {
     setPage(1);
   };
 
+  const openCreate = () => {
+    setForm(EMPTY_OPERATOR);
+    setShowForm(true);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setNotice(null);
@@ -2863,48 +2908,52 @@ function OperatorsManager({ onRefresh }) {
       <SectionHeader
         title="Quản lý nhà xe"
         showForm={showForm}
-        onToggle={() =>
-          toggleCreateForm(showForm, setShowForm, setForm, EMPTY_OPERATOR)
-        }
+        onToggle={openCreate}
       />
       {notice && <AdminNotice type={notice.type}>{notice.text}</AdminNotice>}
       {showForm && (
-        <form className="admin-form-grid" onSubmit={submit}>
-          <input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Tên nhà xe"
-            required
-          />
-          <input
-            value={form.contactPhone}
-            onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-            placeholder="Số điện thoại"
-            required
-          />
-          <input
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="Email"
-          />
-          <input
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Mô tả"
-          />
-          <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">
-              {form.operatorID ? "Cập nhật" : "Lưu nhà xe"}
-            </button>
-            <button
-              className="btn btn-outline"
-              type="button"
-              onClick={() => cancelForm(setShowForm, setForm, EMPTY_OPERATOR)}
-            >
-              Hủy
-            </button>
-          </div>
-        </form>
+        <AdminFormModal
+          title={form.operatorID ? "Sửa nhà xe" : "Thêm nhà xe"}
+          subtitle="Nhập thông tin liên hệ và mô tả của nhà xe."
+          onClose={() => cancelForm(setShowForm, setForm, EMPTY_OPERATOR)}
+        >
+          <form className="admin-form-grid admin-form-grid-modal" onSubmit={submit}>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Tên nhà xe"
+              required
+            />
+            <input
+              value={form.contactPhone}
+              onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
+              placeholder="Số điện thoại"
+              required
+            />
+            <input
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="Email"
+            />
+            <input
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Mô tả"
+            />
+            <div className="admin-form-actions">
+              <button className="btn btn-primary" type="submit">
+                {form.operatorID ? "Cập nhật" : "Lưu nhà xe"}
+              </button>
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={() => cancelForm(setShowForm, setForm, EMPTY_OPERATOR)}
+              >
+                Hủy
+              </button>
+            </div>
+          </form>
+        </AdminFormModal>
       )}
       <div className="admin-filter-grid">
         <input
@@ -3056,8 +3105,7 @@ function SectionHeader({ title, showForm, onToggle }) {
     <div className="admin-section-head">
       <h3>{title}</h3>
       <button className="btn btn-primary" onClick={onToggle}>
-        <i className={`fa-solid ${showForm ? "fa-xmark" : "fa-plus"}`} />{" "}
-        {showForm ? "Đóng form" : "Thêm mới"}
+        <i className="fa-solid fa-plus" /> Thêm mới
       </button>
     </div>
   );
@@ -3111,6 +3159,65 @@ function AdminPagination({ page, totalPages, totalCount, onPageChange }) {
       </button>
     </div>
   );
+}
+
+function useModalViewportLock(isOpen) {
+  useEffect(() => {
+    if (!isOpen || typeof document === "undefined") return undefined;
+
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+}
+
+function AdminFormModal({
+  title,
+  subtitle,
+  size = "default",
+  onClose,
+  children,
+}) {
+  useModalViewportLock(true);
+
+  const modal = (
+    <div
+      className="admin-form-modal-overlay"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <section
+        className={`admin-form-modal admin-form-modal-${size}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="admin-form-modal-head">
+          <div>
+            <h3>{title}</h3>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          <button
+            className="admin-form-modal-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Đóng"
+          >
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+        <div className="admin-form-modal-body">{children}</div>
+      </section>
+    </div>
+  );
+
+  if (typeof document === "undefined") return modal;
+  return createPortal(modal, document.body);
 }
 
 function AdminNotice({ type = "success", children }) {
@@ -4255,84 +4362,90 @@ function OrdersManager({ bookings, trips, operators, onRefresh }) {
           </div>
           <button
             className="btn btn-primary"
-            onClick={() =>
-              toggleCreateForm(showForm, setShowForm, setForm, {
+            onClick={() => {
+              setForm({
                 ...EMPTY_BOOKING,
                 tripID: selectedTrip.id,
-              })
-            }
+              });
+              setShowForm(true);
+            }}
           >
-            <i className={`fa-solid ${showForm ? "fa-xmark" : "fa-plus"}`} />{" "}
-            {showForm ? "Đóng form" : "Thêm đơn"}
+            <i className="fa-solid fa-plus" /> Thêm đơn
           </button>
         </div>
 
         {/* Form thêm đơn */}
         {showForm && (
-          <form className="admin-form-grid" onSubmit={submitBooking}>
-            <input
-              value={form.customerName}
-              onChange={(e) =>
-                setForm({ ...form, customerName: e.target.value })
-              }
-              placeholder="Tên khách"
-              required
-            />
-            <input
-              value={form.customerPhone}
-              onChange={(e) =>
-                setForm({ ...form, customerPhone: e.target.value })
-              }
-              placeholder="SĐT"
-              required
-            />
-            <input
-              value={form.customerEmail}
-              onChange={(e) =>
-                setForm({ ...form, customerEmail: e.target.value })
-              }
-              placeholder="Email"
-            />
-            <input
-              type="number"
-              min="1"
-              value={form.totalSeats}
-              onChange={(e) => setForm({ ...form, totalSeats: e.target.value })}
-              placeholder="Số ghế"
-              required
-            />
-            <select
-              value={form.paymentMethod}
-              onChange={(e) =>
-                setForm({ ...form, paymentMethod: e.target.value })
-              }
-            >
-              <option value="Online">Online</option>
-              <option value="Cash">Cash</option>
-            </select>
-            <select
-              value={form.paymentStatus}
-              onChange={(e) =>
-                setForm({ ...form, paymentStatus: e.target.value })
-              }
-            >
-              <option value="Pending">Pending</option>
-              <option value="Paid">Paid</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-            <div className="admin-form-actions">
-              <button className="btn btn-primary" type="submit">
-                Lưu đơn
-              </button>
-              <button
-                className="btn btn-outline"
-                type="button"
-                onClick={() => cancelForm(setShowForm, setForm, EMPTY_BOOKING)}
+          <AdminFormModal
+            title="Thêm đơn hàng"
+            subtitle="Tạo nhanh đơn đặt vé cho chuyến xe đang chọn."
+            onClose={() => cancelForm(setShowForm, setForm, EMPTY_BOOKING)}
+          >
+            <form className="admin-form-grid admin-form-grid-modal" onSubmit={submitBooking}>
+              <input
+                value={form.customerName}
+                onChange={(e) =>
+                  setForm({ ...form, customerName: e.target.value })
+                }
+                placeholder="Tên khách"
+                required
+              />
+              <input
+                value={form.customerPhone}
+                onChange={(e) =>
+                  setForm({ ...form, customerPhone: e.target.value })
+                }
+                placeholder="SĐT"
+                required
+              />
+              <input
+                value={form.customerEmail}
+                onChange={(e) =>
+                  setForm({ ...form, customerEmail: e.target.value })
+                }
+                placeholder="Email"
+              />
+              <input
+                type="number"
+                min="1"
+                value={form.totalSeats}
+                onChange={(e) => setForm({ ...form, totalSeats: e.target.value })}
+                placeholder="Số ghế"
+                required
+              />
+              <select
+                value={form.paymentMethod}
+                onChange={(e) =>
+                  setForm({ ...form, paymentMethod: e.target.value })
+                }
               >
-                Hủy
-              </button>
-            </div>
-          </form>
+                <option value="Online">Online</option>
+                <option value="Cash">Cash</option>
+              </select>
+              <select
+                value={form.paymentStatus}
+                onChange={(e) =>
+                  setForm({ ...form, paymentStatus: e.target.value })
+                }
+              >
+                <option value="Pending">Pending</option>
+                <option value="Paid">Paid</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <div className="admin-form-actions">
+                <button className="btn btn-primary" type="submit">
+                  Lưu đơn
+                </button>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => cancelForm(setShowForm, setForm, EMPTY_BOOKING)}
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </AdminFormModal>
         )}
 
         {/* Lọc đơn */}

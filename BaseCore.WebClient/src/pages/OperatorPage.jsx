@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import { formatVND, labelRole, labelTripStatus, pick } from '../api';
@@ -200,6 +201,15 @@ function OperatorBuses() {
     load(1);
   }, []);
 
+  useEffect(() => {
+    if (!showForm || typeof document === 'undefined') return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showForm]);
+
   const submit = async (e) => {
     e.preventDefault();
     const capacity = Number(form.capacity);
@@ -263,7 +273,13 @@ function OperatorBuses() {
       </div>
 
       {showForm && (
-        <form className="admin-form-grid" onSubmit={submit}>
+        <OperatorFormModal
+          title={form.busID ? 'Sửa xe' : 'Thêm xe'}
+          subtitle="Khai báo thông tin xe và sơ đồ ghế."
+          size="wide"
+          onClose={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}
+        >
+        <form className="admin-form-grid admin-form-grid-modal" onSubmit={submit}>
           <input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="Biển số xe" required />
           <select
             value={form.busType}
@@ -294,6 +310,7 @@ function OperatorBuses() {
             <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}>Hủy</button>
           </div>
         </form>
+        </OperatorFormModal>
       )}
 
       <FilterBar
@@ -390,6 +407,15 @@ function OperatorTrips() {
     load(1);
   }, []);
 
+  useEffect(() => {
+    if (!showForm || typeof document === 'undefined') return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showForm]);
+
   const selectBus = (busID) => {
     const selectedBus = buses.find((bus) => String(pick(bus, ['busID', 'BusID'])) === String(busID));
     const layoutState = selectedBus ? buildSeatLayoutFormState(selectedBus) : {};
@@ -480,8 +506,14 @@ function OperatorTrips() {
       </div>
 
       {showForm && (
-        <form className="operator-trip-form" onSubmit={submit}>
-          <div className="admin-form-grid">
+        <OperatorFormModal
+          title={form.tripID ? 'Sửa chuyến xe' : 'Thêm chuyến xe'}
+          subtitle="Thiết lập xe, giờ chạy, điểm đón trả và giá vé."
+          size="wide"
+          onClose={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}
+        >
+        <form className="operator-trip-form operator-trip-form-modal" onSubmit={submit}>
+          <div className="admin-form-grid admin-form-grid-modal">
             <select value={form.busID} onChange={(e) => selectBus(e.target.value)} required>
               <option value="">Chọn xe</option>
               {buses.map((bus) => (
@@ -515,6 +547,7 @@ function OperatorTrips() {
             <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}>Hủy</button>
           </div>
         </form>
+        </OperatorFormModal>
       )}
 
       <form className="operator-clone-panel" onSubmit={cloneTrip}>
@@ -966,6 +999,50 @@ function toggleForm(showForm, setShowForm, setForm, empty) {
 function cancelForm(setShowForm, setForm, empty) {
   setForm(empty);
   setShowForm(false);
+}
+
+function useModalViewportLock(isOpen) {
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined;
+
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+}
+
+function OperatorFormModal({ title, subtitle, size = 'default', onClose, children }) {
+  useModalViewportLock(true);
+
+  const modal = (
+    <div className="admin-form-modal-overlay" role="presentation" onMouseDown={onClose}>
+      <section
+        className={`admin-form-modal admin-form-modal-${size}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="admin-form-modal-head">
+          <div>
+            <h3>{title}</h3>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          <button className="admin-form-modal-close" type="button" onClick={onClose} aria-label="Đóng">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+        <div className="admin-form-modal-body">{children}</div>
+      </section>
+    </div>
+  );
+
+  if (typeof document === 'undefined') return modal;
+  return createPortal(modal, document.body);
 }
 
 function toDateTimeInput(value) {

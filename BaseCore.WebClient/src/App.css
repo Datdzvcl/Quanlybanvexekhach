@@ -4398,6 +4398,81 @@ a:hover,
   display: flex;
   gap: 8px;
 }
+.admin-form-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.56);
+  backdrop-filter: blur(4px);
+}
+.admin-form-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #dbe7f4;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+.admin-form-modal-wide {
+  width: min(1080px, 100%);
+}
+.admin-form-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid #e5edf7;
+}
+.admin-form-modal-head h3 {
+  margin: 0;
+}
+.admin-form-modal-head p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+.admin-form-modal-close {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.admin-form-modal-body {
+  padding: 24px;
+}
+.admin-form-grid-modal {
+  margin-bottom: 0;
+}
+.admin-form-popup {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3000;
+  width: min(1080px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 24px;
+  margin: 0;
+  background: #fff;
+  border: 1px solid #dbe7f4;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 100vmax rgba(15, 23, 42, 0.56),
+    0 24px 60px rgba(15, 23, 42, 0.28);
+}
+.operator-trip-form-popup {
+  width: min(1180px, calc(100vw - 32px));
+}
 .admin-actions {
   display: flex;
   gap: 8px;
@@ -4651,6 +4726,19 @@ a:hover,
   }
   .admin-form-grid {
     grid-template-columns: 1fr;
+  }
+  .admin-form-modal-overlay {
+    padding: 12px;
+  }
+  .admin-form-modal-head,
+  .admin-form-modal-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .admin-form-popup {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 16px;
   }
   .admin-section-head,
   .admin-pagination {
@@ -5498,4 +5586,3 @@ a:hover,
     text-align: left;
   }
 }
-
