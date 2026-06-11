@@ -12,13 +12,13 @@ const ROUND_TRIP_KEY = "roundTripBooking";
 const SUCCESS_BOOKINGS_KEY = "lastSuccessfulBookingIds";
 
 const paymentMethods = [
-  { value: "Cash", label: "Tien mat", icon: "fa-money-bill-wave" },
+  { value: "Cash", label: "Tiền mặt", icon: "fa-money-bill-wave" },
   {
     value: "BankTransfer",
-    label: "Chuyen khoan ngan hang",
+    label: "Chuyển khoản ngân hàng",
     icon: "fa-building-columns",
   },
-  { value: "VNPay", label: "Vi dien tu/VNPay gia lap", icon: "fa-wallet" },
+  { value: "VNPay", label: "Ví điện tử/VNPay giả lập", icon: "fa-wallet" },
 ];
 
 function readPendingBooking() {
@@ -107,7 +107,7 @@ export default function BookingPayment() {
 
   useEffect(() => {
     if (expiresAt > now) return;
-    alert("Da het thoi gian thanh toan. Vui long chon lai ghe.");
+    alert("Đã hết thời gian thanh toán. Vui lòng chọn lại ghế.");
     localStorage.removeItem(PAYMENT_EXPIRES_KEY);
     navigate(
       pendingBooking?.tripId
@@ -177,8 +177,8 @@ export default function BookingPayment() {
     () => ({
       route: `${pick(trip, ["departureLocation", "DepartureLocation"], "--")} -> ${pick(trip, ["arrivalLocation", "ArrivalLocation"], "--")}`,
       departureTime: pick(trip, ["departureTime", "DepartureTime"]),
-      operatorName: pick(trip, ["operatorName", "OperatorName"], "Nha xe"),
-      busType: pick(trip, ["busType", "BusType"], "Xe khach"),
+      operatorName: pick(trip, ["operatorName", "OperatorName"], "Nhà xe"),
+      busType: pick(trip, ["busType", "BusType"], "Xe khách"),
     }),
     [trip],
   );
@@ -189,14 +189,14 @@ export default function BookingPayment() {
     if (!canApplyPromotion) {
       setPromotionResult(null);
       setPromotionMessage(
-        "Ma giam gia hien chi ap dung cho mot luot thanh toan.",
+        "Mã giảm giá hiện chỉ áp dụng cho một lượt thanh toán.",
       );
       return;
     }
 
     if (!code) {
       setPromotionResult(null);
-      setPromotionMessage("Vui long nhap ma giam gia.");
+      setPromotionMessage("Vui lòng nhập mã giảm giá.");
       return;
     }
 
@@ -212,17 +212,17 @@ export default function BookingPayment() {
       if (result?.valid || result?.Valid) {
         setPromotionResult(result);
         setPromotionMessage(
-          result.message || result.Message || "Ap dung ma thanh cong.",
+          result.message || result.Message || "Áp dụng mã thành công.",
         );
       } else {
         setPromotionResult(null);
         setPromotionMessage(
-          result?.message || result?.Message || "Ma giam gia khong hop le.",
+          result?.message || result?.Message || "Mã giảm giá không hợp lệ.",
         );
       }
     } catch (err) {
       setPromotionResult(null);
-      setPromotionMessage(err.message || "Khong the kiem tra ma giam gia.");
+      setPromotionMessage(err.message || "Không thể kiểm tra mã giảm giá.");
     } finally {
       setPromotionLoading(false);
     }
@@ -233,13 +233,13 @@ export default function BookingPayment() {
       bookingsToPay.length === 0 ||
       bookingsToPay.some((booking) => !booking?.tripId || !booking?.contact)
     ) {
-      alert("Thieu du lieu dat ve. Vui long thuc hien lai tu buoc chon ghe.");
+      alert("Thiếu dữ liệu đặt vé. Vui lòng thực hiện lại từ bước chọn ghế.");
       navigate("/search-results");
       return;
     }
 
     if (remainingMs <= 0) {
-      alert("Da het thoi gian thanh toan. Vui long chon lai ghe.");
+      alert("Đã hết thời gian thanh toán. Vui lòng chọn lại ghế.");
       navigate(`/trips/${pendingBooking.tripId}/seats`);
       return;
     }
@@ -275,13 +275,13 @@ export default function BookingPayment() {
 
       navigate(`/booking/success/${bookingId}`, { replace: true });
     } catch (err) {
-      const message = err.message || "Khong the tao booking.";
+      const message = err.message || "Không thể tạo booking.";
       const lowerMessage = message.toLowerCase();
       if (
         lowerMessage.includes("het thoi gian giu") ||
         lowerMessage.includes("het thoi gian")
       ) {
-        alert("Ghe da het thoi gian giu, vui long chon lai ghe.");
+        alert("Ghế đã hết thời gian giữ, vui lòng chọn lại ghế.");
         navigate(`/trips/${pendingBooking.tripId}/seats`);
         return;
       }
@@ -296,17 +296,17 @@ export default function BookingPayment() {
     return (
       <UserLayout>
         <div className="container pickup-placeholder">
-          <h1>Chua co du lieu thanh toan</h1>
+          <h1>Chưa có dữ liệu thanh toán</h1>
           <p>
-            Vui long chon chuyen, giu ghe va nhap thong tin lien he truoc khi
-            thanh toan.
+            Vui lòng chọn chuyến, giữ ghế và nhập thông tin liên hệ trước khi
+            thanh toán.
           </p>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => navigate("/search-results")}
           >
-            Tim chuyen
+            Tìm chuyến
           </button>
         </div>
       </UserLayout>
@@ -317,9 +317,9 @@ export default function BookingPayment() {
     <UserLayout>
       <section className="payment-flow-hero">
         <div className="container">
-          <span>Thanh toan</span>
-          <h1>Hoan tat dat ve</h1>
-          <p>Vui long hoan tat thanh toan trong thoi gian quy dinh.</p>
+          <span>Thanh toán</span>
+          <h1>Hoàn tất đặt vé</h1>
+          <p>Vui lòng hoàn tất thanh toán trong thời gian quy định.</p>
         </div>
       </section>
 
@@ -327,13 +327,13 @@ export default function BookingPayment() {
         <main className="payment-method-card">
           <div className="payment-countdown-panel">
             <div>
-              <span>Thoi gian thanh toan con lai</span>
+              <span>Thời gian thanh toán còn lại</span>
               <strong>{formatCountdown(remainingMs)}</strong>
             </div>
             <i className="fa-solid fa-clock" />
           </div>
 
-          <h2>Chon phuong thuc thanh toan</h2>
+          <h2>Chọn phương thức thanh toán</h2>
           <div className="payment-method-list">
             {paymentMethods.map((method) => (
               <label
@@ -357,8 +357,8 @@ export default function BookingPayment() {
               <div className="bank-transfer-header">
                 <i className="fa-solid fa-qrcode" />
                 <div>
-                  <h3>Thong tin chuyen khoan</h3>
-                  <p>Quet QR hoac chuyen khoan theo thong tin ben duoi</p>
+                  <h3>Thông tin chuyển khoản</h3>
+                  <p>Quét QR hoặc chuyển khoản theo thông tin bên dưới</p>
                 </div>
               </div>
 
@@ -366,34 +366,34 @@ export default function BookingPayment() {
                 <div className="bank-qr-wrapper">
                   <img
                     src={vietQrUrl}
-                    alt="QR chuyen khoan"
+                    alt="QR chuyển khoản"
                     className="bank-qr-image"
                   />
                 </div>
 
                 <div className="bank-info-list">
                   <div className="bank-info-row">
-                    <span>Ngan hang</span>
+                    <span>Ngân hàng</span>
                     <strong>MB Bank</strong>
                   </div>
 
                   <div className="bank-info-row">
-                    <span>So tai khoan</span>
+                    <span>Số tài khoản</span>
                     <strong>3901092005</strong>
                   </div>
 
                   <div className="bank-info-row">
-                    <span>Chu tai khoan</span>
+                    <span>Chủ tài khoản</span>
                     <strong>PHAM THANH DAT</strong>
                   </div>
 
                   <div className="bank-info-row highlight">
-                    <span>So tien</span>
+                    <span>Số tiền</span>
                     <strong>{formatVND(finalPrice)}</strong>
                   </div>
 
                   <div className="bank-info-row">
-                    <span>Noi dung</span>
+                    <span>Nội dung</span>
                     <strong>{transferContent}</strong>
                   </div>
                 </div>
@@ -402,8 +402,8 @@ export default function BookingPayment() {
               <div className="bank-transfer-note">
                 <i className="fa-solid fa-circle-info" />
                 <span>
-                  Vui long chuyen dung so tien va noi dung de he thong/admin
-                  xac nhan thanh toan.
+                  Vui lòng chuyển đúng số tiền và nội dung để hệ thống/admin
+                  xác nhận thanh toán.
                 </span>
               </div>
             </div>
@@ -412,11 +412,11 @@ export default function BookingPayment() {
           <div className="payment-promotion-box">
             <div className="payment-promotion-head">
               <div>
-                <h3>Ma giam gia</h3>
+                <h3>Mã giảm giá</h3>
                 <p>
                   {canApplyPromotion
-                    ? "Nhap hoac chon nhanh mot ma dang mo."
-                    : "Thanh toan nhieu luot tam thoi khong ap ma de tranh tinh sai giam gia."}
+                    ? "Nhập hoặc chọn nhanh một mã đang mở."
+                    : "Thanh toán nhiều lượt tạm thời không áp mã để tránh tính sai giảm giá."}
                 </p>
               </div>
             </div>
@@ -457,7 +457,7 @@ export default function BookingPayment() {
             <div className="payment-promotion-form">
               <input
                 type="text"
-                placeholder="Nhap ma giam gia"
+                placeholder="Nhập mã giảm giá"
                 value={promotionCode}
                 disabled={!canApplyPromotion}
                 onChange={(event) => {
@@ -472,7 +472,7 @@ export default function BookingPayment() {
                 disabled={promotionLoading || !canApplyPromotion}
                 onClick={() => applyPromotion()}
               >
-                {promotionLoading ? "Dang kiem tra..." : "Ap dung"}
+                {promotionLoading ? "Đang kiểm tra..." : "Áp dụng"}
               </button>
             </div>
 
@@ -491,13 +491,13 @@ export default function BookingPayment() {
             disabled={submitting}
             onClick={submit}
           >
-            {submitting ? "Dang xu ly..." : "Thanh toan"}
+            {submitting ? "Đang xử lý..." : "Thanh toán"}
             <i className="fa-solid fa-arrow-right" />
           </button>
         </main>
 
         <aside className="payment-summary-card">
-          <h2>Tom tat don</h2>
+          <h2>Tóm tắt đơn</h2>
           {bookingsToPay.map((booking, index) => {
             const itemTrip = booking.trip || {};
             const itemSummary = {
@@ -506,12 +506,12 @@ export default function BookingPayment() {
               operatorName: pick(
                 itemTrip,
                 ["operatorName", "OperatorName"],
-                index === 0 ? summary.operatorName : "Nha xe",
+                index === 0 ? summary.operatorName : "Nhà xe",
               ),
               busType: pick(
                 itemTrip,
                 ["busType", "BusType"],
-                index === 0 ? summary.busType : "Xe khach",
+                index === 0 ? summary.busType : "Xe khách",
               ),
             };
 
@@ -523,8 +523,8 @@ export default function BookingPayment() {
                 <strong>
                   {bookingsToPay.length > 1
                     ? index === 0
-                      ? "Luot di"
-                      : "Luot ve"
+                      ? "Lượt đi"
+                      : "Lượt về"
                     : itemSummary.operatorName}
                 </strong>
                 {bookingsToPay.length > 1 && (
@@ -533,14 +533,14 @@ export default function BookingPayment() {
                 <span>{itemSummary.busType}</span>
                 <p>{itemSummary.route}</p>
                 <small>
-                  {formatDateTime(itemSummary.departureTime)} - Ghe{" "}
+                  {formatDateTime(itemSummary.departureTime)} - Ghế{" "}
                   {booking.seatLabels?.join(", ") || "--"}
                 </small>
               </div>
             );
           })}
           <div className="contact-summary-line">
-            <span>Ghe</span>
+            <span>Ghế</span>
             <strong>
               {bookingsToPay
                 .map((booking) => booking.seatLabels?.join(", ") || "--")
@@ -548,23 +548,23 @@ export default function BookingPayment() {
             </strong>
           </div>
           <div className="contact-summary-line">
-            <span>Nguoi di</span>
+            <span>Người đi</span>
             <strong>{pendingBooking.contact?.customerName || "--"}</strong>
           </div>
           <div className="contact-summary-line">
-            <span>So dien thoai</span>
+            <span>Số điện thoại</span>
             <strong>{pendingBooking.contact?.customerPhone || "--"}</strong>
           </div>
           <div className="contact-summary-line">
-            <span>Tam tinh</span>
+            <span>Tạm tính</span>
             <strong>{formatVND(subtotalPrice)}</strong>
           </div>
           <div className="contact-summary-line">
-            <span>Giam gia</span>
+            <span>Giảm giá</span>
             <strong>-{formatVND(canApplyPromotion ? discountAmount : 0)}</strong>
           </div>
           <div className="contact-summary-total">
-            <span>Tong tien</span>
+            <span>Tổng tiền</span>
             <strong>{formatVND(finalPrice)}</strong>
           </div>
         </aside>

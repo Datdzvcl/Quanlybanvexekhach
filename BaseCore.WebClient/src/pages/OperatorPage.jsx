@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { operatorPortalApi } from '../services/operatorPortalApi';
 
 const OPERATOR_MENU = [
-  { id: 'promotions', label: 'Khuyen mai', icon: 'fa-tags' },
+  { id: 'promotions', label: 'Khuyến mãi', icon: 'fa-tags' },
   { id: 'dashboard', label: 'Thống kê', icon: 'fa-chart-line' },
   { id: 'buses', label: 'Quản lý đội xe', icon: 'fa-bus' },
   { id: 'trips', label: 'Quản lý chuyến xe', icon: 'fa-route' },

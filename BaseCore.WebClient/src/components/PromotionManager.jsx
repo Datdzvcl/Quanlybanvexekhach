@@ -77,10 +77,12 @@ export default function PromotionManager({
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY_PROMOTION);
 
-  const title = mode === 'admin' ? 'Quản lý khuyến mãi' : 'Quản lý mã giảm giá';
-  const subtitle = mode === 'admin'
-    ? 'Danh sách toàn bộ chương trình khuyến mãi trong hệ thống.'
-    : 'Tạo và quản lý mã giảm giá áp dụng cho khách đặt vé.';
+  const title =
+    mode === 'admin' ? 'Quản lý khuyến mãi' : 'Quản lý mã giảm giá';
+  const subtitle =
+    mode === 'admin'
+      ? 'Danh sách toàn bộ chương trình khuyến mãi trong hệ thống.'
+      : 'Tạo và quản lý mã giảm giá áp dụng cho khách đặt vé.';
 
   const load = async () => {
     setLoading(true);
@@ -112,7 +114,8 @@ export default function PromotionManager({
         description: form.description.trim() || null,
         discountType: Number(form.discountType),
         discountValue: Number(form.discountValue || 0),
-        minOrderValue: form.minOrderValue === '' ? null : Number(form.minOrderValue),
+        minOrderValue:
+          form.minOrderValue === '' ? null : Number(form.minOrderValue),
         maxDiscount: form.maxDiscount === '' ? null : Number(form.maxDiscount),
         usageLimit: form.usageLimit === '' ? null : Number(form.usageLimit),
         startDate: fromDateTimeLocal(form.startDate),
@@ -137,8 +140,12 @@ export default function PromotionManager({
   };
 
   const summary = useMemo(() => {
-    const activeCount = items.filter((item) => pick(item, ['isActive', 'IsActive'], false)).length;
-    const publicCount = items.filter((item) => pick(item, ['isPublic', 'IsPublic'], false)).length;
+    const activeCount = items.filter((item) =>
+      pick(item, ['isActive', 'IsActive'], false),
+    ).length;
+    const publicCount = items.filter((item) =>
+      pick(item, ['isPublic', 'IsPublic'], false),
+    ).length;
     return { total: items.length, activeCount, publicCount };
   }, [items]);
 
@@ -169,9 +176,18 @@ export default function PromotionManager({
       </div>
 
       <div className="promotion-summary-grid">
-        <div><b>{summary.total}</b><span>Tổng mã</span></div>
-        <div><b>{summary.activeCount}</b><span>Đang bật</span></div>
-        <div><b>{summary.publicCount}</b><span>Công khai</span></div>
+        <div>
+          <b>{summary.total}</b>
+          <span>Tổng mã</span>
+        </div>
+        <div>
+          <b>{summary.activeCount}</b>
+          <span>Đang bật</span>
+        </div>
+        <div>
+          <b>{summary.publicCount}</b>
+          <span>Công khai</span>
+        </div>
       </div>
 
       {loading ? (
@@ -195,22 +211,38 @@ export default function PromotionManager({
             <tbody>
               {items.map((item) => {
                 const id = pick(item, ['promotionID', 'PromotionID']);
-                const isActive = Boolean(pick(item, ['isActive', 'IsActive'], false));
-                const isPublic = Boolean(pick(item, ['isPublic', 'IsPublic'], false));
+                const isActive = Boolean(
+                  pick(item, ['isActive', 'IsActive'], false),
+                );
+                const isPublic = Boolean(
+                  pick(item, ['isPublic', 'IsPublic'], false),
+                );
                 return (
                   <tr key={id}>
                     <td>
                       <strong>{pick(item, ['code', 'Code'], '--')}</strong>
                       <div className="promotion-table-sub">
-                        {pick(item, ['description', 'Description'], 'Không có mô tả')}
+                        {pick(
+                          item,
+                          ['description', 'Description'],
+                          'Không có mô tả',
+                        )}
                       </div>
                     </td>
                     <td>{discountLabel(item)}</td>
                     <td>
-                      Tối thiểu {formatVND(pick(item, ['minOrderValue', 'MinOrderValue'], 0))}
+                      Tối thiểu{' '}
+                      {formatVND(
+                        pick(item, ['minOrderValue', 'MinOrderValue'], 0),
+                      )}
                       <div className="promotion-table-sub">
-                        Tối đa {formatVND(pick(item, ['maxDiscount', 'MaxDiscount'], 0))} •
-                        Còn {pick(item, ['remainingUses', 'RemainingUses'], '--')} lượt
+                        Tối đa{' '}
+                        {formatVND(
+                          pick(item, ['maxDiscount', 'MaxDiscount'], 0),
+                        )}{' '}
+                        • Còn{' '}
+                        {pick(item, ['remainingUses', 'RemainingUses'], '--')}{' '}
+                        lượt
                       </div>
                     </td>
                     <td>
@@ -220,14 +252,16 @@ export default function PromotionManager({
                       </div>
                     </td>
                     <td>
-                      <span className={`promotion-status-chip ${isActive ? 'active' : 'inactive'}`}>
+                      <span
+                        className={`promotion-status-chip ${isActive ? 'active' : 'inactive'}`}
+                      >
                         {isActive ? 'Đang bật' : 'Đã tắt'}
                       </span>
-                      <div className="promotion-table-sub">{isPublic ? 'Công khai' : 'Riêng tư'}</div>
+                      <div className="promotion-table-sub">
+                        {isPublic ? 'Công khai' : 'Riêng tư'}
+                      </div>
                     </td>
-                    {mode === 'admin' && (
-                      <td>{pick(item, ['ownerName'], '--')}</td>
-                    )}
+                    {mode === 'admin' && <td>{pick(item, ['ownerName'], '--')}</td>}
                     {canEdit && (
                       <td>
                         <div className="admin-table-actions">
@@ -250,7 +284,10 @@ export default function PromotionManager({
                                 await promotionApi.disable(id);
                                 await load();
                               } catch (err) {
-                                alert(err.message || 'Không tắt được mã giảm giá.');
+                                alert(
+                                  err.message ||
+                                    'Không tắt được mã giảm giá.',
+                                );
                               }
                             }}
                           >
@@ -276,7 +313,9 @@ export default function PromotionManager({
       {table}
       {showForm && (
         <ModalComponent
-          title={form.promotionID ? 'Cập nhật mã giảm giá' : 'Thêm mã giảm giá'}
+          title={
+            form.promotionID ? 'Cập nhật mã giảm giá' : 'Thêm mã giảm giá'
+          }
           subtitle="Popup được căn giữa màn hình và chặn tương tác nền."
           size="wide"
           onClose={resetForm}
@@ -285,12 +324,19 @@ export default function PromotionManager({
             <input
               placeholder="Mã giảm giá"
               value={form.code}
-              onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  code: event.target.value.toUpperCase(),
+                }))
+              }
               required
             />
             <select
               value={form.discountType}
-              onChange={(event) => setForm((prev) => ({ ...prev, discountType: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, discountType: event.target.value }))
+              }
             >
               <option value="1">Giảm theo %</option>
               <option value="2">Giảm số tiền cố định</option>
@@ -300,7 +346,9 @@ export default function PromotionManager({
               min="0"
               placeholder="Giá trị giảm"
               value={form.discountValue}
-              onChange={(event) => setForm((prev) => ({ ...prev, discountValue: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, discountValue: event.target.value }))
+              }
               required
             />
             <input
@@ -308,32 +356,42 @@ export default function PromotionManager({
               min="0"
               placeholder="Đơn tối thiểu"
               value={form.minOrderValue}
-              onChange={(event) => setForm((prev) => ({ ...prev, minOrderValue: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, minOrderValue: event.target.value }))
+              }
             />
             <input
               type="number"
               min="0"
               placeholder="Giảm tối đa"
               value={form.maxDiscount}
-              onChange={(event) => setForm((prev) => ({ ...prev, maxDiscount: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, maxDiscount: event.target.value }))
+              }
             />
             <input
               type="number"
               min="1"
               placeholder="Giới hạn lượt dùng"
               value={form.usageLimit}
-              onChange={(event) => setForm((prev) => ({ ...prev, usageLimit: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, usageLimit: event.target.value }))
+              }
             />
             <input
               type="datetime-local"
               value={form.startDate}
-              onChange={(event) => setForm((prev) => ({ ...prev, startDate: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, startDate: event.target.value }))
+              }
               required
             />
             <input
               type="datetime-local"
               value={form.endDate}
-              onChange={(event) => setForm((prev) => ({ ...prev, endDate: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, endDate: event.target.value }))
+              }
               required
             />
             <textarea
@@ -341,13 +399,17 @@ export default function PromotionManager({
               rows="4"
               placeholder="Mô tả điều kiện áp dụng"
               value={form.description}
-              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, description: event.target.value }))
+              }
             />
             <label className="promotion-toggle">
               <input
                 type="checkbox"
                 checked={form.isActive}
-                onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isActive: event.target.checked }))
+                }
               />
               <span>Đang bật</span>
             </label>
@@ -355,7 +417,9 @@ export default function PromotionManager({
               <input
                 type="checkbox"
                 checked={form.isPublic}
-                onChange={(event) => setForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isPublic: event.target.checked }))
+                }
               />
               <span>Mã công khai</span>
             </label>
