@@ -71,6 +71,42 @@ function isTwoFloorLayout(value) {
   return ['2tang', 'haitang', 'twofloor', '2floor', 'sleeper', 'giuongnam'].includes(key);
 }
 
+function resolveSeatGridConfig(layoutType, capacity, seatCount, rows, seatsPerRow) {
+  const total = Math.max(0, Number(capacity || seatCount || 0));
+  const normalizedSeatsPerRow = clampPositiveNumber(seatsPerRow, 4, 10);
+  const seatsToArrange = isTwoFloorLayout(layoutType) ? Math.ceil(total / 2) : total;
+  const normalizedRows = clampPositiveNumber(rows, Math.max(1, Math.ceil(seatsToArrange / normalizedSeatsPerRow)), 80);
+
+  return {
+    rows: normalizedRows,
+    seatsPerRow: normalizedSeatsPerRow,
+  };
+}
+
+function buildSeatFloor(name, seats, rows, seatsPerRow) {
+  const normalizedRows = Math.max(0, Number(rows || 0));
+  const normalizedSeatsPerRow = Math.max(1, Number(seatsPerRow || 1));
+  const slotCount = Math.max(seats.length, normalizedRows * normalizedSeatsPerRow);
+
+  return {
+    name,
+    seats,
+    seatsPerRow: normalizedSeatsPerRow,
+    slots: Array.from({ length: slotCount }, (_, index) => seats[index] || null),
+  };
+}
+
+function clampPositiveNumber(value, fallback, max) {
+  const number = Number(value);
+  const fallbackNumber = Number(fallback || 0);
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return fallbackNumber > 0 ? Math.min(max, Math.max(1, Math.floor(fallbackNumber))) : 0;
+  }
+
+  return Math.min(max, Math.max(1, Math.floor(number)));
+}
+
 export default function SeatSelection() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -79,6 +115,8 @@ export default function SeatSelection() {
   const [trip, setTrip] = useState(null);
   const [seats, setSeats] = useState([]);
   const [seatLayoutType, setSeatLayoutType] = useState('');
+  const [seatLayoutRows, setSeatLayoutRows] = useState(0);
+  const [seatLayoutSeatsPerRow, setSeatLayoutSeatsPerRow] = useState(4);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [holdExpiresAt, setHoldExpiresAt] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -90,6 +128,8 @@ export default function SeatSelection() {
     const response = await seatApi.getByTrip(tripId, { sessionId });
     const nextSeats = response?.seats || response?.Seats || [];
     setSeatLayoutType(response?.layoutType || response?.LayoutType || '');
+    setSeatLayoutRows(Number(response?.rows || response?.Rows || 0));
+    setSeatLayoutSeatsPerRow(Number(response?.seatsPerRow || response?.SeatsPerRow || 4));
     setSeats(nextSeats);
     setSelectedSeats(nextSeats.filter((seat) => getSeatStatus(seat) === 'HoldingByMe').map(getSeatLabel));
   }, [sessionId, tripId]);
@@ -155,34 +195,42 @@ export default function SeatSelection() {
       status: getSeatStatus(seat),
     }));
 
+    const gridConfig = resolveSeatGridConfig(
+      seatLayoutType,
+      trip?.capacity || allSeats.length,
+      allSeats.length,
+      seatLayoutRows,
+      seatLayoutSeatsPerRow,
+    );
+
     if (isTwoFloorLayout(seatLayoutType)) {
       const firstFloor = allSeats.filter((seat) => /^A/i.test(seat.label));
       const secondFloor = allSeats.filter((seat) => /^B/i.test(seat.label));
 
       if (firstFloor.length + secondFloor.length === allSeats.length) {
         return [
-          { name: 'Tầng 1', seats: firstFloor },
-          { name: 'Tầng 2', seats: secondFloor },
+          buildSeatFloor('Tầng 1', firstFloor, gridConfig.rows, gridConfig.seatsPerRow),
+          buildSeatFloor('Tầng 2', secondFloor, gridConfig.rows, gridConfig.seatsPerRow),
         ];
       }
 
       const half = Math.ceil(allSeats.length / 2);
       return [
-        { name: 'Tầng 1', seats: allSeats.slice(0, half) },
-        { name: 'Tầng 2', seats: allSeats.slice(half) },
+        buildSeatFloor('Tầng 1', allSeats.slice(0, half), gridConfig.rows, gridConfig.seatsPerRow),
+        buildSeatFloor('Tầng 2', allSeats.slice(half), gridConfig.rows, gridConfig.seatsPerRow),
       ];
     }
 
     if (!seatLayoutType && (trip?.capacity || allSeats.length) > 40) {
       const half = Math.ceil(allSeats.length / 2);
       return [
-        { name: 'Tầng 1', seats: allSeats.slice(0, half) },
-        { name: 'Tầng 2', seats: allSeats.slice(half) },
+        buildSeatFloor('Tầng 1', allSeats.slice(0, half), gridConfig.rows, gridConfig.seatsPerRow),
+        buildSeatFloor('Tầng 2', allSeats.slice(half), gridConfig.rows, gridConfig.seatsPerRow),
       ];
     }
 
-    return [{ name: 'Sơ đồ ghế', seats: allSeats }];
-  }, [seats, seatLayoutType, trip?.capacity]);
+    return [buildSeatFloor('Sơ đồ ghế', allSeats, gridConfig.rows, gridConfig.seatsPerRow)];
+  }, [seats, seatLayoutRows, seatLayoutSeatsPerRow, seatLayoutType, trip?.capacity]);
 
   const holdSeat = async (seatLabel) => {
     setBusySeat(seatLabel);
@@ -350,8 +398,21 @@ export default function SeatSelection() {
                   <i className="fa-solid fa-steering-wheel" />
                   <span>Tài xế</span>
                 </div>
-                <div className="seat-grid-v2">
-                  {floor.seats.map((seat) => {
+                <div
+                  className="seat-grid-v2"
+                  style={{ gridTemplateColumns: `repeat(${floor.seatsPerRow}, minmax(42px, 1fr))` }}
+                >
+                  {floor.slots.map((seat, index) => {
+                    if (!seat) {
+                      return (
+                        <span
+                          className="seat-placeholder-v2"
+                          key={`${floor.name}-empty-${index}`}
+                          aria-label="Vị trí trống"
+                        />
+                      );
+                    }
+
                     const isSelected = selectedSeats.includes(seat.label) || seat.status === 'HoldingByMe';
                     const disabled = seat.status === 'Booked' || seat.status === 'HoldingByOther' || busySeat === seat.label;
                     return (

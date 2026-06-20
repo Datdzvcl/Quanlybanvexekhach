@@ -42,7 +42,8 @@ namespace BaseCore.APIService.Controllers
                 return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
             var capacity = Math.Max(trip.Capacity, 0);
-            var seatLabels = ResolveSeatLabels(trip.SeatLayout, capacity);
+            var seatLayout = ResolveSeatLayout(trip.SeatLayout, trip.SeatLayoutType, capacity);
+            var seatLabels = seatLayout.Seats;
             var currentUserId = GetCurrentUserId();
             var now = DateTime.Now;
 
@@ -114,6 +115,8 @@ namespace BaseCore.APIService.Controllers
                 tripID = trip.TripID,
                 capacity,
                 layoutType = trip.SeatLayoutType,
+                rows = seatLayout.Rows,
+                seatsPerRow = seatLayout.SeatsPerRow,
                 seats
             });
         }
@@ -140,7 +143,11 @@ namespace BaseCore.APIService.Controllers
                 if (trip == null)
                     return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
-                var validSeatLabels = ResolveSeatLabels(trip.Bus?.SeatLayout, Math.Max(trip.Bus?.Capacity ?? 0, 0));
+                var validSeatLabels = ResolveSeatLayout(
+                        trip.Bus?.SeatLayout,
+                        trip.Bus?.SeatLayoutType,
+                        Math.Max(trip.Bus?.Capacity ?? 0, 0))
+                    .Seats;
                 var validSeats = validSeatLabels.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var invalidSeats = requestedSeats.Where(x => !validSeats.Contains(x)).ToList();
                 if (invalidSeats.Count > 0)
@@ -363,16 +370,25 @@ namespace BaseCore.APIService.Controllers
             return string.IsNullOrWhiteSpace(sessionId) ? null : sessionId.Trim();
         }
 
-        private static List<string> ResolveSeatLabels(string? seatLayout, int capacity)
+        private static SeatLayoutConfig ResolveSeatLayout(string? seatLayout, string? layoutType, int capacity)
         {
-            var labels = ReadSeatLabels(seatLayout);
-            return labels.Count > 0 ? labels : GenerateSeatLabels(capacity);
+            capacity = Math.Clamp(capacity, 0, 80);
+            var config = ReadSeatLayoutConfig(seatLayout);
+            if (config.Seats.Count == 0)
+                config.Seats.AddRange(GenerateSeatLabels(capacity));
+
+            var (rows, seatsPerRow) = ResolveSeatDimensions(config, layoutType, capacity);
+
+            config.Rows = rows;
+            config.SeatsPerRow = seatsPerRow;
+            return config;
         }
 
-        private static List<string> ReadSeatLabels(string? seatLayout)
+        private static SeatLayoutConfig ReadSeatLayoutConfig(string? seatLayout)
         {
+            var config = new SeatLayoutConfig();
             if (string.IsNullOrWhiteSpace(seatLayout))
-                return new List<string>();
+                return config;
 
             try
             {
@@ -380,21 +396,146 @@ namespace BaseCore.APIService.Controllers
                 var root = document.RootElement;
                 if (root.ValueKind == JsonValueKind.Object)
                 {
+                    config.Rows = TryReadPositiveInt(root, "rows", "Rows");
+                    config.SeatsPerRow = TryReadPositiveInt(root, "seatsPerRow", "SeatsPerRow", "seats_per_row");
+
                     if (root.TryGetProperty("seats", out var seatsElement) ||
                         root.TryGetProperty("Seats", out seatsElement))
                     {
-                        return ReadSeatLabels(seatsElement);
+                        config.Seats.AddRange(ReadSeatLabels(seatsElement));
                     }
 
-                    return new List<string>();
+                    return config;
                 }
 
-                return ReadSeatLabels(root);
+                config.Seats.AddRange(ReadSeatLabels(root));
+                return config;
             }
             catch (JsonException)
             {
-                return new List<string>();
+                return config;
             }
+        }
+
+        private static int? TryReadPositiveInt(JsonElement root, params string[] propertyNames)
+        {
+            foreach (var propertyName in propertyNames)
+            {
+                if (!root.TryGetProperty(propertyName, out var property))
+                    continue;
+
+                if (property.ValueKind == JsonValueKind.Number &&
+                    property.TryGetInt32(out var number) &&
+                    number > 0)
+                    return number;
+
+                if (property.ValueKind == JsonValueKind.String &&
+                    int.TryParse(property.GetString(), out number) &&
+                    number > 0)
+                    return number;
+            }
+
+            return null;
+        }
+
+        private static int NormalizeSeatDimension(int? requestedValue, int fallbackValue, int maxValue)
+        {
+            var value = requestedValue.GetValueOrDefault(fallbackValue);
+            if (value <= 0)
+                value = fallbackValue;
+
+            return value <= 0 ? 0 : Math.Clamp(value, 1, maxValue);
+        }
+
+        private static (int Rows, int SeatsPerRow) ResolveSeatDimensions(SeatLayoutConfig config, string? layoutType, int capacity)
+        {
+            capacity = Math.Clamp(capacity, 0, 80);
+            var seatsToArrange = GetSeatsToArrange(layoutType, capacity);
+            if (seatsToArrange == 0)
+                return (0, 0);
+
+            var maxSeatsPerRow = Math.Clamp(seatsToArrange, 1, 10);
+            var defaultSeatsPerRow = Math.Min(4, maxSeatsPerRow);
+
+            if (config.Rows.HasValue && config.SeatsPerRow.HasValue)
+            {
+                var rows = NormalizeSeatDimension(config.Rows, InferRows(layoutType, capacity, defaultSeatsPerRow), seatsToArrange);
+                var seatsPerRow = NormalizeSeatDimension(config.SeatsPerRow, defaultSeatsPerRow, maxSeatsPerRow);
+
+                if (rows * seatsPerRow >= seatsToArrange)
+                    return (rows, seatsPerRow);
+
+                return FitSeatLayoutByRows(seatsToArrange, rows);
+            }
+
+            if (config.SeatsPerRow.HasValue)
+            {
+                var seatsPerRow = NormalizeSeatDimension(config.SeatsPerRow, defaultSeatsPerRow, maxSeatsPerRow);
+                return FitSeatLayoutByColumns(seatsToArrange, seatsPerRow);
+            }
+
+            if (config.Rows.HasValue)
+                return FitSeatLayoutByRows(seatsToArrange, config.Rows.Value);
+
+            return FitSeatLayoutByColumns(seatsToArrange, defaultSeatsPerRow);
+        }
+
+        private static int InferSeatsPerRow(string? layoutType, int capacity, int? rows)
+        {
+            var seatsToArrange = GetSeatsToArrange(layoutType, capacity);
+            if (seatsToArrange == 0)
+                return 0;
+
+            if (!rows.HasValue || rows.Value <= 0)
+                return Math.Min(4, Math.Clamp(seatsToArrange, 1, 10));
+
+            return FitSeatLayoutByRows(seatsToArrange, rows.Value).SeatsPerRow;
+        }
+
+        private static int InferRows(string? layoutType, int capacity, int seatsPerRow)
+        {
+            var seatsToArrange = GetSeatsToArrange(layoutType, capacity);
+            if (seatsToArrange == 0)
+                return 0;
+
+            return FitSeatLayoutByColumns(seatsToArrange, seatsPerRow).Rows;
+        }
+
+        private static int GetSeatsToArrange(string? layoutType, int capacity)
+        {
+            capacity = Math.Clamp(capacity, 0, 80);
+            return IsTwoFloorLayout(layoutType)
+                ? (int)Math.Ceiling(capacity / 2d)
+                : capacity;
+        }
+
+        private static (int Rows, int SeatsPerRow) FitSeatLayoutByRows(int seatsToArrange, int requestedRows)
+        {
+            var maxSeatsPerRow = Math.Clamp(seatsToArrange, 1, 10);
+            var minRows = Math.Max(1, (int)Math.Ceiling(seatsToArrange / (double)maxSeatsPerRow));
+            var rows = Math.Clamp(requestedRows, minRows, seatsToArrange);
+            var seatsPerRow = Math.Clamp((int)Math.Ceiling(seatsToArrange / (double)rows), 1, maxSeatsPerRow);
+
+            return (rows, seatsPerRow);
+        }
+
+        private static (int Rows, int SeatsPerRow) FitSeatLayoutByColumns(int seatsToArrange, int requestedSeatsPerRow)
+        {
+            var maxSeatsPerRow = Math.Clamp(seatsToArrange, 1, 10);
+            var seatsPerRow = Math.Clamp(requestedSeatsPerRow, 1, maxSeatsPerRow);
+            var rows = Math.Max(1, (int)Math.Ceiling(seatsToArrange / (double)seatsPerRow));
+
+            return (rows, seatsPerRow);
+        }
+
+        private static bool IsTwoFloorLayout(string? layoutType)
+        {
+            var key = new string((layoutType ?? string.Empty)
+                .ToLowerInvariant()
+                .Where(char.IsLetterOrDigit)
+                .ToArray());
+
+            return key.Contains('2') || key.Contains("hai") || key.Contains("two");
         }
 
         private static List<string> ReadSeatLabels(JsonElement seatsElement)
@@ -462,6 +603,13 @@ namespace BaseCore.APIService.Controllers
             while (current >= 0);
 
             return label;
+        }
+
+        private sealed class SeatLayoutConfig
+        {
+            public int? Rows { get; set; }
+            public int? SeatsPerRow { get; set; }
+            public List<string> Seats { get; } = new();
         }
     }
 

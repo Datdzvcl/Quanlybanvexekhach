@@ -21,6 +21,16 @@ export const operatorPortalApi = {
     return response.data;
   },
 
+  async uploadBusImage(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await apiClient.post('/api/operator-portal/buses/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   async createBus(payload) {
     const response = await apiClient.post('/api/operator-portal/buses', payload);
     return response.data;

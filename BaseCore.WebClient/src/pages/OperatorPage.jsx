@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
-import { formatVND, labelRole, labelTripStatus, pick } from '../api';
+import { API_BASE, formatVND, labelRole, labelTripStatus, pick } from '../api';
 import PromotionManager from '../components/PromotionManager';
 import { useAuth } from '../contexts/AuthContext';
 import { operatorPortalApi } from '../services/operatorPortalApi';
@@ -29,11 +29,21 @@ const EMPTY_BUS = {
   busID: null,
   licensePlate: '',
   capacity: 34,
-  busType: 'Giường nằm 34 chỗ',
+  imageUrl: '',
+  imageFile: null,
+  imagePreview: '',
+  busType: 'Xe giường nằm',
   amenities: '',
   seatLayoutType: '2 tầng',
-  seatLayoutSeats: '',
+  seatLayoutRows: 5,
+  seatLayoutSeatsPerRow: 4,
 };
+
+const BUS_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const BUS_TYPE_SLEEPER = 'Xe giường nằm';
+const BUS_TYPE_LIMOUSINE = 'Xe Limousine';
+const LAYOUT_ONE_FLOOR = '1 tầng';
+const LAYOUT_TWO_FLOORS = '2 tầng';
 
 const EMPTY_TRIP = {
   tripID: null,
@@ -45,9 +55,6 @@ const EMPTY_TRIP = {
   price: '',
   availableSeats: '',
   status: 'Scheduled',
-  seatLayoutType: '2 tầng',
-  seatLayoutSeats: '',
-  seatLayoutCapacity: 0,
   stopPoints: [
     { stopName: '', stopAddress: '', stopOrder: 1, stopType: 1, arrivalOffset: 0 },
     { stopName: '', stopAddress: '', stopOrder: 2, stopType: 3, arrivalOffset: 0 },
@@ -55,17 +62,31 @@ const EMPTY_TRIP = {
   ],
 };
 
-const BUS_TYPE_LABELS = {
-  'giuong nam 34 cho': 'Giường nằm 34 chỗ',
-  'limousine 22 phong': 'Limousine 22 phòng',
-  'ghe ngoi 45 cho': 'Ghế ngồi 45 chỗ',
-  'cabin doi 22 phong': 'Cabin đôi 22 phòng',
+const EMPTY_CLONE = {
+  repeatType: 'day',
+  count: 1,
+  drafts: [],
 };
 
+const BUS_TYPE_LABELS = {
+  'xe giuong nam': BUS_TYPE_SLEEPER,
+  'giuong nam': BUS_TYPE_SLEEPER,
+  'giuong nam 34 cho': BUS_TYPE_SLEEPER,
+  'giuong nam 40 cho': BUS_TYPE_SLEEPER,
+  sleeper: BUS_TYPE_SLEEPER,
+  'xe limousine': BUS_TYPE_LIMOUSINE,
+  limousine: BUS_TYPE_LIMOUSINE,
+  'limousine 22 phong': BUS_TYPE_LIMOUSINE,
+};
+
+const BUS_TYPE_OPTIONS = [
+  { value: BUS_TYPE_SLEEPER, label: BUS_TYPE_SLEEPER },
+  { value: BUS_TYPE_LIMOUSINE, label: BUS_TYPE_LIMOUSINE },
+];
+
 const SEAT_LAYOUT_OPTIONS = [
-  { value: 'Limousine', label: 'Limousine' },
-  { value: '2 tầng', label: 'Xe giường nằm 2 tầng' },
-  { value: '1 tầng', label: 'Xe giường nằm 1 tầng' },
+  { value: LAYOUT_TWO_FLOORS, label: 'Xe giường nằm 2 tầng' },
+  { value: LAYOUT_ONE_FLOOR, label: 'Xe giường nằm 1 tầng' },
 ];
 
 export default function OperatorPage() {
@@ -190,6 +211,7 @@ function OperatorBuses() {
   const [form, setForm] = useState(EMPTY_BUS);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const load = async (page = paged.page || 1) => {
     setLoading(true);
@@ -207,29 +229,30 @@ function OperatorBuses() {
     load(1);
   }, []);
 
-  useEffect(() => {
-    if (!showForm || typeof document === 'undefined') return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showForm]);
-
   const submit = async (e) => {
     e.preventDefault();
     const capacity = Number(form.capacity);
-    const seatLayoutType = normalizeLayoutType(form.seatLayoutType, form.busType, capacity);
-    const payload = {
-      licensePlate: form.licensePlate.trim(),
-      capacity,
-      busType: form.busType.trim(),
-      amenities: form.amenities.trim(),
-      seatLayoutType,
-      seatLayout: buildSeatLayoutJson(seatLayoutType, form.seatLayoutSeats, capacity),
-    };
+    const busType = normalizeBusTypeValue(form.busType);
+    const seatLayoutType = getValidSeatLayoutType(busType, form.seatLayoutType, capacity);
 
+    setSaving(true);
     try {
+      let imageUrl = form.imageUrl || '';
+      if (form.imageFile) {
+        const uploaded = await operatorPortalApi.uploadBusImage(form.imageFile);
+        imageUrl = pick(uploaded, ['imageUrl', 'ImageUrl'], '');
+      }
+
+      const payload = {
+        licensePlate: form.licensePlate.trim(),
+        capacity,
+        busType,
+        imageUrl,
+        amenities: form.amenities.trim(),
+        seatLayoutType,
+        seatLayout: buildSeatLayoutJson(seatLayoutType, capacity, form.seatLayoutRows, form.seatLayoutSeatsPerRow, busType),
+      };
+
       if (form.busID) {
         await operatorPortalApi.updateBus(form.busID, payload);
       } else {
@@ -240,6 +263,8 @@ function OperatorBuses() {
       await load(1);
     } catch (err) {
       alert(err.message || 'Không lưu được xe.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -249,7 +274,10 @@ function OperatorBuses() {
       busID: pick(bus, ['busID', 'BusID']),
       licensePlate: pick(bus, ['licensePlate', 'LicensePlate']),
       capacity: pick(bus, ['capacity', 'Capacity'], 34),
-      busType: labelBusType(pick(bus, ['busType', 'BusType'], '')),
+      busType: normalizeBusTypeValue(pick(bus, ['busType', 'BusType'], '')),
+      imageUrl: pick(bus, ['imageUrl', 'ImageUrl'], ''),
+      imageFile: null,
+      imagePreview: '',
       amenities: normalizeAmenities(pick(bus, ['amenities', 'Amenities'], [])).join(', '),
       ...layoutState,
     });
@@ -271,7 +299,7 @@ function OperatorBuses() {
       <div className="admin-section-head">
         <div>
           <h3>Quản lý đội xe và sơ đồ ghế</h3>
-          <p className="muted">Loại xe quy định sơ đồ ghế: Giường nằm, Limousine, Ghế ngồi.</p>
+          <p className="muted">Loại xe quy định sơ đồ ghế: Xe giường nằm hoặc Xe Limousine.</p>
         </div>
         <button className="btn btn-primary" type="button" onClick={() => toggleForm(showForm, setShowForm, setForm, EMPTY_BUS)}>
           <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Đóng form' : 'Thêm xe'}
@@ -285,34 +313,74 @@ function OperatorBuses() {
           size="wide"
           onClose={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}
         >
-        <form className="admin-form-grid admin-form-grid-modal" onSubmit={submit}>
-          <input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="Biển số xe" required />
-          <select
-            value={form.busType}
-            onChange={(e) => {
-              const busType = e.target.value;
-              setForm({
-                ...form,
-                busType,
-                seatLayoutType: inferSeatLayoutType(busType, Number(form.capacity)),
-              });
-            }}
-          >
-            <option value="Giường nằm 34 chỗ">Xe giường nằm</option>
-            <option value="Limousine 22 phòng">Limousine</option>
-            <option value="Ghế ngồi 45 chỗ">Ghế ngồi</option>
-            <option value="Cabin đôi 22 phòng">Cabin đôi</option>
-          </select>
-          <input type="number" min="1" max="80" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Sức chứa" required />
-          <input value={form.amenities} onChange={(e) => setForm({ ...form, amenities: e.target.value })} placeholder="Tiện ích, cách nhau bằng dấu phẩy" />
+        <form className="admin-form-grid admin-form-grid-modal operator-bus-form" onSubmit={submit}>
+          <label className="operator-form-field">
+            <span>Biển số xe</span>
+            <input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} required />
+          </label>
+          <label className="operator-form-field">
+            <span>Loại xe</span>
+            <select
+              value={form.busType}
+              onChange={(e) => {
+                const busType = normalizeBusTypeValue(e.target.value);
+                const capacity = Number(form.capacity);
+                const seatLayoutType = getValidSeatLayoutType(busType, form.seatLayoutType, capacity);
+                const layoutDefaults = getDefaultSeatLayout(seatLayoutType, capacity);
+                setForm({
+                  ...form,
+                  busType,
+                  seatLayoutType,
+                  seatLayoutRows: layoutDefaults.rows,
+                  seatLayoutSeatsPerRow: layoutDefaults.seatsPerRow,
+                });
+              }}
+            >
+              {getBusTypeOptions(form.busType).map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="operator-form-field">
+            <span>Sức chứa</span>
+            <input
+              type="number"
+              min="1"
+              max="80"
+              value={form.capacity}
+              onChange={(e) => {
+                const capacity = Number(e.target.value);
+                const busType = normalizeBusTypeValue(form.busType);
+                const seatLayoutType = getValidSeatLayoutType(busType, form.seatLayoutType, capacity);
+                const layoutDefaults = getDefaultSeatLayout(seatLayoutType, capacity);
+                setForm({
+                  ...form,
+                  capacity: e.target.value,
+                  seatLayoutType,
+                  seatLayoutRows: layoutDefaults.rows,
+                  seatLayoutSeatsPerRow: layoutDefaults.seatsPerRow,
+                });
+              }}
+              required
+            />
+          </label>
+          <label className="operator-form-field">
+            <span>Tiện ích</span>
+            <input value={form.amenities} onChange={(e) => setForm({ ...form, amenities: e.target.value })} />
+          </label>
+          <BusImageUploader form={form} onChange={(updates) => setForm({ ...form, ...updates })} />
           <SeatLayoutEditor
+            busType={form.busType}
             layoutType={form.seatLayoutType}
-            seatsText={form.seatLayoutSeats}
+            rows={form.seatLayoutRows}
+            seatsPerRow={form.seatLayoutSeatsPerRow}
             capacity={Number(form.capacity)}
             onChange={(updates) => setForm({ ...form, ...updates })}
           />
           <div className="admin-form-actions">
-            <button className="btn btn-primary" type="submit">Lưu xe</button>
+            <button className="btn btn-primary" type="submit" disabled={saving}>
+              {saving ? 'Đang lưu...' : 'Lưu xe'}
+            </button>
             <button className="btn btn-outline" type="button" onClick={() => cancelForm(setShowForm, setForm, EMPTY_BUS)}>Hủy</button>
           </div>
         </form>
@@ -347,24 +415,32 @@ function OperatorBuses() {
               <tbody>
                 {paged.items.map((bus) => {
                   const id = pick(bus, ['busID', 'BusID']);
+                  const capacity = Number(pick(bus, ['capacity', 'Capacity'], 0));
+                  const busType = normalizeBusTypeValue(pick(bus, ['busType', 'BusType'], ''));
                   const layoutType = getEntityLayoutType(bus);
+                  const layoutConfig = getEntitySeatLayoutConfig(bus, layoutType, capacity);
                   const seatLabels = getEntitySeatLabels(bus);
+                  const previewSeats = seatLabels.length ? seatLabels : buildSeatLabels(layoutType, capacity, busType);
                   const amenities = normalizeAmenities(pick(bus, ['amenities', 'Amenities'], []));
                   return (
                     <tr key={id}>
                       <td>
                         <div className="operator-bus-cell">
-                          <img src={pick(bus, ['imageUrl', 'ImageUrl'])} alt="" />
+                          <BusImageThumb
+                            imageUrl={pick(bus, ['imageUrl', 'ImageUrl'])}
+                            alt={pick(bus, ['licensePlate', 'LicensePlate'], 'Xe')}
+                          />
                           <div>
                             <b>{pick(bus, ['licensePlate', 'LicensePlate'])}</b>
                             <small>{pick(bus, ['capacity', 'Capacity'])} ghế</small>
                           </div>
                         </div>
                       </td>
-                      <td>{labelBusType(pick(bus, ['busType', 'BusType']))}</td>
+                      <td>{labelBusType(busType)}</td>
                       <td>
                         <b>{labelLayoutType(layoutType)}</b>
-                        <MiniSeatMap seats={seatLabels.slice(0, 12)} />
+                        <small>{layoutConfig.rows} x {layoutConfig.seatsPerRow}</small>
+                        <MiniSeatMap seats={previewSeats.slice(0, 12)} seatsPerRow={layoutConfig.seatsPerRow} />
                       </td>
                       <td>{amenities.map((item) => <span className="badge operator-badge" key={item}>{item}</span>)}</td>
                       <td className="admin-actions">
@@ -387,10 +463,12 @@ function OperatorBuses() {
 function OperatorTrips() {
   const [buses, setBuses] = useState([]);
   const [paged, setPaged] = useState(emptyPage());
-  const [filters, setFilters] = useState({ route: '', departureDate: '', status: '', busId: '' });
+  const [filters, setFilters] = useState({ route: '', dateMode: 'day', departureDate: '', status: '', busId: '' });
   const [form, setForm] = useState(EMPTY_TRIP);
   const [showForm, setShowForm] = useState(false);
-  const [clone, setClone] = useState({ tripId: '', repeatType: 'day', count: 1 });
+  const [showCloneForm, setShowCloneForm] = useState(false);
+  const [clone, setClone] = useState(EMPTY_CLONE);
+  const [savingClone, setSavingClone] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async (page = paged.page || 1) => {
@@ -413,19 +491,8 @@ function OperatorTrips() {
     load(1);
   }, []);
 
-  useEffect(() => {
-    if (!showForm || typeof document === 'undefined') return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showForm]);
-
   const selectBus = (busID) => {
-    const selectedBus = buses.find((bus) => String(pick(bus, ['busID', 'BusID'])) === String(busID));
-    const layoutState = selectedBus ? buildSeatLayoutFormState(selectedBus) : {};
-    setForm({ ...form, busID, ...layoutState });
+    setForm({ ...form, busID });
   };
 
   const submit = async (e) => {
@@ -449,21 +516,8 @@ function OperatorTrips() {
     try {
       const id = pick(trip, ['tripID', 'TripID']);
       const detail = await operatorPortalApi.getTrip(id);
-      const bus = pick(detail, ['bus', 'Bus'], {});
-      const layoutState = buildSeatLayoutFormState(bus);
-      setForm({
-        tripID: id,
-        busID: String(pick(detail, ['busID', 'BusID'], '')),
-        departureLocation: pick(detail, ['departureLocation', 'DepartureLocation']),
-        arrivalLocation: pick(detail, ['arrivalLocation', 'ArrivalLocation']),
-        departureTime: toDateTimeInput(pick(detail, ['departureTime', 'DepartureTime'])),
-        arrivalTime: toDateTimeInput(pick(detail, ['arrivalTime', 'ArrivalTime'])),
-        price: pick(detail, ['price', 'Price'], ''),
-        availableSeats: pick(detail, ['availableSeats', 'AvailableSeats'], ''),
-        status: pick(detail, ['status', 'Status'], 'Scheduled'),
-        stopPoints: normalizeStops(pick(detail, ['stopPoints', 'StopPoints'], [])),
-        ...layoutState,
-      });
+      setForm(mapTripDetailToForm(detail, id));
+      setShowCloneForm(false);
       setShowForm(true);
     } catch (err) {
       alert(err.message || 'Không tải được chi tiết chuyến.');
@@ -480,22 +534,117 @@ function OperatorTrips() {
     }
   };
 
-  const cloneTrip = async (e) => {
-    e.preventDefault();
-    if (!clone.tripId) {
-      alert('Chọn chuyến cần nhân bản.');
+  const openTripForm = () => {
+    setShowCloneForm(false);
+    toggleForm(showForm, setShowForm, setForm, EMPTY_TRIP);
+  };
+
+  const openCloneForm = () => {
+    setShowForm(false);
+    setForm(EMPTY_TRIP);
+    setClone({ ...EMPTY_CLONE, repeatType: filters.dateMode === 'week' ? 'week' : 'day' });
+    setShowCloneForm(true);
+  };
+
+  const closeCloneForm = () => {
+    setClone(EMPTY_CLONE);
+    setSavingClone(false);
+    setShowCloneForm(false);
+  };
+
+  const fetchTripsForCloneFilters = async () => {
+    const baseParams = cleanParams({ ...filters, pageSize: 100 });
+    const firstPage = await operatorPortalApi.listTrips({ ...baseParams, page: 1 });
+    const normalized = normalizePagedResponse(firstPage, 1);
+    const items = [...normalized.items];
+
+    for (let page = 2; page <= normalized.totalPages; page += 1) {
+      const nextPage = await operatorPortalApi.listTrips({ ...baseParams, page });
+      items.push(...normalizePagedResponse(nextPage, page).items);
+    }
+
+    return items;
+  };
+
+  const generateCloneDrafts = async () => {
+    try {
+      const sourceTrips = await fetchTripsForCloneFilters();
+
+      if (!sourceTrips.length) {
+        alert('Danh sách đang lọc chưa có chuyến nào để nhân bản.');
+        return;
+      }
+
+      const sourceDetails = await Promise.all(
+        sourceTrips.map((trip) => operatorPortalApi.getTrip(pick(trip, ['tripID', 'TripID'])))
+      );
+      const baseForms = sourceDetails.map((detail) => mapTripDetailToForm(detail, null));
+      const drafts = buildCloneDrafts(baseForms, clone.repeatType, clone.count);
+      setClone({ ...clone, drafts });
+    } catch (err) {
+      alert(err.message || 'Không tạo được lịch nháp.');
+    }
+  };
+
+  const addCloneDraft = () => {
+    if (!clone.drafts.length) {
+      generateCloneDrafts();
       return;
     }
 
+    const intervalDays = getCloneIntervalDays(clone.repeatType);
+    const source = clone.drafts[clone.drafts.length - 1];
+    setClone({
+      ...clone,
+      count: Number(clone.count || 0) + 1,
+      drafts: [
+        ...clone.drafts,
+        {
+          ...source,
+          draftId: createCloneDraftId(),
+          departureTime: addDaysToDateTimeInput(source.departureTime, intervalDays),
+          arrivalTime: addDaysToDateTimeInput(source.arrivalTime, intervalDays),
+          stopPoints: source.stopPoints.map((stop) => ({ ...stop })),
+        },
+      ],
+    });
+  };
+
+  const updateCloneDraft = (index, updates) => {
+    setClone({
+      ...clone,
+      drafts: clone.drafts.map((draft, draftIndex) => (
+        draftIndex === index ? { ...draft, ...updates } : draft
+      )),
+    });
+  };
+
+  const removeCloneDraft = (index) => {
+    setClone({
+      ...clone,
+      drafts: clone.drafts.filter((_, draftIndex) => draftIndex !== index),
+    });
+  };
+
+  const saveCloneDrafts = async (e) => {
+    e.preventDefault();
+    if (!clone.drafts.length) {
+      alert('Tạo ít nhất một lịch nháp trước khi lưu.');
+      return;
+    }
+
+    setSavingClone(true);
     try {
-      await operatorPortalApi.cloneTrip(clone.tripId, {
-        repeatType: clone.repeatType,
-        count: Number(clone.count),
-      });
+      for (const draft of clone.drafts) {
+        await operatorPortalApi.createTrip(buildTripPayload(draft));
+      }
       await load(1);
-      alert('Đã nhân bản lịch trình.');
+      closeCloneForm();
+      alert('Đã lưu lịch nhân bản.');
     } catch (err) {
-      alert(err.message || 'Không nhân bản được lịch trình.');
+      alert(err.message || 'Không lưu được lịch nhân bản.');
+    } finally {
+      setSavingClone(false);
     }
   };
 
@@ -506,9 +655,14 @@ function OperatorTrips() {
           <h3>Thiết lập giá vé và lịch khởi hành</h3>
           <p className="muted">Mỗi chuyến có thông tin xe, tiện ích, điểm đón/trả và thời gian dự kiến.</p>
         </div>
-        <button className="btn btn-primary" type="button" onClick={() => toggleForm(showForm, setShowForm, setForm, EMPTY_TRIP)}>
-          <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Đóng form' : 'Thêm chuyến'}
-        </button>
+        <div className="operator-section-actions">
+          <button className="btn btn-outline" type="button" onClick={openCloneForm}>
+            <i className="fa-solid fa-copy" /> Nhân bản lịch
+          </button>
+          <button className="btn btn-primary" type="button" onClick={openTripForm}>
+            <i className={`fa-solid ${showForm ? 'fa-xmark' : 'fa-plus'}`} /> {showForm ? 'Đóng form' : 'Thêm chuyến'}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -541,12 +695,6 @@ function OperatorTrips() {
             <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Giá vé" required />
             <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} placeholder="Ghế trống" />
           </div>
-          <SeatLayoutEditor
-            layoutType={form.seatLayoutType}
-            seatsText={form.seatLayoutSeats}
-            capacity={Number(form.seatLayoutCapacity || form.availableSeats || 0)}
-            onChange={(updates) => setForm({ ...form, ...updates })}
-          />
           <StopEditor stops={form.stopPoints} onChange={(stopPoints) => setForm({ ...form, stopPoints })} />
           <div className="admin-form-actions">
             <button className="btn btn-primary" type="submit">Lưu chuyến</button>
@@ -556,24 +704,72 @@ function OperatorTrips() {
         </OperatorFormModal>
       )}
 
-      <form className="operator-clone-panel" onSubmit={cloneTrip}>
-        <select value={clone.tripId} onChange={(e) => setClone({ ...clone, tripId: e.target.value })}>
-          <option value="">Chọn chuyến để nhân bản</option>
-          {paged.items.map((trip) => (
-            <option key={pick(trip, ['tripID', 'TripID'])} value={pick(trip, ['tripID', 'TripID'])}>
-              #{pick(trip, ['tripID', 'TripID'])} - {pick(trip, ['departureLocation', 'DepartureLocation'])} đến {pick(trip, ['arrivalLocation', 'ArrivalLocation'])}
-            </option>
-          ))}
-        </select>
-        <select value={clone.repeatType} onChange={(e) => setClone({ ...clone, repeatType: e.target.value })}>
-          <option value="day">Theo ngày</option>
-          <option value="week">Theo tuần</option>
-        </select>
-        <input type="number" min="1" max="60" value={clone.count} onChange={(e) => setClone({ ...clone, count: e.target.value })} />
-        <button className="btn btn-outline" type="submit">
-          <i className="fa-solid fa-copy" /> Nhân bản lịch
-        </button>
-      </form>
+      {showCloneForm && (
+        <OperatorFormModal
+          title="Nhân bản lịch nhà xe"
+          subtitle="Tạo lịch nháp theo ngày hoặc theo tuần, chỉnh sửa chi tiết rồi mới lưu."
+          size="wide"
+          onClose={closeCloneForm}
+        >
+          <form className="operator-clone-form" onSubmit={saveCloneDrafts}>
+            <div className="admin-form-grid admin-form-grid-modal operator-clone-builder">
+              <div className="operator-clone-source">
+                <span>Nguồn nhân bản</span>
+                <b>Danh sách chuyến đang lọc</b>
+                <small>{formatTripFilterSummary(filters)}</small>
+              </div>
+              <label className="operator-form-field">
+                <span>Dịch lịch theo</span>
+                <select value={clone.repeatType} onChange={(e) => setClone({ ...clone, repeatType: e.target.value, drafts: [] })}>
+                  <option value="day">Ngày kế tiếp</option>
+                  <option value="week">Tuần kế tiếp</option>
+                </select>
+              </label>
+              <label className="operator-form-field">
+                <span>{clone.repeatType === 'week' ? 'Số tuần tạo' : 'Số ngày tạo'}</span>
+                <input type="number" min="1" max="60" value={clone.count} onChange={(e) => setClone({ ...clone, count: e.target.value, drafts: [] })} />
+              </label>
+              <button className="btn btn-outline" type="button" onClick={generateCloneDrafts}>
+                <i className="fa-solid fa-wand-magic-sparkles" /> Tạo lịch nháp
+              </button>
+            </div>
+
+            <div className="operator-clone-draft-head">
+              <div>
+                <b>Danh sách lịch nháp</b>
+                <small>{clone.drafts.length} lịch chờ lưu</small>
+              </div>
+              <button className="btn btn-outline" type="button" onClick={addCloneDraft}>
+                <i className="fa-solid fa-plus" /> Thêm lịch
+              </button>
+            </div>
+
+            {!clone.drafts.length ? (
+              <p className="muted">Bấm “Tạo lịch nháp” để lấy toàn bộ danh sách đang lọc, sau đó chỉnh sửa hoặc giữ nguyên trước khi lưu.</p>
+            ) : (
+              <div className="operator-clone-draft-list">
+                {clone.drafts.map((draft, index) => (
+                  <CloneDraftEditor
+                    key={draft.draftId}
+                    draft={draft}
+                    index={index}
+                    buses={buses}
+                    onChange={(updates) => updateCloneDraft(index, updates)}
+                    onRemove={() => removeCloneDraft(index)}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="admin-form-actions">
+              <button className="btn btn-primary" type="submit" disabled={savingClone || !clone.drafts.length}>
+                {savingClone ? 'Đang lưu...' : 'Lưu lịch nhân bản'}
+              </button>
+              <button className="btn btn-outline" type="button" onClick={closeCloneForm}>Hủy</button>
+            </div>
+          </form>
+        </OperatorFormModal>
+      )}
 
       <TripFilterBar
         filters={filters}
@@ -581,7 +777,7 @@ function OperatorTrips() {
         setFilters={setFilters}
         onSearch={() => load(1)}
         onClear={() => {
-          setFilters({ route: '', departureDate: '', status: '', busId: '' });
+          setFilters({ route: '', dateMode: 'day', departureDate: '', status: '', busId: '' });
           setTimeout(() => load(1), 0);
         }}
       />
@@ -739,7 +935,10 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
                 </td>
                 <td>
                   <div className="operator-bus-cell">
-                    <img src={pick(trip, ['busImageUrl', 'BusImageUrl'])} alt="" />
+                    <BusImageThumb
+                      imageUrl={pick(trip, ['busImageUrl', 'BusImageUrl'])}
+                      alt={pick(trip, ['licensePlate', 'LicensePlate'], 'Xe')}
+                    />
                     <div>
                       <b>{pick(trip, ['licensePlate', 'LicensePlate'], 'Chưa rõ')}</b>
                       <small>{labelBusType(pick(trip, ['busType', 'BusType'], 'Chưa rõ'))}</small>
@@ -765,6 +964,151 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
       </table>
     </div>
   );
+}
+
+function CloneDraftEditor({ draft, index, buses, onChange, onRemove }) {
+  return (
+    <section className="operator-clone-draft">
+      <div className="operator-clone-draft-title">
+        <div>
+          <b>Lịch nháp #{index + 1}</b>
+          <small>{draft.departureLocation || 'Chưa có điểm đi'} đến {draft.arrivalLocation || 'chưa có điểm đến'}</small>
+        </div>
+        <button className="btn btn-danger" type="button" onClick={onRemove}>Xóa lịch</button>
+      </div>
+
+      <div className="admin-form-grid admin-form-grid-modal">
+        <label className="operator-form-field">
+          <span>Xe</span>
+          <select value={draft.busID} onChange={(e) => onChange({ busID: e.target.value })} required>
+            <option value="">Chọn xe</option>
+            {buses.map((bus) => (
+              <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
+                {pick(bus, ['licensePlate', 'LicensePlate'])} - {labelBusType(pick(bus, ['busType', 'BusType']))}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="operator-form-field">
+          <span>Điểm đi</span>
+          <input value={draft.departureLocation} onChange={(e) => onChange({ departureLocation: e.target.value })} required />
+        </label>
+        <label className="operator-form-field">
+          <span>Điểm đến</span>
+          <input value={draft.arrivalLocation} onChange={(e) => onChange({ arrivalLocation: e.target.value })} required />
+        </label>
+        <label className="operator-form-field">
+          <span>Trạng thái</span>
+          <select value={draft.status} onChange={(e) => onChange({ status: e.target.value })}>
+            <option value="Scheduled">Đã lên lịch</option>
+            <option value="On-going">Đang chạy</option>
+            <option value="Completed">Hoàn thành</option>
+            <option value="Cancelled">Đã hủy</option>
+          </select>
+        </label>
+        <label className="operator-form-field">
+          <span>Giờ đi</span>
+          <input type="datetime-local" value={draft.departureTime} onChange={(e) => onChange({ departureTime: e.target.value })} required />
+        </label>
+        <label className="operator-form-field">
+          <span>Giờ đến</span>
+          <input type="datetime-local" value={draft.arrivalTime} onChange={(e) => onChange({ arrivalTime: e.target.value })} required />
+        </label>
+        <label className="operator-form-field">
+          <span>Giá vé</span>
+          <input type="number" min="1" value={draft.price} onChange={(e) => onChange({ price: e.target.value })} required />
+        </label>
+        <label className="operator-form-field">
+          <span>Ghế trống</span>
+          <input type="number" min="0" value={draft.availableSeats} onChange={(e) => onChange({ availableSeats: e.target.value })} />
+        </label>
+      </div>
+
+      <StopEditor stops={draft.stopPoints} onChange={(stopPoints) => onChange({ stopPoints })} />
+    </section>
+  );
+}
+
+function BusImageUploader({ form, onChange }) {
+  const imageSrc = resolveBusImageUrl(form.imagePreview || form.imageUrl);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file ảnh.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > BUS_IMAGE_MAX_BYTES) {
+      alert('Ảnh xe không được vượt quá 5MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      onChange({
+        imageFile: file,
+        imagePreview: String(reader.result || ''),
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="operator-bus-image-field">
+      <div className="operator-bus-image-preview">
+        {imageSrc ? (
+          <img src={imageSrc} alt="Ảnh xe đang chọn" />
+        ) : (
+          <span>
+            <i className="fa-solid fa-image" />
+            Chưa có ảnh
+          </span>
+        )}
+      </div>
+      <div className="operator-bus-image-actions">
+        <b>Ảnh xe</b>
+        <small>Ảnh được upload lên server, sau đó lưu URL vào cột ImageUrl của xe.</small>
+        <input type="file" accept="image/*" onChange={handleFileChange} />
+        {(form.imageUrl || form.imagePreview) && (
+          <button
+            className="btn btn-outline"
+            type="button"
+            onClick={() => onChange({ imageUrl: '', imageFile: null, imagePreview: '' })}
+          >
+            Xóa ảnh
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BusImageThumb({ imageUrl, alt }) {
+  const imageSrc = resolveBusImageUrl(imageUrl);
+
+  if (!imageSrc) {
+    return (
+      <span className="operator-bus-image-placeholder" aria-label="Chưa có ảnh xe">
+        <i className="fa-solid fa-bus" />
+      </span>
+    );
+  }
+
+  return <img src={imageSrc} alt={alt || 'Ảnh xe'} />;
+}
+
+function resolveBusImageUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (/^(data:|blob:|https?:\/\/)/i.test(url)) return url;
+  if (url.startsWith('/')) return `${API_BASE}${url}`;
+  if (url.startsWith('uploads/')) return `${API_BASE}/${url}`;
+  return url;
 }
 
 function StopEditor({ stops, onChange }) {
@@ -841,7 +1185,12 @@ function FilterBar({ filters, setFilters, onSearch, onClear }) {
   return (
     <div className="operator-filter-bar">
       <input value={filters.licensePlate} onChange={(e) => setFilters({ ...filters, licensePlate: e.target.value })} placeholder="Tìm biển số" />
-      <input value={filters.busType} onChange={(e) => setFilters({ ...filters, busType: e.target.value })} placeholder="Tìm loại xe" />
+      <select value={filters.busType} onChange={(e) => setFilters({ ...filters, busType: e.target.value })}>
+        <option value="">Tất cả loại xe</option>
+        {BUS_TYPE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
       <button className="btn btn-primary" type="button" onClick={onSearch}>Lọc</button>
       <button className="btn btn-outline" type="button" onClick={onClear}>Xóa lọc</button>
     </div>
@@ -850,8 +1199,12 @@ function FilterBar({ filters, setFilters, onSearch, onClear }) {
 
 function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
   return (
-    <div className="operator-filter-bar">
+    <div className="operator-filter-bar operator-trip-filter-bar">
       <input value={filters.route} onChange={(e) => setFilters({ ...filters, route: e.target.value })} placeholder="Tìm điểm đi/đến" />
+      <select value={filters.dateMode} onChange={(e) => setFilters({ ...filters, dateMode: e.target.value })}>
+        <option value="day">Theo ngày</option>
+        <option value="week">Theo tuần</option>
+      </select>
       <input type="date" value={filters.departureDate} onChange={(e) => setFilters({ ...filters, departureDate: e.target.value })} />
       <select value={filters.busId} onChange={(e) => setFilters({ ...filters, busId: e.target.value })}>
         <option value="">Tất cả xe</option>
@@ -874,14 +1227,26 @@ function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
   );
 }
 
-function SeatLayoutEditor({ layoutType, seatsText, capacity, onChange }) {
-  const normalizedLayoutType = normalizeLayoutType(layoutType, '', capacity);
-  const previewSeats = parseSeatLabels(seatsText);
+function SeatLayoutEditor({ busType, layoutType, rows, seatsPerRow, capacity, onChange }) {
+  const normalizedBusType = normalizeBusTypeValue(busType);
+  const seatLayoutOptions = getSeatLayoutOptions(normalizedBusType);
+  const normalizedLayoutType = getValidSeatLayoutType(normalizedBusType, layoutType, capacity);
+  const floorMultiplier = getFloorMultiplier(normalizedLayoutType);
+  const normalizedDimensions = normalizeSeatLayoutDimensions(normalizedLayoutType, capacity, seatsPerRow, rows);
+  const normalizedRows = normalizedDimensions.rows;
+  const normalizedSeatsPerRow = normalizedDimensions.seatsPerRow;
+  const seatsToArrange = getSeatsToArrange(normalizedLayoutType, capacity);
+  const minRows = getMinRowsForSeatLayout(normalizedLayoutType, capacity);
+  const maxRows = Math.max(1, seatsToArrange);
+  const maxSeatsPerRow = getMaxSeatsPerRow(seatsToArrange);
+  const previewSeats = buildSeatLabels(normalizedLayoutType, Number(capacity || 0), normalizedBusType);
 
   const regenerate = () => {
+    const nextDefaults = getDefaultSeatLayout(normalizedLayoutType, capacity);
     onChange({
       seatLayoutType: normalizedLayoutType,
-      seatLayoutSeats: seatLabelsToText(buildSeatLabels(normalizedLayoutType, Number(capacity || 0))),
+      seatLayoutRows: nextDefaults.rows,
+      seatLayoutSeatsPerRow: nextDefaults.seatsPerRow,
     });
   };
 
@@ -897,26 +1262,113 @@ function SeatLayoutEditor({ layoutType, seatsText, capacity, onChange }) {
         </button>
       </div>
       <div className="operator-seat-layout-controls">
-        <select value={normalizedLayoutType} onChange={(e) => onChange({ seatLayoutType: e.target.value })}>
-          {SEAT_LAYOUT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-        <textarea
-          value={seatsText}
-          onChange={(e) => onChange({ seatLayoutSeats: e.target.value })}
-          placeholder="A01, A02, B01, B02..."
-          rows={3}
-        />
+        <label className="operator-seat-layout-type">
+          <span>Kiểu xe</span>
+          <select
+            value={normalizedLayoutType}
+            onChange={(e) => {
+              const nextType = e.target.value;
+              const nextLayoutType = getValidSeatLayoutType(normalizedBusType, nextType, capacity);
+              const nextDefaults = getDefaultSeatLayout(nextLayoutType, capacity);
+              onChange({
+                seatLayoutType: nextLayoutType,
+                seatLayoutRows: nextDefaults.rows,
+                seatLayoutSeatsPerRow: nextDefaults.seatsPerRow,
+              });
+            }}
+          >
+            {seatLayoutOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Số hàng</span>
+          <input
+            type="number"
+            min={minRows || 1}
+            max={maxRows}
+            value={normalizedRows}
+            onChange={(e) => {
+              const nextLayout = getSeatLayoutByRows(normalizedLayoutType, capacity, e.target.value);
+              onChange({
+                seatLayoutRows: nextLayout.rows,
+                seatLayoutSeatsPerRow: nextLayout.seatsPerRow,
+              });
+            }}
+          />
+        </label>
+        <label>
+          <span>Số cột</span>
+          <input
+            type="number"
+            min="1"
+            max={maxSeatsPerRow}
+            value={normalizedSeatsPerRow}
+            onChange={(e) => {
+              const nextLayout = getSeatLayoutByColumns(normalizedLayoutType, capacity, e.target.value);
+              onChange({
+                seatLayoutRows: nextLayout.rows,
+                seatLayoutSeatsPerRow: nextLayout.seatsPerRow,
+              });
+            }}
+          />
+        </label>
+        <span className="operator-seat-layout-summary">
+          {normalizedRows} x {normalizedSeatsPerRow} x {floorMultiplier}, {previewSeats.length} ghế
+        </span>
       </div>
-      <MiniSeatMap seats={(previewSeats.length ? previewSeats : buildSeatLabels(normalizedLayoutType, Number(capacity || 0))).slice(0, 16)} />
+      <SeatLayoutPreview
+        layoutType={normalizedLayoutType}
+        seats={previewSeats}
+        rows={normalizedRows}
+        seatsPerRow={normalizedSeatsPerRow}
+      />
     </div>
   );
 }
 
-function MiniSeatMap({ seats }) {
+function SeatLayoutPreview({ layoutType, seats, rows, seatsPerRow }) {
+  const floors = buildSeatLayoutFloors(layoutType, seats, rows, seatsPerRow);
+
   return (
-    <div className="operator-mini-seat-map">
+    <div className={`operator-seat-map-preview ${floors.length > 1 ? 'two-floor' : ''}`}>
+      {floors.map((floor) => (
+        <div className="operator-seat-map-floor" key={floor.name}>
+          <div className="operator-seat-map-floor-head">
+            <strong>{floor.name}</strong>
+            <span>{floor.seats.length} ghế</span>
+          </div>
+          <div className="driver-row operator-seat-map-driver">
+            <i className="fa-solid fa-steering-wheel" />
+            <span>Tài xế</span>
+          </div>
+          <div
+            className="operator-seat-map-grid"
+            style={{ gridTemplateColumns: `repeat(${floor.seatsPerRow}, minmax(0, 1fr))` }}
+          >
+            {floor.slots.map((seat, index) => (
+              seat ? (
+                <span className="operator-seat-map-cell" key={seat}>{seat}</span>
+              ) : (
+                <span className="operator-seat-map-cell empty" key={`empty-${floor.name}-${index}`} aria-label="Vị trí trống" />
+              )
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MiniSeatMap({ seats, seatsPerRow = 4 }) {
+  const columns = Math.max(1, Math.min(10, Number(seatsPerRow || 4)));
+
+  return (
+    <div
+      className="operator-mini-seat-map"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 32px))` }}
+    >
       {seats.map((seat) => <span key={seat}>{seat}</span>)}
     </div>
   );
@@ -953,10 +1405,69 @@ function cleanParams(params) {
   return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== ''));
 }
 
-function buildTripPayload(form) {
-  const capacity = Number(form.seatLayoutCapacity || form.availableSeats || 0);
-  const seatLayoutType = normalizeLayoutType(form.seatLayoutType, '', capacity);
+function formatTripFilterSummary(filters) {
+  const parts = [];
+  if (filters.route) parts.push(`Tuyến: ${filters.route}`);
+  if (filters.departureDate) {
+    parts.push(`${filters.dateMode === 'week' ? 'Tuần chứa ngày' : 'Ngày'}: ${filters.departureDate}`);
+  }
+  if (filters.busId) parts.push(`Xe ID: ${filters.busId}`);
+  if (filters.status) parts.push(`Trạng thái: ${labelTripStatus(filters.status)}`);
 
+  return parts.length ? parts.join(' | ') : 'Chưa áp dụng bộ lọc, sẽ lấy toàn bộ danh sách chuyến.';
+}
+
+function mapTripDetailToForm(detail, tripID = pick(detail, ['tripID', 'TripID'], null)) {
+  return {
+    tripID,
+    busID: String(pick(detail, ['busID', 'BusID'], '')),
+    departureLocation: pick(detail, ['departureLocation', 'DepartureLocation'], ''),
+    arrivalLocation: pick(detail, ['arrivalLocation', 'ArrivalLocation'], ''),
+    departureTime: toDateTimeInput(pick(detail, ['departureTime', 'DepartureTime'])),
+    arrivalTime: toDateTimeInput(pick(detail, ['arrivalTime', 'ArrivalTime'])),
+    price: pick(detail, ['price', 'Price'], ''),
+    availableSeats: pick(detail, ['availableSeats', 'AvailableSeats'], ''),
+    status: pick(detail, ['status', 'Status'], 'Scheduled'),
+    stopPoints: normalizeStops(pick(detail, ['stopPoints', 'StopPoints'], [])),
+  };
+}
+
+function buildCloneDrafts(baseForms, repeatType, count) {
+  const intervalDays = getCloneIntervalDays(repeatType);
+  const safeCount = Math.max(1, Math.min(60, Number(count || 1)));
+  const sources = Array.isArray(baseForms) ? baseForms : [baseForms];
+
+  return Array.from({ length: safeCount }, (_, index) => {
+    const dayOffset = intervalDays * (index + 1);
+    return sources.map((baseForm) => ({
+      ...baseForm,
+      tripID: null,
+      draftId: createCloneDraftId(),
+      departureTime: addDaysToDateTimeInput(baseForm.departureTime, dayOffset),
+      arrivalTime: addDaysToDateTimeInput(baseForm.arrivalTime, dayOffset),
+      status: 'Scheduled',
+      stopPoints: baseForm.stopPoints.map((stop) => ({ ...stop })),
+    }));
+  }).flat();
+}
+
+function createCloneDraftId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getCloneIntervalDays(repeatType) {
+  return repeatType === 'week' ? 7 : 1;
+}
+
+function addDaysToDateTimeInput(value, days) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  date.setDate(date.getDate() + Number(days || 0));
+  return toDateTimeInput(date);
+}
+
+function buildTripPayload(form) {
   return {
     busID: Number(form.busID),
     departureLocation: form.departureLocation.trim(),
@@ -966,8 +1477,6 @@ function buildTripPayload(form) {
     price: Number(form.price),
     availableSeats: Number(form.availableSeats || 0),
     status: form.status,
-    seatLayoutType,
-    seatLayout: buildSeatLayoutJson(seatLayoutType, form.seatLayoutSeats, capacity),
     stopPoints: form.stopPoints
       .filter((stop) => stop.stopName.trim())
       .map((stop, index) => ({
@@ -1070,9 +1579,43 @@ function formatDateTime(value) {
 }
 
 function labelBusType(value) {
+  return normalizeBusTypeValue(value);
+}
+
+function getBusTypeOptions() {
+  return BUS_TYPE_OPTIONS;
+}
+
+function normalizeBusTypeValue(value) {
   const text = String(value || '').trim();
-  const key = text.toLowerCase();
-  return BUS_TYPE_LABELS[key] || text;
+  const spacedKey = normalizeText(text).replace(/[^a-z0-9]/g, ' ').trim().replace(/\s+/g, ' ');
+  const compactKey = spacedKey.replace(/\s/g, '');
+
+  if (BUS_TYPE_LABELS[spacedKey]) return BUS_TYPE_LABELS[spacedKey];
+  if (compactKey.includes('limousine')) return BUS_TYPE_LIMOUSINE;
+  if (compactKey.includes('giuong') || compactKey.includes('sleeper')) return BUS_TYPE_SLEEPER;
+
+  return BUS_TYPE_SLEEPER;
+}
+
+function isLimousineBusType(busType) {
+  return normalizeBusTypeValue(busType) === BUS_TYPE_LIMOUSINE;
+}
+
+function getSeatLayoutOptions(busType) {
+  if (isLimousineBusType(busType)) {
+    return [{ value: LAYOUT_ONE_FLOOR, label: 'Xe Limousine' }];
+  }
+
+  return SEAT_LAYOUT_OPTIONS;
+}
+
+function getValidSeatLayoutType(busType, layoutType, capacity = 0) {
+  const normalizedBusType = normalizeBusTypeValue(busType);
+  if (isLimousineBusType(normalizedBusType)) return LAYOUT_ONE_FLOOR;
+
+  const normalizedLayoutType = normalizeLayoutType(layoutType, normalizedBusType, capacity);
+  return normalizedLayoutType === LAYOUT_ONE_FLOOR ? LAYOUT_ONE_FLOOR : LAYOUT_TWO_FLOORS;
 }
 
 function normalizeAmenities(value) {
@@ -1103,13 +1646,13 @@ function labelLayoutType(value) {
 
 function buildSeatLayoutFormState(entity) {
   const capacity = Number(pick(entity, ['capacity', 'Capacity'], 0));
-  const busType = pick(entity, ['busType', 'BusType'], '');
   const layoutType = getEntityLayoutType(entity);
-  const seats = getEntitySeatLabels(entity);
+  const layoutConfig = getEntitySeatLayoutConfig(entity, layoutType, capacity);
 
   return {
     seatLayoutType: layoutType,
-    seatLayoutSeats: seatLabelsToText(seats.length ? seats : buildSeatLabels(layoutType, capacity)),
+    seatLayoutRows: layoutConfig.rows,
+    seatLayoutSeatsPerRow: layoutConfig.seatsPerRow,
     seatLayoutCapacity: capacity,
   };
 }
@@ -1137,23 +1680,44 @@ function getEntitySeatLabels(entity) {
     .filter(Boolean);
 }
 
-function buildSeatLayoutJson(layoutType, seatsText, capacity) {
-  const normalizedLayoutType = normalizeLayoutType(layoutType, '', capacity);
-  const seats = parseSeatLabels(seatsText);
+function getEntitySeatLayoutConfig(entity, layoutType, capacity) {
+  const seatMap = pick(entity, ['seatMap', 'SeatMap'], {});
+  const savedRows = pick(seatMap, ['rows', 'Rows'], null);
+  const savedSeatsPerRow = pick(seatMap, ['seatsPerRow', 'SeatsPerRow'], null);
+
+  if (savedRows && !savedSeatsPerRow) {
+    return getSeatLayoutByRows(layoutType, capacity, savedRows);
+  }
+
+  if (savedSeatsPerRow && !savedRows) {
+    return getSeatLayoutByColumns(layoutType, capacity, savedSeatsPerRow);
+  }
+
+  return normalizeSeatLayoutDimensions(layoutType, capacity, savedSeatsPerRow, savedRows);
+}
+
+function buildSeatLayoutJson(layoutType, capacity, rows, seatsPerRow, busType = '') {
+  const normalizedBusType = normalizeBusTypeValue(busType);
+  const normalizedLayoutType = getValidSeatLayoutType(normalizedBusType, layoutType, capacity);
+  const normalizedDimensions = normalizeSeatLayoutDimensions(normalizedLayoutType, capacity, seatsPerRow, rows);
 
   return JSON.stringify({
     layoutType: normalizedLayoutType,
-    seats: seats.length ? seats : buildSeatLabels(normalizedLayoutType, Number(capacity || 0)),
+    rows: normalizedDimensions.rows,
+    seatsPerRow: normalizedDimensions.seatsPerRow,
+    seats: buildSeatLabels(normalizedLayoutType, Number(capacity || 0), normalizedBusType),
   });
 }
 
 function normalizeLayoutType(value, busType = '', capacity = 0) {
   const key = normalizeText(value).replace(/[^a-z0-9]/g, '');
+  const normalizedBusType = busType ? normalizeBusTypeValue(busType) : '';
 
-  if (key === 'limousine') return 'Limousine';
-  if (['2tang', 'haitang', 'twofloor', '2floor', 'twofloors', '2floors'].includes(key)) return '2 tầng';
-  if (['1tang', 'mottang', 'onefloor', '1floor', 'onefloors', '1floors', 'seater', 'ghengoi'].includes(key)) return '1 tầng';
-  if (['sleeper', 'giuongnam'].includes(key)) return Number(capacity) > 0 && Number(capacity) <= 24 ? '1 tầng' : '2 tầng';
+  if (normalizedBusType === BUS_TYPE_LIMOUSINE) return LAYOUT_ONE_FLOOR;
+  if (key === 'limousine') return LAYOUT_ONE_FLOOR;
+  if (['2tang', 'haitang', 'twofloor', '2floor', 'twofloors', '2floors'].includes(key)) return LAYOUT_TWO_FLOORS;
+  if (['1tang', 'mottang', 'onefloor', '1floor', 'onefloors', '1floors', 'seater', 'ghengoi'].includes(key)) return LAYOUT_ONE_FLOOR;
+  if (['sleeper', 'giuongnam', 'xegiuongnam'].includes(key)) return Number(capacity) > 0 && Number(capacity) <= 24 ? LAYOUT_ONE_FLOOR : LAYOUT_TWO_FLOORS;
 
   return inferSeatLayoutType(busType, capacity);
 }
@@ -1161,12 +1725,12 @@ function normalizeLayoutType(value, busType = '', capacity = 0) {
 function inferSeatLayoutType(busType, capacity = 0) {
   const key = normalizeText(busType).replace(/[^a-z0-9]/g, '');
 
-  if (key.includes('limousine')) return 'Limousine';
+  if (key.includes('limousine')) return LAYOUT_ONE_FLOOR;
   if (key.includes('giuong') || key.includes('sleeper') || key.includes('cabin')) {
-    return Number(capacity) > 0 && Number(capacity) <= 24 ? '1 tầng' : '2 tầng';
+    return Number(capacity) > 0 && Number(capacity) <= 24 ? LAYOUT_ONE_FLOOR : LAYOUT_TWO_FLOORS;
   }
 
-  return '1 tầng';
+  return LAYOUT_ONE_FLOOR;
 }
 
 function normalizeText(value) {
@@ -1176,23 +1740,213 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
-function parseSeatLabels(value) {
-  return String(value || '')
-    .split(/[\s,;|]+/)
-    .map((seat) => seat.trim().toUpperCase())
-    .filter(Boolean)
-    .filter((seat, index, seats) => seats.indexOf(seat) === index);
+function getDefaultSeatLayout(layoutType, capacity, seatsPerRow) {
+  const seatsToArrange = getSeatsToArrange(layoutType, capacity);
+
+  if (!seatsToArrange) {
+    return {
+      rows: 0,
+      seatsPerRow: 0,
+    };
+  }
+
+  const maxSeatsPerRow = getMaxSeatsPerRow(seatsToArrange);
+  const defaultSeatsPerRow = Math.min(4, maxSeatsPerRow);
+  return fitSeatLayoutByColumns(seatsToArrange, seatsPerRow, defaultSeatsPerRow);
 }
 
-function seatLabelsToText(seats) {
-  return (seats || []).join(', ');
+function normalizeSeatLayoutDimensions(layoutType, capacity, seatsPerRow, rows) {
+  const seatsToArrange = getSeatsToArrange(layoutType, capacity);
+
+  if (!seatsToArrange) {
+    return {
+      rows: 0,
+      seatsPerRow: 0,
+    };
+  }
+
+  const maxSeatsPerRow = getMaxSeatsPerRow(seatsToArrange);
+  const defaultSeatsPerRow = Math.min(4, maxSeatsPerRow);
+  const defaultRows = fitSeatLayoutByColumns(seatsToArrange, seatsPerRow, defaultSeatsPerRow).rows;
+  const hasRows = Number(rows) > 0;
+  const hasSeatsPerRow = Number(seatsPerRow) > 0;
+
+  if (hasRows && hasSeatsPerRow) {
+    const normalizedRows = clampNumber(rows, defaultRows, getMinRowsForSeats(seatsToArrange), seatsToArrange);
+    const normalizedSeatsPerRow = clampNumber(seatsPerRow, defaultSeatsPerRow, 1, maxSeatsPerRow);
+
+    if (normalizedRows * normalizedSeatsPerRow >= seatsToArrange) {
+      return {
+        rows: normalizedRows,
+        seatsPerRow: normalizedSeatsPerRow,
+      };
+    }
+
+    return fitSeatLayoutByRows(seatsToArrange, normalizedRows, defaultRows);
+  }
+
+  if (hasRows) {
+    return fitSeatLayoutByRows(seatsToArrange, rows, defaultRows);
+  }
+
+  return fitSeatLayoutByColumns(seatsToArrange, seatsPerRow, defaultSeatsPerRow);
 }
 
-function buildSeatLabels(layoutType, capacity) {
+function getSeatLayoutByRows(layoutType, capacity, rows) {
+  const seatsToArrange = getSeatsToArrange(layoutType, capacity);
+  if (!seatsToArrange) {
+    return {
+      rows: 0,
+      seatsPerRow: 0,
+    };
+  }
+
+  return fitSeatLayoutByRows(seatsToArrange, rows, getDefaultSeatLayout(layoutType, capacity).rows);
+}
+
+function getSeatLayoutByColumns(layoutType, capacity, seatsPerRow) {
+  const seatsToArrange = getSeatsToArrange(layoutType, capacity);
+  if (!seatsToArrange) {
+    return {
+      rows: 0,
+      seatsPerRow: 0,
+    };
+  }
+
+  return fitSeatLayoutByColumns(seatsToArrange, seatsPerRow, getDefaultSeatLayout(layoutType, capacity).seatsPerRow);
+}
+
+function getSeatsToArrange(layoutType, capacity) {
+  const total = Math.max(0, Math.min(80, Number(capacity || 0)));
+  return isTwoFloorLayoutType(layoutType) ? Math.ceil(total / 2) : total;
+}
+
+function getMaxSeatsPerRow(seatsToArrange) {
+  return Math.max(1, Math.min(10, Number(seatsToArrange || 0)));
+}
+
+function getMinRowsForSeatLayout(layoutType, capacity) {
+  const seatsToArrange = getSeatsToArrange(layoutType, capacity);
+  if (!seatsToArrange) return 0;
+
+  return getMinRowsForSeats(seatsToArrange);
+}
+
+function getMinRowsForSeats(seatsToArrange) {
+  return Math.max(1, Math.ceil(seatsToArrange / getMaxSeatsPerRow(seatsToArrange)));
+}
+
+function fitSeatLayoutByRows(seatsToArrange, rows, fallbackRows) {
+  const minRows = getMinRowsForSeats(seatsToArrange);
+  const normalizedRows = clampNumber(rows, fallbackRows || minRows, minRows, seatsToArrange);
+  const seatsPerRow = Math.ceil(seatsToArrange / normalizedRows);
+
+  return {
+    rows: normalizedRows,
+    seatsPerRow: clampNumber(seatsPerRow, seatsPerRow, 1, getMaxSeatsPerRow(seatsToArrange)),
+  };
+}
+
+function fitSeatLayoutByColumns(seatsToArrange, seatsPerRow, fallbackSeatsPerRow) {
+  const maxSeatsPerRow = getMaxSeatsPerRow(seatsToArrange);
+  const normalizedSeatsPerRow = clampNumber(seatsPerRow, fallbackSeatsPerRow || Math.min(4, maxSeatsPerRow), 1, maxSeatsPerRow);
+
+  return {
+    rows: Math.max(1, Math.ceil(seatsToArrange / normalizedSeatsPerRow)),
+    seatsPerRow: normalizedSeatsPerRow,
+  };
+}
+
+function getFloorMultiplier(layoutType) {
+  return isTwoFloorLayoutType(layoutType) ? 2 : 1;
+}
+
+function isTwoFloorLayoutType(layoutType) {
+  return normalizeLayoutType(layoutType) === LAYOUT_TWO_FLOORS;
+}
+
+function buildSeatLayoutFloors(layoutType, seats, rows, seatsPerRow) {
+  const normalizedSeatsPerRow = Math.max(1, Number(seatsPerRow || 1));
+  const normalizedRows = Math.max(1, Number(rows || 1));
+  const normalizedSeats = (seats || []).filter(Boolean);
+
+  if (isTwoFloorLayoutType(layoutType)) {
+    const firstFloorSeats = normalizedSeats.filter((seat) => /^A/i.test(seat));
+    const secondFloorSeats = normalizedSeats.filter((seat) => /^B/i.test(seat));
+
+    if (firstFloorSeats.length + secondFloorSeats.length === normalizedSeats.length) {
+      return [
+        buildSeatLayoutFloor('Tầng 1', firstFloorSeats, normalizedRows, normalizedSeatsPerRow),
+        buildSeatLayoutFloor('Tầng 2', secondFloorSeats, normalizedRows, normalizedSeatsPerRow),
+      ];
+    }
+
+    const half = Math.ceil(normalizedSeats.length / 2);
+    return [
+      buildSeatLayoutFloor('Tầng 1', normalizedSeats.slice(0, half), normalizedRows, normalizedSeatsPerRow),
+      buildSeatLayoutFloor('Tầng 2', normalizedSeats.slice(half), normalizedRows, normalizedSeatsPerRow),
+    ];
+  }
+
+  return [
+    buildSeatLayoutFloor('Sơ đồ ghế', normalizedSeats, normalizedRows, normalizedSeatsPerRow),
+  ];
+}
+
+function buildSeatLayoutFloor(name, seats, rows, seatsPerRow) {
+  const normalizedSeatsPerRow = Math.max(1, Number(seatsPerRow || 1));
+  const minimumRows = Math.max(1, Math.ceil(seats.length / normalizedSeatsPerRow));
+  const normalizedRows = Math.max(minimumRows, Math.min(Math.max(1, Number(rows || minimumRows)), Math.max(1, seats.length)));
+
+  return {
+    name,
+    seats,
+    seatsPerRow: normalizedSeatsPerRow,
+    slots: buildSeatSlots(seats, normalizedRows, normalizedSeatsPerRow),
+  };
+}
+
+function buildSeatSlots(seats, rows, seatsPerRow) {
+  const slotCount = Math.max(seats.length, rows * seatsPerRow);
+  const slots = Array.from({ length: slotCount }, () => null);
+
+  if (rows <= Math.ceil(seats.length / seatsPerRow)) {
+    seats.forEach((seat, index) => {
+      slots[index] = seat;
+    });
+    return slots;
+  }
+
+  seats.forEach((seat, index) => {
+    const rowIndex = index % rows;
+    const columnIndex = Math.floor(index / rows);
+    const slotIndex = rowIndex * seatsPerRow + columnIndex;
+    slots[slotIndex] = seat;
+  });
+
+  return slots;
+}
+
+function clampNumber(value, fallback, min, max) {
+  const number = Number(value);
+  const fallbackNumber = Number(fallback || 0);
+  const normalizedMin = Number(min || 0);
+  const normalizedMax = Math.max(normalizedMin, Number(max || normalizedMin));
+
+  if (!Number.isFinite(number)) {
+    return Number.isFinite(fallbackNumber)
+      ? Math.min(normalizedMax, Math.max(normalizedMin, Math.floor(fallbackNumber)))
+      : normalizedMin;
+  }
+
+  return Math.min(normalizedMax, Math.max(normalizedMin, Math.floor(number)));
+}
+
+function buildSeatLabels(layoutType, capacity, busType = '') {
   const total = Math.max(0, Math.min(80, Number(capacity || 0)));
   if (!total) return [];
 
-  if (layoutType === '2 tầng') {
+  if (layoutType === LAYOUT_TWO_FLOORS) {
     const firstFloorCount = Math.ceil(total / 2);
     const secondFloorCount = total - firstFloorCount;
     return [
@@ -1201,6 +1955,6 @@ function buildSeatLabels(layoutType, capacity) {
     ];
   }
 
-  const prefix = layoutType === 'Limousine' ? 'L' : 'G';
+  const prefix = isLimousineBusType(busType) ? 'L' : 'G';
   return Array.from({ length: total }, (_, index) => `${prefix}${String(index + 1).padStart(2, '0')}`);
 }
