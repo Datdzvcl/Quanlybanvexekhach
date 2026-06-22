@@ -169,18 +169,15 @@ export default function Header({ simple = false }) {
                 {notifOpen && (
                   <div className="notif-dropdown">
                     <div className="notif-dropdown-head">
-                      <strong>Thông báo</strong>
-                      {unreadCount > 0 && (
-                        <button type="button" className="notif-read-all" onClick={handleMarkAllRead}>
-                          Đánh dấu tất cả đã đọc
-                        </button>
-                      )}
+                      <span className="notif-dropdown-title">Thông báo</span>
+                      <button type="button" className="notif-mark-all-btn" onClick={handleMarkAllRead}>
+                        Đã đọc tất cả
+                      </button>
                     </div>
 
                     {notifications.length === 0 ? (
                       <div className="notif-empty">
-                        <i className="fa-solid fa-bell-slash" />
-                        <p>Không có thông báo nào</p>
+                        <p>Chưa có thông báo.</p>
                       </div>
                     ) : (
                       <div className="notif-list">
@@ -188,23 +185,13 @@ export default function Header({ simple = false }) {
                           <button
                             key={notif.notificationID}
                             type="button"
-                            className={`notif-item ${notif.isRead ? 'read' : 'unread'}`}
+                            className={`notif-item${notif.isRead ? '' : ' unread'}`}
                             onClick={() => handleNotifClick(notif)}
                           >
-                            <div className="notif-item-icon">
-                              <i className={`fa-solid ${
-                                notif.type === 4 ? 'fa-star' :
-                                notif.type === 3 ? 'fa-ban' :
-                                notif.type === 2 ? 'fa-credit-card' :
-                                'fa-ticket'
-                              }`} />
-                            </div>
                             <div className="notif-item-body">
-                              <strong>{notif.title}</strong>
-                              <p>{notif.message}</p>
-                              <span>{formatNotifTime(notif.createdAt)}</span>
+                              <span className="notif-item-title">{notif.title}</span>
+                              <span className="notif-item-msg">{notif.message}</span>
                             </div>
-                            {!notif.isRead && <span className="notif-dot" />}
                           </button>
                         ))}
                       </div>
