@@ -30,8 +30,9 @@ const EMPTY_BUS = {
   licensePlate: '',
   capacity: 34,
   imageUrl: '',
-  imageFile: null,
-  imagePreview: '',
+  imageUrls: [],
+  imageFiles: [],
+  imagePreviews: [],
   busType: 'Xe giường nằm',
   amenities: '',
   seatLayoutType: '2 tầng',
@@ -40,6 +41,7 @@ const EMPTY_BUS = {
 };
 
 const BUS_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const BUS_IMAGE_MAX_COUNT = 5;
 const BUS_TYPE_SLEEPER = 'Xe giường nằm';
 const BUS_TYPE_LIMOUSINE = 'Xe Limousine';
 const LAYOUT_ONE_FLOOR = '1 tầng';
@@ -318,17 +320,21 @@ function OperatorBuses() {
 
     setSaving(true);
     try {
-      let imageUrl = form.imageUrl || '';
-      if (form.imageFile) {
-        const uploaded = await operatorPortalApi.uploadBusImage(form.imageFile);
-        imageUrl = pick(uploaded, ['imageUrl', 'ImageUrl'], '');
+      let imageUrls = normalizeBusImageUrls(form.imageUrls);
+      const imageFiles = Array.isArray(form.imageFiles) ? form.imageFiles : [];
+      for (const file of imageFiles) {
+        const uploaded = await operatorPortalApi.uploadBusImage(file);
+        const uploadedUrl = pick(uploaded, ['imageUrl', 'ImageUrl'], '');
+        if (uploadedUrl) imageUrls.push(uploadedUrl);
       }
+      imageUrls = normalizeBusImageUrls(imageUrls).slice(0, BUS_IMAGE_MAX_COUNT);
 
       const payload = {
         licensePlate: form.licensePlate.trim(),
         capacity,
         busType,
-        imageUrl,
+        imageUrl: imageUrls[0] || '',
+        imageUrls,
         amenities: form.amenities.trim(),
         seatLayoutType,
         seatLayout: buildSeatLayoutJson(seatLayoutType, capacity, form.seatLayoutRows, form.seatLayoutSeatsPerRow, busType),
@@ -351,14 +357,16 @@ function OperatorBuses() {
 
   const edit = (bus) => {
     const layoutState = buildSeatLayoutFormState(bus);
+    const imageUrls = normalizeBusImageUrls(pick(bus, ['imageUrls', 'ImageUrls', 'imageUrl', 'ImageUrl']));
     setForm({
       busID: pick(bus, ['busID', 'BusID']),
       licensePlate: pick(bus, ['licensePlate', 'LicensePlate']),
       capacity: pick(bus, ['capacity', 'Capacity'], 34),
       busType: normalizeBusTypeValue(pick(bus, ['busType', 'BusType'], '')),
-      imageUrl: pick(bus, ['imageUrl', 'ImageUrl'], ''),
-      imageFile: null,
-      imagePreview: '',
+      imageUrl: imageUrls[0] || '',
+      imageUrls,
+      imageFiles: [],
+      imagePreviews: [],
       amenities: normalizeAmenities(pick(bus, ['amenities', 'Amenities'], [])).join(', '),
       ...layoutState,
     });
@@ -508,7 +516,7 @@ function OperatorBuses() {
                       <td>
                         <div className="operator-bus-cell">
                           <BusImageThumb
-                            imageUrl={pick(bus, ['imageUrl', 'ImageUrl'])}
+                            imageUrl={pick(bus, ['imageUrls', 'ImageUrls', 'imageUrl', 'ImageUrl'])}
                             alt={pick(bus, ['licensePlate', 'LicensePlate'], 'Xe')}
                           />
                           <div>
@@ -1217,41 +1225,86 @@ function CloneDraftEditor({ draft, index, buses, locationOptions, onChange, onRe
 }
 
 function BusImageUploader({ form, onChange }) {
-  const imageSrc = resolveBusImageUrl(form.imagePreview || form.imageUrl);
+  const savedImages = normalizeBusImageUrls(form.imageUrls);
+  const previewImages = Array.isArray(form.imagePreviews) ? form.imagePreviews : [];
+  const imageFiles = Array.isArray(form.imageFiles) ? form.imageFiles : [];
+  const totalImages = savedImages.length + previewImages.length;
 
   const handleFileChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (totalImages + selectedFiles.length > BUS_IMAGE_MAX_COUNT) {
+      alert(`Mỗi xe chỉ được lưu tối đa ${BUS_IMAGE_MAX_COUNT} ảnh.`);
+      event.target.value = '';
+      return;
+    }
+
+    const invalidFile = selectedFiles.find((file) => !file.type.startsWith('image/'));
+    if (invalidFile) {
       alert('Vui lòng chọn file ảnh.');
       event.target.value = '';
       return;
     }
 
-    if (file.size > BUS_IMAGE_MAX_BYTES) {
+    const oversizeFile = selectedFiles.find((file) => file.size > BUS_IMAGE_MAX_BYTES);
+    if (oversizeFile) {
       alert('Ảnh xe không được vượt quá 5MB.');
       event.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
+    Promise.all(selectedFiles.map(readImagePreview)).then((nextPreviews) => {
       onChange({
-        imageFile: file,
-        imagePreview: String(reader.result || ''),
+        imageFiles: [...imageFiles, ...selectedFiles],
+        imagePreviews: [...previewImages, ...nextPreviews],
       });
-    };
-    reader.readAsDataURL(file);
+      event.target.value = '';
+    });
+  };
+
+  const removeSavedImage = (index) => {
+    const nextImages = savedImages.filter((_, imageIndex) => imageIndex !== index);
+    onChange({
+      imageUrl: nextImages[0] || '',
+      imageUrls: nextImages,
+    });
+  };
+
+  const removePreviewImage = (index) => {
+    onChange({
+      imageFiles: imageFiles.filter((_, fileIndex) => fileIndex !== index),
+      imagePreviews: previewImages.filter((_, previewIndex) => previewIndex !== index),
+    });
   };
 
   return (
     <div className="operator-bus-image-field">
-      <div className="operator-bus-image-preview">
-        {imageSrc ? (
-          <img src={imageSrc} alt="Ảnh xe đang chọn" />
+      <div className="operator-bus-image-preview-list">
+        {totalImages > 0 ? (
+          <>
+            {savedImages.map((imageUrl, index) => {
+              const imageSrc = resolveBusImageUrl(imageUrl);
+              return (
+                <div className="operator-bus-image-preview" key={`${imageUrl}-${index}`}>
+                  <img src={imageSrc} alt={`Ảnh xe ${index + 1}`} />
+                  <button type="button" onClick={() => removeSavedImage(index)} aria-label="Xóa ảnh">
+                    <i className="fa-solid fa-xmark" />
+                  </button>
+                </div>
+              );
+            })}
+            {previewImages.map((previewUrl, index) => (
+              <div className="operator-bus-image-preview" key={`preview-${index}`}>
+                <img src={previewUrl} alt={`Ảnh xe mới ${index + 1}`} />
+                <button type="button" onClick={() => removePreviewImage(index)} aria-label="Xóa ảnh">
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+            ))}
+          </>
         ) : (
-          <span>
+          <span className="operator-bus-image-empty">
             <i className="fa-solid fa-image" />
             Chưa có ảnh
           </span>
@@ -1259,15 +1312,15 @@ function BusImageUploader({ form, onChange }) {
       </div>
       <div className="operator-bus-image-actions">
         <b>Ảnh xe</b>
-        <small>Ảnh được upload lên server, sau đó lưu URL vào cột ImageUrl của xe.</small>
-        <input type="file" accept="image/*" onChange={handleFileChange} />
-        {(form.imageUrl || form.imagePreview) && (
+        <small>Chọn tối đa {BUS_IMAGE_MAX_COUNT} ảnh. Ảnh sẽ hiển thị trong tab Hình ảnh ở trang người dùng.</small>
+        <input type="file" accept="image/*" multiple onChange={handleFileChange} />
+        {totalImages > 0 && (
           <button
             className="btn btn-outline"
             type="button"
-            onClick={() => onChange({ imageUrl: '', imageFile: null, imagePreview: '' })}
+            onClick={() => onChange({ imageUrl: '', imageUrls: [], imageFiles: [], imagePreviews: [] })}
           >
-            Xóa ảnh
+            Xóa tất cả ảnh
           </button>
         )}
       </div>
@@ -1290,12 +1343,46 @@ function BusImageThumb({ imageUrl, alt }) {
 }
 
 function resolveBusImageUrl(value) {
-  const url = String(value || '').trim();
+  const imageUrls = normalizeBusImageUrls(value);
+  const url = (imageUrls[0] || String(value || '')).trim();
   if (!url) return '';
   if (/^(data:|blob:|https?:\/\/)/i.test(url)) return url;
   if (url.startsWith('/')) return `${API_BASE}${url}`;
   if (url.startsWith('uploads/')) return `${API_BASE}/${url}`;
   return url;
+}
+
+function normalizeBusImageUrls(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return Array.from(new Set(
+      value
+        .flatMap(normalizeBusImageUrls)
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    ));
+  }
+
+  const text = String(value || '').trim();
+  if (!text) return [];
+  if (text.startsWith('[')) {
+    try {
+      return normalizeBusImageUrls(JSON.parse(text));
+    } catch {
+      return [text];
+    }
+  }
+
+  return [text];
+}
+
+function readImagePreview(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
 }
 
 function StopEditor({ stops, onChange }) {

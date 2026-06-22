@@ -379,6 +379,7 @@ namespace BaseCore.APIService.Controllers
                 .Select(x => new
                 {
                     tripID = x.TripID,
+                    busId = x.BusID,
                     operatorName = x.Bus != null && x.Bus.Operator != null ? x.Bus.Operator.Name : null,
                     operatorImageUrl = (string?)null,
                     busType = x.Bus != null ? x.Bus.BusType : null,

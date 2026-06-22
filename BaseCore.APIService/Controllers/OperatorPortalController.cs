@@ -19,6 +19,7 @@ namespace BaseCore.APIService.Controllers
     {
         private const string LayoutLimousine = "Limousine";
         private const long MaxBusImageBytes = 5 * 1024 * 1024;
+        private const int MaxBusImages = 5;
         private const string LayoutOneFloor = "1 tầng";
         private const string LayoutTwoFloors = "2 tầng";
         private const string BusTypeSleeper = "Xe giường nằm";
@@ -235,7 +236,7 @@ namespace BaseCore.APIService.Controllers
                 await image.CopyToAsync(stream);
             }
 
-            var imageUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/uploads/buses/{fileName}";
+            var imageUrl = $"/uploads/buses/{fileName}";
             return Ok(new { imageUrl });
         }
 
@@ -264,7 +265,7 @@ namespace BaseCore.APIService.Controllers
                 LicensePlate = licensePlate,
                 Capacity = request.Capacity,
                 BusType = busType,
-                ImageUrl = NormalizeOptionalText(request.ImageUrl),
+                ImageUrl = NormalizeBusImagesForStorage(request.ImageUrls, request.ImageUrl),
                 Amenities = NormalizeAmenitiesForStorage(request.Amenities),
                 SeatLayoutType = layoutType,
                 SeatLayout = NormalizeSeatLayoutForStorage(request.SeatLayout, layoutType, request.Capacity, busType)
@@ -326,8 +327,8 @@ namespace BaseCore.APIService.Controllers
             bus.Capacity = request.Capacity;
             var busType = NormalizeBusType(request.BusType) ?? BusTypeSleeper;
             bus.BusType = busType;
-            if (request.ImageUrl != null)
-                bus.ImageUrl = NormalizeOptionalText(request.ImageUrl);
+            if (request.ImageUrls != null || request.ImageUrl != null)
+                bus.ImageUrl = NormalizeBusImagesForStorage(request.ImageUrls, request.ImageUrl);
             if (request.Amenities != null)
                 bus.Amenities = NormalizeAmenitiesForStorage(request.Amenities);
             var layoutType = NormalizeSeatLayoutType(request.SeatLayoutType, busType, request.Capacity);
@@ -1339,6 +1340,7 @@ namespace BaseCore.APIService.Controllers
                 LayoutType = layoutType,
                 Amenities = ReadAmenities(bus.Amenities),
                 bus.ImageUrl,
+                ImageUrls = ReadBusImageUrls(bus.ImageUrl),
                 SeatMap = ProjectSeatMap(bus.SeatLayout, layoutType, bus.Capacity, bus.BusType)
             };
         }
@@ -1375,6 +1377,49 @@ namespace BaseCore.APIService.Controllers
         {
             var items = ReadAmenities(amenities);
             return items.Count == 0 ? null : JsonSerializer.Serialize(items);
+        }
+
+        private static List<string> ReadBusImageUrls(string? imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                return new List<string>();
+
+            var value = imageUrl.Trim();
+            if (value.StartsWith("["))
+            {
+                try
+                {
+                    return CleanBusImageUrls(JsonSerializer.Deserialize<List<string>>(value));
+                }
+                catch (JsonException)
+                {
+                    // Fall back to treating legacy invalid text as one image URL.
+                }
+            }
+
+            return CleanBusImageUrls(new[] { value });
+        }
+
+        private static string? NormalizeBusImagesForStorage(IEnumerable<string>? imageUrls, string? imageUrl)
+        {
+            var items = imageUrls != null
+                ? CleanBusImageUrls(imageUrls)
+                : ReadBusImageUrls(imageUrl);
+
+            if (items.Count == 0)
+                return null;
+
+            return items.Count == 1 ? items[0] : JsonSerializer.Serialize(items);
+        }
+
+        private static List<string> CleanBusImageUrls(IEnumerable<string>? imageUrls)
+        {
+            return (imageUrls ?? Array.Empty<string>())
+                .Select(x => x?.Trim() ?? string.Empty)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(MaxBusImages)
+                .ToList();
         }
 
         private static string? NormalizeBusType(string? busType)
@@ -1740,6 +1785,7 @@ namespace BaseCore.APIService.Controllers
             public int Capacity { get; set; }
             public string BusType { get; set; } = string.Empty;
             public string? ImageUrl { get; set; }
+            public List<string>? ImageUrls { get; set; }
             public string? Amenities { get; set; }
             public string? SeatLayoutType { get; set; }
             public string? SeatLayout { get; set; }
@@ -1751,6 +1797,7 @@ namespace BaseCore.APIService.Controllers
             public int Capacity { get; set; }
             public string BusType { get; set; } = string.Empty;
             public string? ImageUrl { get; set; }
+            public List<string>? ImageUrls { get; set; }
             public string? Amenities { get; set; }
             public string? SeatLayoutType { get; set; }
             public string? SeatLayout { get; set; }

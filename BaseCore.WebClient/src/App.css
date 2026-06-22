@@ -4858,7 +4858,7 @@ a:hover,
 .operator-bus-image-field {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
   gap: 14px;
   align-items: center;
   padding: 12px;
@@ -4867,7 +4867,15 @@ a:hover,
   background: #fff;
 }
 
+.operator-bus-image-preview-list {
+  min-height: 130px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+
 .operator-bus-image-preview {
+  position: relative;
   min-height: 130px;
   border: 1px dashed #bfdbfe;
   border-radius: 10px;
@@ -4882,7 +4890,21 @@ a:hover,
   object-fit: cover;
 }
 
-.operator-bus-image-preview span {
+.operator-bus-image-preview button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.operator-bus-image-empty {
+  grid-column: 1 / -1;
   min-height: 130px;
   display: grid;
   place-items: center;
