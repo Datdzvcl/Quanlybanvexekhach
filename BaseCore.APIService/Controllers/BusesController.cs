@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using System.Text.Json;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -107,6 +108,38 @@ namespace BaseCore.APIService.Controllers
             return Ok(bus);
         }
 
+        [HttpGet("{id:int}/images")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetImages(int id)
+        {
+            var bus = await _context.Buses
+                .AsNoTracking()
+                .Where(x => x.BusID == id)
+                .Select(x => new
+                {
+                    x.BusID,
+                    x.LicensePlate,
+                    x.ImageUrl
+                })
+                .FirstOrDefaultAsync();
+
+            if (bus == null)
+                return NotFound(new { message = "Không tìm thấy xe" });
+
+            var imageUrls = ReadBusImageUrls(bus.ImageUrl);
+            if (imageUrls.Count == 0)
+                return Ok(Array.Empty<object>());
+
+            return Ok(imageUrls.Select((imageUrl, index) => new
+                {
+                    imageUrl,
+                    url = imageUrl,
+                    busId = bus.BusID,
+                    licensePlate = bus.LicensePlate,
+                    displayOrder = index + 1
+                }));
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] Bus bus)
         {
@@ -146,6 +179,31 @@ namespace BaseCore.APIService.Controllers
             await _context.SaveChangesAsync();
 
             return Ok();
+        }
+
+        private static List<string> ReadBusImageUrls(string? imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                return new List<string>();
+
+            var value = imageUrl.Trim();
+            if (value.StartsWith("["))
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<List<string>>(value)?
+                        .Select(x => x?.Trim() ?? string.Empty)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList() ?? new List<string>();
+                }
+                catch (JsonException)
+                {
+                    // Fall back to treating legacy invalid text as one image URL.
+                }
+            }
+
+            return new List<string> { value };
         }
     }
 }

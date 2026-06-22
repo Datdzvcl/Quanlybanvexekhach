@@ -15,6 +15,54 @@ function formatDuration(minutes) {
   return m === 0 ? `${h} tiếng` : `${h} tiếng ${m} phút`;
 }
 
+function extractImageUrl(image) {
+  if (typeof image === 'string') return image;
+  return image?.imageUrl || image?.ImageUrl || image?.url || image?.Url || '';
+}
+
+function extractImageUrls(image) {
+  if (!image) return [];
+  if (Array.isArray(image)) return image.flatMap(extractImageUrls);
+
+  if (typeof image === 'string') {
+    const value = image.trim();
+    if (!value) return [];
+    if (value.startsWith('[')) {
+      try {
+        return extractImageUrls(JSON.parse(value));
+      } catch {
+        return [value];
+      }
+    }
+    return [value];
+  }
+
+  return extractImageUrls(
+    image.imageUrls || image.ImageUrls || image.images || image.Images || extractImageUrl(image)
+  );
+}
+
+function resolvePublicImageUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (/^(data:|blob:|https?:\/\/)/i.test(url)) return url;
+  if (url.startsWith('/')) return `${API_BASE}${url}`;
+  if (url.startsWith('uploads/')) return `${API_BASE}/${url}`;
+  return url;
+}
+
+function getTripImageFallback(tripData) {
+  const bus = pick(tripData, ['bus', 'Bus']);
+  const urls = extractImageUrls(
+    pick(tripData, ['busImageUrls', 'BusImageUrls']) ||
+    pick(tripData, ['busImageUrl', 'BusImageUrl']) ||
+    pick(bus, ['imageUrls', 'ImageUrls']) ||
+    pick(bus, ['imageUrl', 'ImageUrl'])
+  ).map(resolvePublicImageUrl).filter(Boolean);
+
+  return urls.map((url) => ({ imageUrl: url, url }));
+}
+
 const DETAIL_TABS = [
   { key: 'stops', label: 'Đón/trả' },
   { key: 'promo', label: 'Giảm giá' },
@@ -62,11 +110,21 @@ function TripDetailTabs({ tripId, tripData }) {
     }
     if (tab === 'images' && !images) {
       setLoading((p) => ({ ...p, images: true }));
-      const busId = pick(tripData, ['bus', 'Bus'])?.busID ?? pick(tripData, ['bus', 'Bus'])?.BusID ?? pick(tripData, ['busId', 'BusID', 'busID']);
+      const bus = pick(tripData, ['bus', 'Bus']);
+      const busId = bus?.busID ?? bus?.BusID ?? pick(tripData, ['busId', 'BusID', 'busID']);
+      const fallbackImages = getTripImageFallback(tripData);
+
+      if (!busId) {
+        setImages(fallbackImages);
+        setLoading((p) => ({ ...p, images: false }));
+        return;
+      }
+
       apiClient.get(`/api/buses/${busId}/images`).then((r) => {
         const d = r.data;
-        setImages(Array.isArray(d) ? d : (d?.items || d?.Images || []));
-      }).catch(() => setImages([]))
+        const list = Array.isArray(d) ? d : (d?.items || d?.Images || []);
+        setImages(list.length > 0 ? list : fallbackImages);
+      }).catch(() => setImages(fallbackImages))
         .finally(() => setLoading((p) => ({ ...p, images: false })));
     }
   };
@@ -80,6 +138,12 @@ function TripDetailTabs({ tripId, tripData }) {
   useEffect(() => { load('stops'); }, [tripId]);
 
   const [lightbox, setLightbox] = useState(null);
+  const imageUrls = useMemo(() => (
+    (images || [])
+      .flatMap(extractImageUrls)
+      .map(resolvePublicImageUrl)
+      .filter(Boolean)
+  ), [images]);
 
   return (
     <div className="trip-tabs-panel">
@@ -247,19 +311,16 @@ function TripDetailTabs({ tripId, tripData }) {
         {/* ── Hình ảnh ── */}
         {activeTab === 'images' && (
           loading.images ? <div className="trip-tabs-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div> : (
-            !images || images.length === 0 ? (
+            imageUrls.length === 0 ? (
               <p className="trip-tabs-empty">Nhà xe chưa cập nhật ảnh xe.</p>
             ) : (
               <>
                 <div className="trip-images-grid">
-                  {images.map((img, idx) => {
-                    const url = typeof img === 'string' ? img : (img?.imageUrl || img?.ImageUrl || img?.url || img?.Url || '');
-                    return url ? (
-                      <button key={idx} type="button" className="trip-image-thumb" onClick={() => setLightbox(url)}>
-                        <img src={url} alt={`Ảnh xe ${idx + 1}`} loading="lazy" />
-                      </button>
-                    ) : null;
-                  })}
+                  {imageUrls.map((url, idx) => (
+                    <button key={`${url}-${idx}`} type="button" className="trip-image-thumb" onClick={() => setLightbox(url)}>
+                      <img src={url} alt={`Ảnh xe ${idx + 1}`} loading="lazy" />
+                    </button>
+                  ))}
                 </div>
                 {lightbox && (
                   <div className="trip-lightbox" onClick={() => setLightbox(null)}>
