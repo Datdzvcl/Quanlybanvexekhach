@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
 using BaseCore.Common;
+using System.Data;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text;
@@ -69,9 +70,10 @@ namespace BaseCore.APIService.Controllers
             var bookingQuery = ScopedBookings(operatorId);
             var paidBookingQuery = bookingQuery.Where(x => x.PaymentStatus == "Paid");
 
+            var now = DateTime.Now;
             var today = DateTime.Today;
             var upcomingTripEntities = await tripQuery
-                .Where(x => x.DepartureTime >= DateTime.Now)
+                .Where(x => x.DepartureTime >= now)
                 .OrderBy(x => x.DepartureTime)
                 .Take(5)
                 .ToListAsync();
@@ -80,11 +82,11 @@ namespace BaseCore.APIService.Controllers
             {
                 totalBuses = await _context.Buses.CountAsync(x => x.OperatorID == operatorId),
                 totalTrips = await tripQuery.CountAsync(),
-                upcomingTrips = await tripQuery.CountAsync(x => x.DepartureTime >= DateTime.Now),
+                upcomingTrips = await tripQuery.CountAsync(x => x.DepartureTime >= now),
                 todayTrips = await tripQuery.CountAsync(x => x.DepartureTime >= today && x.DepartureTime < today.AddDays(1)),
                 totalBookings = await bookingQuery.CountAsync(),
                 totalRevenue = await paidBookingQuery.SumAsync(x => (decimal?)x.TotalPrice) ?? 0,
-                upcoming = upcomingTripEntities.Select(ProjectTripSummary)
+                upcoming = upcomingTripEntities.Select(x => ProjectTripSummary(x, now))
             });
         }
 
@@ -375,6 +377,8 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetTrips(
             [FromQuery] int? busId,
             [FromQuery] string? route,
+            [FromQuery] string? departureLocation,
+            [FromQuery] string? arrivalLocation,
             [FromQuery] DateTime? departureDate,
             [FromQuery] string? dateMode,
             [FromQuery] string? status,
@@ -401,6 +405,18 @@ namespace BaseCore.APIService.Controllers
                     EF.Functions.Like(x.ArrivalLocation, $"%{keyword}%"));
             }
 
+            if (!string.IsNullOrWhiteSpace(departureLocation))
+            {
+                var keyword = departureLocation.Trim();
+                query = query.Where(x => EF.Functions.Like(x.DepartureLocation, $"%{keyword}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(arrivalLocation))
+            {
+                var keyword = arrivalLocation.Trim();
+                query = query.Where(x => EF.Functions.Like(x.ArrivalLocation, $"%{keyword}%"));
+            }
+
             if (departureDate.HasValue)
             {
                 var start = string.Equals(dateMode, "week", StringComparison.OrdinalIgnoreCase)
@@ -410,10 +426,12 @@ namespace BaseCore.APIService.Controllers
                 query = query.Where(x => x.DepartureTime >= start && x.DepartureTime < end);
             }
 
+            var now = DateTime.Now;
+
             if (!string.IsNullOrWhiteSpace(status))
             {
                 var normalizedStatus = NormalizeStatus(status);
-                query = query.Where(x => x.Status == normalizedStatus);
+                query = ApplyRuntimeStatusFilter(query, normalizedStatus, now);
             }
 
             var totalCount = await query.CountAsync();
@@ -425,7 +443,7 @@ namespace BaseCore.APIService.Controllers
 
             return Ok(new
             {
-                items = tripEntities.Select(ProjectTripSummary),
+                items = tripEntities.Select(x => ProjectTripSummary(x, now)),
                 totalCount,
                 page,
                 pageSize,
@@ -449,7 +467,7 @@ namespace BaseCore.APIService.Controllers
             if (trip == null)
                 return NotFound(new { message = "Khong tim thay chuyen xe cua nha xe hien tai" });
 
-            return Ok(ProjectTripDetail(trip));
+            return Ok(ProjectTripDetail(trip, DateTime.Now));
         }
 
         [HttpPost("trips")]
@@ -469,6 +487,10 @@ namespace BaseCore.APIService.Controllers
             if (validation != null)
                 return validation;
 
+            var normalizedStatus = NormalizeStatus(request.Status);
+            if (normalizedStatus == DomainCodes.TripCompleted && request.ArrivalTime > DateTime.Now)
+                return BadRequest(new { message = "Chi co the hoan thanh chuyen sau gio den" });
+
             var trip = new Trip
             {
                 BusID = request.BusID,
@@ -478,7 +500,7 @@ namespace BaseCore.APIService.Controllers
                 ArrivalTime = request.ArrivalTime,
                 Price = request.Price,
                 AvailableSeats = request.AvailableSeats > 0 ? request.AvailableSeats : bus.Capacity,
-                Status = NormalizeStatus(request.Status)
+                Status = normalizedStatus
             };
 
             _context.Trips.Add(trip);
@@ -488,6 +510,36 @@ namespace BaseCore.APIService.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { trip.TripID });
+        }
+
+        [HttpPut("trips/{id:int}/complete")]
+        public async Task<IActionResult> CompleteTrip(int id)
+        {
+            var scope = await GetOperatorScope();
+            if (scope == null)
+                return OperatorScopeNotFound();
+
+            var trip = await ScopedTrips(scope.Operator.OperatorID)
+                .FirstOrDefaultAsync(x => x.TripID == id);
+
+            if (trip == null)
+                return NotFound(new { message = "Khong tim thay chuyen xe cua nha xe hien tai" });
+
+            var now = DateTime.Now;
+
+            if (trip.Status == DomainCodes.TripCancelled)
+                return BadRequest(new { message = "Khong the hoan thanh chuyen da huy" });
+
+            if (trip.ArrivalTime > now)
+                return BadRequest(new { message = "Chi co the hoan thanh chuyen sau gio den" });
+
+            if (trip.Status != DomainCodes.TripCompleted)
+            {
+                trip.Status = DomainCodes.TripCompleted;
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(ProjectTripSummary(trip, now));
         }
 
         [HttpPut("trips/{id:int}")]
@@ -517,6 +569,21 @@ namespace BaseCore.APIService.Controllers
             if (validation != null)
                 return validation;
 
+            var normalizedStatus = NormalizeStatus(request.Status);
+            if (normalizedStatus == DomainCodes.TripCompleted && request.ArrivalTime > DateTime.Now)
+                return BadRequest(new { message = "Chi co the hoan thanh chuyen sau gio den" });
+
+            if (trip.Status == DomainCodes.TripCancelled && normalizedStatus != DomainCodes.TripCancelled)
+                return BadRequest(new { message = "Chuyen da huy khong the mo lai vi booking co the da duoc huy va hoan tien" });
+
+            var shouldSyncCancelledBookings = normalizedStatus == DomainCodes.TripCancelled;
+            var now = DateTime.Now;
+            var cancelledBookings = 0;
+            var refundedAmount = 0m;
+            var restoredSeats = 0;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
             trip.BusID = request.BusID;
             trip.DepartureLocation = request.DepartureLocation.Trim();
             trip.ArrivalLocation = request.ArrivalLocation.Trim();
@@ -524,7 +591,15 @@ namespace BaseCore.APIService.Controllers
             trip.ArrivalTime = request.ArrivalTime;
             trip.Price = request.Price;
             trip.AvailableSeats = request.AvailableSeats > 0 ? request.AvailableSeats : bus.Capacity;
-            trip.Status = NormalizeStatus(request.Status);
+            trip.Status = normalizedStatus;
+
+            if (shouldSyncCancelledBookings)
+            {
+                var cancelResult = await CancelBookingsForCancelledTrip(trip, now);
+                cancelledBookings = cancelResult.CancelledBookings;
+                refundedAmount = cancelResult.RefundedAmount;
+                restoredSeats = cancelResult.RestoredSeats;
+            }
 
             if (request.StopPoints != null)
             {
@@ -533,8 +608,16 @@ namespace BaseCore.APIService.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
-            return Ok(new { trip.TripID });
+            return Ok(new
+            {
+                trip.TripID,
+                cancelledBookings,
+                refundedAmount,
+                restoredSeats,
+                notificationSent = shouldSyncCancelledBookings && cancelledBookings > 0
+            });
         }
 
         [HttpDelete("trips/{id:int}")]
@@ -642,8 +725,9 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> RevenueReport(
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to,
-            [FromQuery] int? tripId,
-            [FromQuery] int? busId)
+            [FromQuery] int? busId,
+            [FromQuery] string? departureLocation,
+            [FromQuery] string? arrivalLocation)
         {
             var scope = await GetOperatorScope();
             if (scope == null)
@@ -661,11 +745,20 @@ namespace BaseCore.APIService.Controllers
                 query = query.Where(x => x.BookingDate.HasValue && x.BookingDate.Value < end);
             }
 
-            if (tripId.HasValue)
-                query = query.Where(x => x.TripID == tripId.Value);
-
             if (busId.HasValue)
                 query = query.Where(x => x.Trip != null && x.Trip.BusID == busId.Value);
+
+            if (!string.IsNullOrWhiteSpace(departureLocation))
+            {
+                var keyword = departureLocation.Trim();
+                query = query.Where(x => x.Trip != null && EF.Functions.Like(x.Trip.DepartureLocation, $"%{keyword}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(arrivalLocation))
+            {
+                var keyword = arrivalLocation.Trim();
+                query = query.Where(x => x.Trip != null && EF.Functions.Like(x.Trip.ArrivalLocation, $"%{keyword}%"));
+            }
 
             var totalRevenue = await query.SumAsync(x => (decimal?)x.TotalPrice) ?? 0;
             var totalBookings = await query.CountAsync();
@@ -1057,9 +1150,109 @@ namespace BaseCore.APIService.Controllers
             );
         }
 
-        private static object ProjectTripSummary(Trip trip)
+        private static IQueryable<Trip> ApplyRuntimeStatusFilter(IQueryable<Trip> query, byte status, DateTime now)
+        {
+            return status switch
+            {
+                DomainCodes.TripCompleted => query.Where(x => x.Status == DomainCodes.TripCompleted),
+                DomainCodes.TripCancelled => query.Where(x => x.Status == DomainCodes.TripCancelled),
+                DomainCodes.TripOnGoing => query.Where(x =>
+                    x.Status != DomainCodes.TripCompleted &&
+                    x.Status != DomainCodes.TripCancelled &&
+                    x.DepartureTime <= now),
+                _ => query.Where(x =>
+                    x.Status != DomainCodes.TripCompleted &&
+                    x.Status != DomainCodes.TripCancelled &&
+                    x.DepartureTime > now)
+            };
+        }
+
+        private async Task<(int CancelledBookings, decimal RefundedAmount, int RestoredSeats)> CancelBookingsForCancelledTrip(Trip trip, DateTime now)
+        {
+            var bookings = await _context.Bookings
+                .Include(x => x.TicketSeats)
+                .Include(x => x.SeatHolds)
+                .Where(x =>
+                    x.TripID == trip.TripID &&
+                    x.BookingStatus != DomainCodes.BookingCancelled &&
+                    x.BookingStatus != DomainCodes.BookingCompleted)
+                .ToListAsync();
+
+            var cancelledBookings = 0;
+            var refundedAmount = 0m;
+            var restoredSeats = 0;
+
+            foreach (var booking in bookings)
+            {
+                var shouldRefund = string.Equals(booking.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase);
+
+                booking.BookingStatus = DomainCodes.BookingCancelled;
+                booking.PaymentStatus = shouldRefund ? "Refunded" : "Cancelled";
+                booking.CancelledAt = now;
+                booking.RefundAmount = shouldRefund ? booking.TotalPrice : 0m;
+                booking.CancelReason = BuildTripCancelledNotification(trip, shouldRefund);
+
+                if (booking.TicketSeats != null)
+                {
+                    foreach (var ticketSeat in booking.TicketSeats)
+                        ticketSeat.IsActive = false;
+                }
+
+                if (booking.SeatHolds != null)
+                {
+                    foreach (var seatHold in booking.SeatHolds)
+                        seatHold.Status = DomainCodes.SeatHoldReleased;
+                }
+
+                cancelledBookings++;
+                restoredSeats += booking.TotalSeats;
+                if (shouldRefund)
+                    refundedAmount += booking.TotalPrice;
+            }
+
+            if (restoredSeats > 0)
+            {
+                var capacity = trip.Bus?.Capacity ?? 0;
+                var nextAvailableSeats = trip.AvailableSeats + restoredSeats;
+                trip.AvailableSeats = capacity > 0
+                    ? Math.Min(capacity, nextAvailableSeats)
+                    : nextAvailableSeats;
+            }
+
+            return (cancelledBookings, refundedAmount, restoredSeats);
+        }
+
+        private static string BuildTripCancelledNotification(Trip trip, bool refunded)
+        {
+            var departureTime = trip.DepartureTime.ToString("HH:mm dd/MM/yyyy", CultureInfo.InvariantCulture);
+            var refundText = refunded
+                ? "Tien ve da duoc ghi nhan hoan tien tu dong."
+                : "Don chua thanh toan nen khong phat sinh hoan tien.";
+
+            return $"Nha xe da huy chuyen {trip.DepartureLocation} - {trip.ArrivalLocation} luc {departureTime}. {refundText}";
+        }
+
+        private static byte ResolveRuntimeTripStatus(Trip trip, DateTime now)
+        {
+            if (trip.Status == DomainCodes.TripCompleted || trip.Status == DomainCodes.TripCancelled)
+                return trip.Status;
+
+            return trip.DepartureTime <= now
+                ? DomainCodes.TripOnGoing
+                : DomainCodes.TripScheduled;
+        }
+
+        private static bool CanCompleteTrip(Trip trip, DateTime now)
+        {
+            return trip.Status != DomainCodes.TripCompleted &&
+                trip.Status != DomainCodes.TripCancelled &&
+                trip.ArrivalTime <= now;
+        }
+
+        private static object ProjectTripSummary(Trip trip, DateTime now)
         {
             var layoutType = NormalizeSeatLayoutType(trip.Bus?.SeatLayoutType, trip.Bus?.BusType, trip.Bus?.Capacity ?? 0);
+            var runtimeStatus = ResolveRuntimeTripStatus(trip, now);
 
             return new
             {
@@ -1071,7 +1264,9 @@ namespace BaseCore.APIService.Controllers
                 trip.ArrivalTime,
                 trip.Price,
                 trip.AvailableSeats,
-                Status = DomainCodes.ToTripStatusName(trip.Status),
+                Status = DomainCodes.ToTripStatusName(runtimeStatus),
+                StoredStatus = DomainCodes.ToTripStatusName(trip.Status),
+                CanComplete = CanCompleteTrip(trip, now),
                 EstimatedDurationMinutes = Math.Max(0, (int)Math.Round((trip.ArrivalTime - trip.DepartureTime).TotalMinutes)),
                 BusType = trip.Bus?.BusType,
                 LicensePlate = trip.Bus?.LicensePlate,
@@ -1083,8 +1278,10 @@ namespace BaseCore.APIService.Controllers
             };
         }
 
-        private static object ProjectTripDetail(Trip trip)
+        private static object ProjectTripDetail(Trip trip, DateTime now)
         {
+            var runtimeStatus = ResolveRuntimeTripStatus(trip, now);
+
             return new
             {
                 trip.TripID,
@@ -1095,7 +1292,9 @@ namespace BaseCore.APIService.Controllers
                 trip.ArrivalTime,
                 trip.Price,
                 trip.AvailableSeats,
-                Status = DomainCodes.ToTripStatusName(trip.Status),
+                Status = DomainCodes.ToTripStatusName(runtimeStatus),
+                StoredStatus = DomainCodes.ToTripStatusName(trip.Status),
+                CanComplete = CanCompleteTrip(trip, now),
                 EstimatedDurationMinutes = Math.Max(0, (int)Math.Round((trip.ArrivalTime - trip.DepartureTime).TotalMinutes)),
                 Bus = trip.Bus == null ? null : ProjectBus(new BusListItem
                 {

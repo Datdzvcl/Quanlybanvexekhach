@@ -181,6 +181,9 @@ namespace BaseCore.APIService.Controllers
                         x.BookingStatus == DomainCodes.BookingCancelled ? "Cancelled" :
                         x.BookingStatus == DomainCodes.BookingCompleted ? "Completed" :
                         "PendingConfirm",
+                    cancelReason = x.CancelReason,
+                    cancelledAt = x.CancelledAt,
+                    refundAmount = x.RefundAmount,
                     pickupStop = _context.StopPoints
                         .Where(s => s.StopPointID == x.PickupStopID)
                         .Select(s => new { s.StopPointID, s.StopName, s.StopAddress, s.StopType })

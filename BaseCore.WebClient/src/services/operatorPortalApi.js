@@ -66,6 +66,11 @@ export const operatorPortalApi = {
     return response.data;
   },
 
+  async completeTrip(id) {
+    const response = await apiClient.put(`/api/operator-portal/trips/${id}/complete`);
+    return response.data;
+  },
+
   async removeTrip(id) {
     const response = await apiClient.delete(`/api/operator-portal/trips/${id}`);
     return response.data;

@@ -108,6 +108,10 @@ Thumbs.db
 
 # wwwroot
 wwwroot/
+!BaseCore.APIService/wwwroot/
+!BaseCore.APIService/wwwroot/.gitkeep
+!BaseCore.AuthService/wwwroot/
+!BaseCore.AuthService/wwwroot/.gitkeep
 
 # Logs
 logs/
