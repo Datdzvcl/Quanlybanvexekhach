@@ -1187,7 +1187,7 @@ namespace BaseCore.APIService.Controllers
                 var shouldRefund = string.Equals(booking.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase);
 
                 booking.BookingStatus = DomainCodes.BookingCancelled;
-                booking.PaymentStatus = shouldRefund ? "Refunded" : "Cancelled";
+                booking.PaymentStatus = "Cancelled";
                 booking.CancelledAt = now;
                 booking.RefundAmount = shouldRefund ? booking.TotalPrice : 0m;
                 booking.CancelReason = BuildTripCancelledNotification(trip, shouldRefund);
@@ -1226,10 +1226,10 @@ namespace BaseCore.APIService.Controllers
         {
             var departureTime = trip.DepartureTime.ToString("HH:mm dd/MM/yyyy", CultureInfo.InvariantCulture);
             var refundText = refunded
-                ? "Tien ve da duoc ghi nhan hoan tien tu dong."
-                : "Don chua thanh toan nen khong phat sinh hoan tien.";
+                ? "Tiền vé đã được ghi nhận hoàn tiền tự động."
+                : "Đơn chưa thanh toán nên không phát sinh hoàn tiền.";
 
-            return $"Nha xe da huy chuyen {trip.DepartureLocation} - {trip.ArrivalLocation} luc {departureTime}. {refundText}";
+            return $"Nhà xe đã hủy chuyến {trip.DepartureLocation} - {trip.ArrivalLocation} luc {departureTime}. {refundText}";
         }
 
         private static byte ResolveRuntimeTripStatus(Trip trip, DateTime now)
