@@ -4,6 +4,7 @@ import UserLayout from '../layouts/UserLayout';
 import { formatVND, labelSeatStatus, pick } from '../api';
 import { tripApi } from '../services/tripApi';
 import { seatApi } from '../services/seatApi';
+import BookingSteps from '../components/BookingSteps';
 
 const SESSION_STORAGE_KEY = 'seatSessionId';
 const HOLD_STORAGE_KEY = 'currentSeatHold';
@@ -362,6 +363,7 @@ export default function SeatSelection() {
           <span>Chọn ghế</span>
           <h1>{trip.departureLocation} → {trip.arrivalLocation}</h1>
           <p>{trip.operatorName} · {trip.busType} · {formatDateTime(trip.departureTime)}</p>
+          <BookingSteps currentStep={1} />
         </div>
       </section>
 

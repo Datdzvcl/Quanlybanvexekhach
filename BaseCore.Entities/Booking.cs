@@ -26,5 +26,7 @@ namespace BaseCore.Entities
         public Promotion? Promotion { get; set; }
         public List<TicketSeat>? TicketSeats { get; set; }
         public List<SeatHold>? SeatHolds { get; set; }
+        public Review? Review { get; set; }
+        public List<Notification>? Notifications { get; set; }
     }
 }

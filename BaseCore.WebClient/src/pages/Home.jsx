@@ -1,25 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLayout from "../layouts/UserLayout";
-import { API_BASE } from "../api";
-
-const offerItems = [
-  {
-    title: "Giảm 20% tuyến đêm",
-    desc: "Áp dụng cho các chuyến khởi hành sau 20:00 trong tuần.",
-    icon: "fa-moon",
-  },
-  {
-    title: "Hoàn xu khách mới",
-    desc: "Tặng điểm thưởng cho đơn đặt vé đầu tiên trên VéXeAZ.",
-    icon: "fa-gift",
-  },
-  {
-    title: "Combo khứ hồi",
-    desc: "Đặt vé đi và về cùng lúc để nhận giá tốt hơn.",
-    icon: "fa-repeat",
-  },
-];
+import { API_BASE, formatVND } from "../api";
+import { promotionApi } from "../services/promotionApi";
 
 const popularRoutes = [
   {
@@ -179,10 +162,23 @@ function DatePickerField({ label, value, min, onChange, icon, emptyText }) {
   );
 }
 
+function formatPromoDiscount(item) {
+  const discountType = Number(item.discountType ?? item.DiscountType ?? 1);
+  const discountValue = Number(item.discountValue ?? item.DiscountValue ?? 0);
+  const maxDiscount = Number(item.maxDiscountAmount ?? item.MaxDiscountAmount ?? 0);
+  if (discountType === 1) {
+    return maxDiscount > 0 ? `Giảm ${discountValue}% tối đa ${formatVND(maxDiscount)}` : `Giảm ${discountValue}%`;
+  }
+  return `Giảm ${formatVND(discountValue)}`;
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const today = useMemo(() => getToday(), []);
   const [locations, setLocations] = useState([]);
+  const [promotions, setPromotions] = useState([]);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [promoCopied, setPromoCopied] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     from: "",
@@ -205,6 +201,12 @@ export default function Home() {
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => setLocations(Array.isArray(data) ? data : []))
       .catch(() => setLocations([]));
+  }, []);
+
+  useEffect(() => {
+    promotionApi.listPublic()
+      .then((items) => setPromotions(Array.isArray(items) ? items.slice(0, 6) : []))
+      .catch(() => setPromotions([]));
   }, []);
 
   const updateForm = (key, value) => {
@@ -353,19 +355,99 @@ export default function Home() {
       </section>
 
       <section id="offers" className="container home-section">
-        <div className="home-section-head">
-          <span>Ưu đãi</span>
-          <h2>Tiết kiệm hơn cho mỗi chuyến đi</h2>
+        <div className="home-section-head home-section-head-row">
+          <div>
+            <span>ƯU ĐÃI</span>
+            <h2>Tiết kiệm hơn cho mỗi chuyến đi</h2>
+          </div>
         </div>
-        <div className="offer-grid">
-          {offerItems.map((item) => (
-            <article className="offer-card" key={item.title}>
-              <i className={`fa-solid ${item.icon}`} />
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-            </article>
-          ))}
-        </div>
+        {promotions.length === 0 ? (
+          <div className="promo-empty">
+            <i className="fa-solid fa-tag" />
+            <p>Hiện chưa có mã giảm giá nào đang hoạt động.</p>
+          </div>
+        ) : (
+          <>
+            <div className="promo-cards-grid">
+              {promotions.map((item) => {
+                const code = item.code ?? item.Code ?? '';
+                const desc = item.description ?? item.Description ?? '';
+                const endDate = item.endDate ?? item.EndDate;
+                const minOrder = Number(item.minOrderValue ?? item.MinOrderValue ?? 0);
+                const usageLimit = item.usageLimit ?? item.UsageLimit;
+                const usageCount = Number(item.usageCount ?? item.UsageCount ?? 0);
+                const remaining = usageLimit != null ? Number(usageLimit) - usageCount : null;
+                const isCopied = promoCopied === code;
+                const isSelected = selectedPromo?.code === code || selectedPromo?.Code === code;
+                return (
+                  <article
+                    key={code}
+                    className={`promo-ticket-card${isSelected ? ' active' : ''}`}
+                    onClick={() => setSelectedPromo(isSelected ? null : item)}
+                  >
+                    <div className="promo-ticket-top">
+                      <div className="promo-ticket-icon"><i className="fa-solid fa-ticket-simple" /></div>
+                      <span className="promo-ticket-badge">MÃ ƯU ĐÃI</span>
+                    </div>
+                    <div className="promo-ticket-discount">{formatPromoDiscount(item)}</div>
+                    <div className="promo-ticket-code-box" onClick={(e) => e.stopPropagation()}>
+                      <span className="promo-ticket-code">{code}</span>
+                      <span className="promo-ticket-hint">Bấm để xem chi tiết</span>
+                    </div>
+                    <ul className="promo-ticket-meta">
+                      {minOrder > 0 && <li>Đơn tối thiểu {formatVND(minOrder)}</li>}
+                      {remaining != null ? <li>Còn {remaining} lượt</li> : <li>Không giới hạn lượt dùng</li>}
+                      {endDate && <li>Hạn dùng đến {new Date(endDate).toLocaleDateString('vi-VN')}</li>}
+                    </ul>
+                    <button
+                      type="button"
+                      className={`promo-ticket-copy-btn${isCopied ? ' copied' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard?.writeText(code);
+                        setPromoCopied(code);
+                        setTimeout(() => setPromoCopied(''), 1500);
+                      }}
+                    >
+                      <i className={`fa-solid ${isCopied ? 'fa-check' : 'fa-copy'}`} />
+                      {isCopied ? 'Đã sao chép!' : 'Sao chép'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            {selectedPromo && (() => {
+              const code = selectedPromo.code ?? selectedPromo.Code ?? '';
+              const desc = selectedPromo.description ?? selectedPromo.Description ?? '';
+              const endDate = selectedPromo.endDate ?? selectedPromo.EndDate;
+              const minOrder = Number(selectedPromo.minOrderValue ?? selectedPromo.MinOrderValue ?? 0);
+              const usageLimit = selectedPromo.usageLimit ?? selectedPromo.UsageLimit;
+              const usageCount = Number(selectedPromo.usageCount ?? selectedPromo.UsageCount ?? 0);
+              const remaining = usageLimit != null ? Number(usageLimit) - usageCount : null;
+              return (
+                <div className="promo-detail-panel">
+                  <div className="promo-detail-head">
+                    <div>
+                      <span>CHI TIẾT MÃ</span>
+                      <h3>{code}</h3>
+                      <p>{desc || 'Áp dụng theo điều kiện của chương trình ưu đãi.'}</p>
+                    </div>
+                    <button type="button" className="promo-detail-close" onClick={() => setSelectedPromo(null)}>
+                      <i className="fa-solid fa-xmark" />
+                    </button>
+                  </div>
+                  <ul className="promo-detail-meta">
+                    <li><i className="fa-solid fa-circle-check" /> {formatPromoDiscount(selectedPromo)}</li>
+                    {minOrder > 0 && <li><i className="fa-solid fa-circle-check" /> Đơn tối thiểu {formatVND(minOrder)}</li>}
+                    {remaining != null ? <li><i className="fa-solid fa-circle-check" /> Còn {remaining} lượt</li> : <li><i className="fa-solid fa-circle-check" /> Không giới hạn lượt dùng</li>}
+                    {endDate && <li><i className="fa-solid fa-circle-check" /> Hạn dùng đến {new Date(endDate).toLocaleDateString('vi-VN')}</li>}
+                  </ul>
+                </div>
+              );
+            })()}
+          </>
+        )}
       </section>
 
       <section className="container home-section">

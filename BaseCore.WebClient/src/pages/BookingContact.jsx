@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { formatVND, pick } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import BookingSteps from '../components/BookingSteps';
 
 const PENDING_BOOKING_KEY = 'pendingBooking';
 const ROUND_TRIP_KEY = 'roundTripBooking';
@@ -155,6 +156,7 @@ export default function BookingContact() {
           <span>Thông tin liên hệ</span>
           <h1>Nhập thông tin người đi</h1>
           <p>Thông tin này sẽ được dùng để xác nhận vé và gửi chi tiết đặt chỗ.</p>
+          <BookingSteps currentStep={3} />
         </div>
       </section>
 

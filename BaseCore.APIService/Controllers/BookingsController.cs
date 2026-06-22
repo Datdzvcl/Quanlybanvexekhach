@@ -484,6 +484,18 @@ namespace BaseCore.APIService.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                if (currentUserId.HasValue)
+                {
+                    try
+                    {
+                        await NotificationsController.CreateAsync(_context, currentUserId.Value,
+                            "Đặt vé thành công",
+                            $"Bạn đã đặt vé chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} thành công. Tổng tiền: {totalPrice:N0}đ. Đang chờ xác nhận.",
+                            1, booking.BookingID);
+                    }
+                    catch { }
+                }
+
                 return Ok(new
                 {
                     bookingID = booking.BookingID,
@@ -544,6 +556,18 @@ namespace BaseCore.APIService.Controllers
             booking.BookingStatus = DomainCodes.BookingConfirmed;
             await _context.SaveChangesAsync();
 
+            if (booking.UserID.HasValue)
+            {
+                try
+                {
+                    await NotificationsController.CreateAsync(_context, booking.UserID.Value,
+                        "Vé đã được xác nhận",
+                        $"Đặt vé #{booking.BookingID} của bạn đã được xác nhận. Chúc bạn có chuyến đi vui vẻ!",
+                        1, booking.BookingID);
+                }
+                catch { }
+            }
+
             return Ok(new
             {
                 bookingID = booking.BookingID,
@@ -582,6 +606,21 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            if (booking.UserID.HasValue)
+            {
+                try
+                {
+                    var refundText = (request?.RefundAmount ?? 0) > 0
+                        ? $" Số tiền hoàn lại: {request!.RefundAmount!.Value:N0}đ."
+                        : "";
+                    await NotificationsController.CreateAsync(_context, booking.UserID.Value,
+                        "Yêu cầu hủy vé đã được chấp nhận",
+                        $"Đặt vé #{booking.BookingID} đã được hủy thành công.{refundText}",
+                        3, booking.BookingID);
+                }
+                catch { }
+            }
 
             return Ok(new
             {
@@ -689,6 +728,15 @@ namespace BaseCore.APIService.Controllers
             booking.CancelReason = NormalizeOptionalText(request?.CancelReason);
 
             await _context.SaveChangesAsync();
+
+            try
+            {
+                await NotificationsController.CreateAsync(_context, currentUserId.Value,
+                    "Yêu cầu hủy vé đang chờ duyệt",
+                    $"Yêu cầu hủy đặt vé #{booking.BookingID} của bạn đang chờ admin xét duyệt.",
+                    3, booking.BookingID);
+            }
+            catch { }
 
             return Ok(new
             {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
 import './App.css';
 import Home from './pages/Home';
@@ -19,36 +19,44 @@ import Profile from './pages/Profile';
 import MyTickets from './pages/MyTickets';
 import MyTicketDetail from './pages/MyTicketDetail';
 import ChangePassword from './pages/ChangePassword';
+import ReviewPage from './pages/ReviewPage';
 import { formatVND } from './api';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminRoute from './routes/AdminRoute';
 import OperatorRoute from './routes/OperatorRoute';
 import OrderHistory from './pages/OrderHistory';
+import { seatApi } from './services/seatApi';
 
-// Component hiển thị thông báo giữ chỗ toàn cục
-function HoldSeatNotification() {
+const HOLD_STORAGE_KEY = 'currentSeatHold';
+
+function formatCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function HoldSeatNotificationInner() {
+  const navigate = useNavigate();
   const [holdInfo, setHoldInfo] = useState(null);
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [visible, setVisible] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const loadHold = useCallback(() => {
     try {
-      const raw = localStorage.getItem('holdSeat');
-      if (!raw) { setHoldInfo(null); setVisible(false); return; }
+      const raw = localStorage.getItem(HOLD_STORAGE_KEY);
+      if (!raw) { setHoldInfo(null); return; }
       const data = JSON.parse(raw);
-      const remaining = Math.ceil((data.expireAt - Date.now()) / 1000);
-      if (remaining <= 0) {
-        localStorage.removeItem('holdSeat');
+      const expiresMs = new Date(data.holdExpiresAt).getTime();
+      if (expiresMs <= Date.now()) {
+        localStorage.removeItem(HOLD_STORAGE_KEY);
         setHoldInfo(null);
-        setVisible(false);
         return;
       }
       setHoldInfo(data);
-      setSecondsLeft(remaining);
-      setVisible(true);
     } catch {
       setHoldInfo(null);
-      setVisible(false);
     }
   }, []);
 
@@ -59,70 +67,102 @@ function HoldSeatNotification() {
     return () => window.removeEventListener('holdSeatUpdated', onUpdate);
   }, [loadHold]);
 
-  // Đếm ngược
   useEffect(() => {
     if (!holdInfo) return;
-    const interval = setInterval(() => {
-      const remaining = Math.ceil((holdInfo.expireAt - Date.now()) / 1000);
-      if (remaining <= 0) {
-        localStorage.removeItem('holdSeat');
+    const timer = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      const expiresMs = new Date(holdInfo.holdExpiresAt).getTime();
+      if (expiresMs <= t) {
+        localStorage.removeItem(HOLD_STORAGE_KEY);
         setHoldInfo(null);
-        setVisible(false);
-        clearInterval(interval);
-        return;
       }
-      setSecondsLeft(remaining);
     }, 1000);
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [holdInfo]);
 
-  const handleCancel = (e) => {
+  const handleCancelRequest = (e) => {
     e.stopPropagation();
-    if (window.confirm('Bạn có chắc muốn hủy giữ chỗ này không?')) {
-      localStorage.removeItem('holdSeat');
-      setHoldInfo(null);
-      setVisible(false);
-      window.dispatchEvent(new Event('holdSeatUpdated'));
-    }
+    setShowConfirm(true);
   };
 
-  const handleClick = () => {
-    if (holdInfo) {
-      window.location.href = `/payment?bookingId=${holdInfo.bookingId}`;
-    }
+  const handleConfirmCancel = async () => {
+    if (!holdInfo) return;
+    setCancelling(true);
+    try {
+      await seatApi.release({
+        tripId: holdInfo.tripId,
+        seatLabels: holdInfo.seatLabels || [],
+        sessionId: holdInfo.sessionId,
+      });
+    } catch { }
+    localStorage.removeItem(HOLD_STORAGE_KEY);
+    setHoldInfo(null);
+    setShowConfirm(false);
+    window.dispatchEvent(new Event('holdSeatUpdated'));
+    navigate('/');
+    setCancelling(false);
   };
 
-  if (!visible || !holdInfo) return null;
+  const handleDismissConfirm = () => setShowConfirm(false);
 
-  const mins = Math.floor(secondsLeft / 60);
-  const secs = secondsLeft % 60;
-  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  const urgency = secondsLeft <= 60 ? 'urgent' : secondsLeft <= 180 ? 'warning' : '';
+  if (!holdInfo) return null;
+
+  const expiresMs = new Date(holdInfo.holdExpiresAt).getTime();
+  const remainingMs = Math.max(0, expiresMs - now);
+  const seatCount = (holdInfo.seatLabels || []).length;
+  const urgency = remainingMs <= 60000 ? 'urgent' : remainingMs <= 180000 ? 'warning' : '';
 
   return (
-    <div className={`hold-seat-notification ${urgency}`} onClick={handleClick} title="Bấm để thanh toán">
-      <div className="hold-notif-icon">
-        <i className="fa-solid fa-clock" />
+    <>
+      <div className={`hold-seat-notification ${urgency}`}>
+        <div className="hold-notif-icon">
+          <i className="fa-solid fa-clock" />
+        </div>
+        <div className="hold-notif-body">
+          <div className="hold-notif-title">
+            <i className="fa-solid fa-couch" />
+            {seatCount > 0
+              ? `Đang giữ ${seatCount} ghế: ${holdInfo.seatLabels.join(', ')}`
+              : 'Đang giữ ghế'}
+          </div>
+          <div className={`hold-notif-countdown ${urgency}`}>
+            Hết hạn sau <span className="hold-countdown-time">{formatCountdown(remainingMs)}</span>
+          </div>
+        </div>
+        <button
+          className="hold-notif-cancel"
+          type="button"
+          onClick={handleCancelRequest}
+          title="Hủy giữ ghế"
+        >
+          <i className="fa-solid fa-xmark" />
+        </button>
       </div>
-      <div className="hold-notif-body">
-        <div className="hold-notif-title">
-          <i className="fa-solid fa-couch" /> Đang giữ chỗ #{holdInfo.bookingId}
+
+      {showConfirm && (
+        <div className="hold-cancel-overlay">
+          <div className="hold-cancel-dialog">
+            <div className="hold-cancel-icon">
+              <i className="fa-solid fa-triangle-exclamation" />
+            </div>
+            <h3>Hủy giữ ghế?</h3>
+            <p>
+              Bạn có chắc chắn muốn hủy giữ {seatCount} ghế không?
+              Các ghế sẽ trở về trạng thái trống.
+            </p>
+            <div className="hold-cancel-actions">
+              <button type="button" className="btn btn-outline" onClick={handleDismissConfirm} disabled={cancelling}>
+                Không, giữ lại
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleConfirmCancel} disabled={cancelling}>
+                {cancelling ? 'Đang hủy...' : 'Xác nhận hủy'}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="hold-notif-meta">
-          {holdInfo.seatCount} ghế · {holdInfo.amount ? formatVND(holdInfo.amount) : ''}
-        </div>
-        <div className={`hold-notif-countdown ${urgency}`}>
-          Hết hạn sau <span className="hold-countdown-time">{timeStr}</span>
-        </div>
-      </div>
-      <button
-        className="hold-notif-cancel"
-        onClick={handleCancel}
-        title="Hủy giữ chỗ"
-      >
-        <i className="fa-solid fa-xmark" />
-      </button>
-    </div>
+      )}
+    </>
   );
 }
 
@@ -133,7 +173,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <HoldSeatNotification />
+      <HoldSeatNotificationInner />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<Search />} />
@@ -152,6 +192,7 @@ export default function App() {
         <Route path="/my-tickets/:id" element={<ProtectedRoute><MyTicketDetail /></ProtectedRoute>} />
         <Route path="/order-history" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+        <Route path="/review/:bookingId" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
         <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/operator/*" element={<OperatorRoute><OperatorPage /></OperatorRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

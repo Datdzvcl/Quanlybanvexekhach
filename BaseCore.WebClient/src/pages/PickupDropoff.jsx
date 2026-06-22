@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { formatVND, pick } from '../api';
 import { tripApi } from '../services/tripApi';
+import BookingSteps from '../components/BookingSteps';
 
 const PENDING_BOOKING_KEY = 'pendingBooking';
 const ROUND_TRIP_KEY = 'roundTripBooking';
@@ -198,6 +199,7 @@ export default function PickupDropoff() {
           <span>Thông tin hành trình</span>
           <h1>Chọn điểm đón và điểm trả</h1>
           <p>Hoàn tất điểm lên xe và xuống xe trước khi nhập thông tin liên hệ.</p>
+          <BookingSteps currentStep={2} />
         </div>
       </section>
 

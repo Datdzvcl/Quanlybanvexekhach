@@ -19,5 +19,7 @@ namespace BaseCore.Entities
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
         public ICollection<Promotion> Promotions { get; set; } = new List<Promotion>();
         public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
+        public ICollection<Review> Reviews { get; set; } = new List<Review>();
+        public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     }
 }

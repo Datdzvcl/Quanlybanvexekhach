@@ -1,18 +1,60 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Navbar from './Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { isAdminRole } from '../api';
+import { notificationApi } from '../services/notificationApi';
+
+const AVATAR_COLORS = [
+  '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#9333ea', '#dc2626',
+];
+
+function getAvatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function formatNotifTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  const now = new Date();
+  const diff = now - date;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Vừa xong';
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return date.toLocaleDateString('vi-VN');
+}
+
+function notifLink(notif) {
+  if (notif.type === 4 && notif.bookingID) return `/review/${notif.bookingID}`;
+  if (notif.bookingID) return `/my-tickets/${notif.bookingID}`;
+  return '/my-tickets';
+}
 
 export default function Header({ simple = false }) {
   const navigate = useNavigate();
   const { token, user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notifRef = useRef(null);
 
   const closeMenus = () => {
     setMenuOpen(false);
     setAccountOpen(false);
+    setNotifOpen(false);
   };
 
   const handleLogout = () => {
@@ -21,16 +63,56 @@ export default function Header({ simple = false }) {
     navigate('/');
   };
 
+  const loadNotifications = async () => {
+    if (!token) return;
+    try {
+      const result = await notificationApi.getMyNotifications(1, 10);
+      setNotifications(result.items || []);
+      setUnreadCount(result.unreadCount || 0);
+    } catch {
+      // silently fail
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   useEffect(() => {
     const handleClick = (event) => {
-      if (!event.target.closest('.user-header')) {
-        closeMenus();
-      }
+      if (!event.target.closest('.user-header')) closeMenus();
     };
-
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, []);
+
+  const handleNotifClick = async (notif) => {
+    if (!notif.isRead) {
+      try {
+        await notificationApi.markRead(notif.notificationID);
+        setNotifications((prev) =>
+          prev.map((n) => n.notificationID === notif.notificationID ? { ...n, isRead: true } : n)
+        );
+        setUnreadCount((c) => Math.max(0, c - 1));
+      } catch { }
+    }
+    setNotifOpen(false);
+    navigate(notifLink(notif));
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationApi.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch { }
+  };
+
+  const displayName = user?.fullName || user?.email || '';
+  const initials = getInitials(displayName);
+  const avatarColor = getAvatarColor(displayName);
 
   return (
     <header className="user-header">
@@ -64,46 +146,122 @@ export default function Header({ simple = false }) {
 
         <div className="user-header-actions">
           {token && user ? (
-            <div className="account-menu">
-              <button
-                className="account-trigger"
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setAccountOpen((value) => !value);
-                }}
-              >
-                <i className="fa-solid fa-user" />
-                <span>{user.fullName || user.email}</span>
-                <i className={`fa-solid fa-chevron-${accountOpen ? 'up' : 'down'}`} />
-              </button>
-
-              {accountOpen && (
-                <div className="account-dropdown">
-                  <Link to="/profile" onClick={closeMenus}>
-                    <i className="fa-solid fa-user-pen" />
-                    Thông tin cá nhân
-                  </Link>
-                  <Link to="/my-tickets" onClick={closeMenus}>
-                    <i className="fa-solid fa-ticket" />
-                    Vé của tôi
-                  </Link>
-                  <Link to="/order-history" onClick={closeMenus}>
-                    <i className="fa-solid fa-clock-rotate-left" />
-                    Lịch sử đơn hàng
-                  </Link>
-                  {isAdminRole(user.role) && (
-                    <Link to="/admin" onClick={closeMenus}>
-                      <i className="fa-solid fa-gauge-high" />
-                      Xem trang quản trị
-                    </Link>
+            <div className="header-user-group">
+              {/* Notification bell */}
+              <div className="notif-bell-wrap" ref={notifRef}>
+                <button
+                  className="notif-bell-btn"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNotifOpen((v) => !v);
+                    setAccountOpen(false);
+                    if (!notifOpen) loadNotifications();
+                  }}
+                  aria-label="Thông báo"
+                >
+                  <i className="fa-solid fa-bell" />
+                  {unreadCount > 0 && (
+                    <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
                   )}
-                  <button type="button" onClick={handleLogout}>
-                    <i className="fa-solid fa-right-from-bracket" />
-                    Đăng xuất
-                  </button>
-                </div>
-              )}
+                </button>
+
+                {notifOpen && (
+                  <div className="notif-dropdown">
+                    <div className="notif-dropdown-head">
+                      <strong>Thông báo</strong>
+                      {unreadCount > 0 && (
+                        <button type="button" className="notif-read-all" onClick={handleMarkAllRead}>
+                          Đánh dấu tất cả đã đọc
+                        </button>
+                      )}
+                    </div>
+
+                    {notifications.length === 0 ? (
+                      <div className="notif-empty">
+                        <i className="fa-solid fa-bell-slash" />
+                        <p>Không có thông báo nào</p>
+                      </div>
+                    ) : (
+                      <div className="notif-list">
+                        {notifications.map((notif) => (
+                          <button
+                            key={notif.notificationID}
+                            type="button"
+                            className={`notif-item ${notif.isRead ? 'read' : 'unread'}`}
+                            onClick={() => handleNotifClick(notif)}
+                          >
+                            <div className="notif-item-icon">
+                              <i className={`fa-solid ${
+                                notif.type === 4 ? 'fa-star' :
+                                notif.type === 3 ? 'fa-ban' :
+                                notif.type === 2 ? 'fa-credit-card' :
+                                'fa-ticket'
+                              }`} />
+                            </div>
+                            <div className="notif-item-body">
+                              <strong>{notif.title}</strong>
+                              <p>{notif.message}</p>
+                              <span>{formatNotifTime(notif.createdAt)}</span>
+                            </div>
+                            {!notif.isRead && <span className="notif-dot" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Account menu */}
+              <div className="account-menu">
+                <button
+                  className="account-trigger"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setAccountOpen((value) => !value);
+                    setNotifOpen(false);
+                  }}
+                >
+                  <div
+                    className="user-avatar-circle"
+                    style={{ background: avatarColor }}
+                    aria-hidden="true"
+                  >
+                    {initials}
+                  </div>
+                  <span>{displayName}</span>
+                  <i className={`fa-solid fa-chevron-${accountOpen ? 'up' : 'down'}`} />
+                </button>
+
+                {accountOpen && (
+                  <div className="account-dropdown">
+                    <Link to="/profile" onClick={closeMenus}>
+                      <i className="fa-solid fa-user-pen" />
+                      Thông tin cá nhân
+                    </Link>
+                    <Link to="/my-tickets" onClick={closeMenus}>
+                      <i className="fa-solid fa-ticket" />
+                      Vé của tôi
+                    </Link>
+                    <Link to="/order-history" onClick={closeMenus}>
+                      <i className="fa-solid fa-clock-rotate-left" />
+                      Lịch sử đơn hàng
+                    </Link>
+                    {isAdminRole(user.role) && (
+                      <Link to="/admin" onClick={closeMenus}>
+                        <i className="fa-solid fa-gauge-high" />
+                        Xem trang quản trị
+                      </Link>
+                    )}
+                    <button type="button" onClick={handleLogout}>
+                      <i className="fa-solid fa-right-from-bracket" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="guest-actions">

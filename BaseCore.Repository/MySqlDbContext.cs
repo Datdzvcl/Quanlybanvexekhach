@@ -18,6 +18,8 @@ namespace BaseCore.Repository
         public DbSet<TicketSeat> TicketSeats { get; set; }
         public DbSet<StopPoint> StopPoints { get; set; }
         public DbSet<SeatHold> SeatHolds { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -192,6 +194,55 @@ namespace BaseCore.Repository
 
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.HasIndex(e => e.Phone).IsUnique();
+            });
+
+            modelBuilder.Entity<Review>(entity =>
+            {
+                entity.ToTable("Reviews");
+                entity.HasKey(e => e.ReviewID);
+
+                entity.Property(e => e.Rating).IsRequired();
+                entity.Property(e => e.Comment).HasMaxLength(500);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("getdate()");
+
+                entity.HasIndex(e => e.BookingID).IsUnique();
+
+                entity.HasOne(e => e.Booking)
+                      .WithOne(e => e.Review)
+                      .HasForeignKey<Review>(e => e.BookingID)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.User)
+                      .WithMany(e => e.Reviews)
+                      .HasForeignKey(e => e.UserID)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Trip)
+                      .WithMany()
+                      .HasForeignKey(e => e.TripID)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.ToTable("Notifications");
+                entity.HasKey(e => e.NotificationID);
+
+                entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Message).HasMaxLength(500).IsRequired();
+                entity.Property(e => e.Type).HasDefaultValue((byte)1);
+                entity.Property(e => e.IsRead).HasDefaultValue(false);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("getdate()");
+
+                entity.HasOne(e => e.User)
+                      .WithMany(e => e.Notifications)
+                      .HasForeignKey(e => e.UserID)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Booking)
+                      .WithMany(e => e.Notifications)
+                      .HasForeignKey(e => e.BookingID)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }
