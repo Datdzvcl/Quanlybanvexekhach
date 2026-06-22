@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
-import { API_BASE, formatVND, labelRole, labelTripStatus, pick } from '../api';
+import { API_BASE, formatVND, labelRole, labelTripStatus, pick, tripStatusName } from '../api';
 import PromotionManager from '../components/PromotionManager';
 import { useAuth } from '../contexts/AuthContext';
 import { operatorPortalApi } from '../services/operatorPortalApi';
@@ -88,6 +88,87 @@ const SEAT_LAYOUT_OPTIONS = [
   { value: LAYOUT_TWO_FLOORS, label: 'Xe giường nằm 2 tầng' },
   { value: LAYOUT_ONE_FLOOR, label: 'Xe giường nằm 1 tầng' },
 ];
+
+function useLocationOptions() {
+  const [locations, setLocations] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/trips/locations`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setLocations(Array.isArray(data) ? data : []))
+      .catch(() => setLocations([]));
+  }, []);
+
+  return useMemo(() => (
+    Array.from(new Set(
+      locations
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, 'vi'))
+  ), [locations]);
+}
+
+function OperatorLocationSuggestInput({ value, onChange, options = [], placeholder, required = false }) {
+  const [open, setOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const filteredOptions = useMemo(() => {
+    const keyword = isTyping ? normalizeText(value) : '';
+    const source = keyword
+      ? options.filter((item) => normalizeText(item).includes(keyword))
+      : options;
+    return source.slice(0, 12);
+  }, [isTyping, options, value]);
+
+  const selectLocation = (location) => {
+    onChange(location);
+    setIsTyping(false);
+    setOpen(false);
+  };
+
+  return (
+    <div className={`operator-location-suggest ${open ? 'open' : ''}`}>
+      <input
+        value={value}
+        placeholder={placeholder}
+        required={required}
+        onFocus={() => {
+          setIsTyping(false);
+          setOpen(true);
+        }}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setIsTyping(true);
+          setOpen(true);
+        }}
+        onBlur={() => window.setTimeout(() => {
+          setIsTyping(false);
+          setOpen(false);
+        }, 120)}
+      />
+
+      {open && (
+        <div className="operator-location-menu">
+          <strong>Địa điểm phổ biến</strong>
+          {filteredOptions.length ? (
+            filteredOptions.map((location) => (
+              <button
+                type="button"
+                key={location}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectLocation(location)}
+              >
+                <i className="fa-solid fa-location-dot" />
+                <span>{location}</span>
+              </button>
+            ))
+          ) : (
+            <p>Không có gợi ý phù hợp. Bạn có thể nhập tay.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function OperatorPage() {
   const [active, setActive] = useState('dashboard');
@@ -463,13 +544,15 @@ function OperatorBuses() {
 function OperatorTrips() {
   const [buses, setBuses] = useState([]);
   const [paged, setPaged] = useState(emptyPage());
-  const [filters, setFilters] = useState({ route: '', dateMode: 'day', departureDate: '', status: '', busId: '' });
+  const [filters, setFilters] = useState({ departureLocation: '', arrivalLocation: '', dateMode: 'day', departureDate: '', status: '', busId: '' });
   const [form, setForm] = useState(EMPTY_TRIP);
   const [showForm, setShowForm] = useState(false);
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [clone, setClone] = useState(EMPTY_CLONE);
   const [savingClone, setSavingClone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [nowTick, setNowTick] = useState(Date.now());
+  const locationOptions = useLocationOptions();
 
   const load = async (page = paged.page || 1) => {
     setLoading(true);
@@ -491,22 +574,59 @@ function OperatorTrips() {
     load(1);
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const selectBus = (busID) => {
-    setForm({ ...form, busID });
+    setForm((current) => {
+      const selectedBus = buses.find((bus) => String(pick(bus, ['busID', 'BusID'])) === String(busID));
+      const capacity = selectedBus ? Number(pick(selectedBus, ['capacity', 'Capacity'], 0)) : 0;
+
+      if (!busID) {
+        return {
+          ...current,
+          busID: '',
+          availableSeats: current.tripID ? current.availableSeats : '',
+        };
+      }
+
+      const shouldUseCapacity =
+        capacity > 0 &&
+        (!current.tripID || !current.availableSeats || Number(current.availableSeats) > capacity);
+
+      return {
+        ...current,
+        busID,
+        availableSeats: shouldUseCapacity ? String(capacity) : current.availableSeats,
+      };
+    });
   };
 
   const submit = async (e) => {
     e.preventDefault();
     const payload = buildTripPayload(form);
+    const isCancellingTrip = form.tripID && payload.status === 'Cancelled';
+
+    if (isCancellingTrip && !window.confirm('Hủy chuyến sẽ tự động hủy booking, ghi nhận hoàn tiền và thông báo cho khách trong lịch sử vé. Tiếp tục?')) {
+      return;
+    }
+
     try {
+      let result = null;
       if (form.tripID) {
-        await operatorPortalApi.updateTrip(form.tripID, payload);
+        result = await operatorPortalApi.updateTrip(form.tripID, payload);
       } else {
-        await operatorPortalApi.createTrip(payload);
+        result = await operatorPortalApi.createTrip(payload);
       }
       setShowForm(false);
       setForm(EMPTY_TRIP);
       await load(1);
+
+      if (isCancellingTrip) {
+        alert(`Đã hủy chuyến, hủy ${pick(result, ['cancelledBookings', 'CancelledBookings'], 0)} booking và ghi nhận hoàn tiền ${formatVND(pick(result, ['refundedAmount', 'RefundedAmount'], 0))}.`);
+      }
     } catch (err) {
       alert(err.message || 'Không lưu được chuyến xe.');
     }
@@ -531,6 +651,17 @@ function OperatorTrips() {
       await load(paged.page);
     } catch (err) {
       alert(err.message || 'Không xóa được chuyến xe.');
+    }
+  };
+
+  const complete = async (trip) => {
+    const id = pick(trip, ['tripID', 'TripID']);
+    if (!window.confirm('Xác nhận hoàn thành chuyến xe này?')) return;
+    try {
+      await operatorPortalApi.completeTrip(id);
+      await load(paged.page);
+    } catch (err) {
+      alert(err.message || 'Không chuyển được chuyến sang hoàn thành.');
     }
   };
 
@@ -673,27 +804,63 @@ function OperatorTrips() {
           onClose={() => cancelForm(setShowForm, setForm, EMPTY_TRIP)}
         >
         <form className="operator-trip-form operator-trip-form-modal" onSubmit={submit}>
-          <div className="admin-form-grid admin-form-grid-modal">
-            <select value={form.busID} onChange={(e) => selectBus(e.target.value)} required>
-              <option value="">Chọn xe</option>
-              {buses.map((bus) => (
-                <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
-                  {pick(bus, ['licensePlate', 'LicensePlate'])} - {labelBusType(pick(bus, ['busType', 'BusType']))}
-                </option>
-              ))}
-            </select>
-            <input value={form.departureLocation} onChange={(e) => setForm({ ...form, departureLocation: e.target.value })} placeholder="Điểm đi" required />
-            <input value={form.arrivalLocation} onChange={(e) => setForm({ ...form, arrivalLocation: e.target.value })} placeholder="Điểm đến" required />
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="Scheduled">Đã lên lịch</option>
-              <option value="On-going">Đang chạy</option>
-              <option value="Completed">Hoàn thành</option>
-              <option value="Cancelled">Đã hủy</option>
-            </select>
-            <input type="datetime-local" value={form.departureTime} onChange={(e) => setForm({ ...form, departureTime: e.target.value })} required />
-            <input type="datetime-local" value={form.arrivalTime} onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })} required />
-            <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Giá vé" required />
-            <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} placeholder="Ghế trống" />
+          <div className="admin-form-grid admin-form-grid-modal operator-trip-form-grid">
+            <label className="operator-form-field">
+              <span>Xe</span>
+              <select value={form.busID} onChange={(e) => selectBus(e.target.value)} required>
+                <option value="">Chọn xe</option>
+                {buses.map((bus) => (
+                  <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
+                    {pick(bus, ['licensePlate', 'LicensePlate'])} - {labelBusType(pick(bus, ['busType', 'BusType']))}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="operator-form-field">
+              <span>Điểm đi</span>
+              <OperatorLocationSuggestInput
+                value={form.departureLocation}
+                onChange={(value) => setForm({ ...form, departureLocation: value })}
+                options={locationOptions}
+                placeholder="Nhập điểm đi"
+                required
+              />
+            </label>
+            <label className="operator-form-field">
+              <span>Điểm đến</span>
+              <OperatorLocationSuggestInput
+                value={form.arrivalLocation}
+                onChange={(value) => setForm({ ...form, arrivalLocation: value })}
+                options={locationOptions}
+                placeholder="Nhập điểm đến"
+                required
+              />
+            </label>
+            <label className="operator-form-field">
+              <span>Trạng thái</span>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="Scheduled">Đã lên lịch</option>
+                <option value="On-going">Đang chạy</option>
+                <option value="Completed">Hoàn thành</option>
+                <option value="Cancelled">Đã hủy</option>
+              </select>
+            </label>
+            <label className="operator-form-field">
+              <span>Giờ đi</span>
+              <input type="datetime-local" value={form.departureTime} onChange={(e) => setForm({ ...form, departureTime: e.target.value })} required />
+            </label>
+            <label className="operator-form-field">
+              <span>Giờ đến</span>
+              <input type="datetime-local" value={form.arrivalTime} onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })} required />
+            </label>
+            <label className="operator-form-field">
+              <span>Giá vé</span>
+              <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
+            </label>
+            <label className="operator-form-field">
+              <span>Số ghế</span>
+              <input type="number" min="0" value={form.availableSeats} onChange={(e) => setForm({ ...form, availableSeats: e.target.value })} />
+            </label>
           </div>
           <StopEditor stops={form.stopPoints} onChange={(stopPoints) => setForm({ ...form, stopPoints })} />
           <div className="admin-form-actions">
@@ -754,6 +921,7 @@ function OperatorTrips() {
                     draft={draft}
                     index={index}
                     buses={buses}
+                    locationOptions={locationOptions}
                     onChange={(updates) => updateCloneDraft(index, updates)}
                     onRemove={() => removeCloneDraft(index)}
                   />
@@ -774,10 +942,11 @@ function OperatorTrips() {
       <TripFilterBar
         filters={filters}
         buses={buses}
+        locationOptions={locationOptions}
         setFilters={setFilters}
         onSearch={() => load(1)}
         onClear={() => {
-          setFilters({ route: '', dateMode: 'day', departureDate: '', status: '', busId: '' });
+          setFilters({ departureLocation: '', arrivalLocation: '', dateMode: 'day', departureDate: '', status: '', busId: '' });
           setTimeout(() => load(1), 0);
         }}
       />
@@ -786,7 +955,7 @@ function OperatorTrips() {
         <p>Đang tải...</p>
       ) : (
         <>
-          <TripsTable trips={paged.items} onEdit={edit} onDelete={remove} />
+          <TripsTable trips={paged.items} onEdit={edit} onDelete={remove} onComplete={complete} now={nowTick} />
           <Pagination page={paged.page} totalPages={paged.totalPages} onPageChange={load} />
         </>
       )}
@@ -796,21 +965,19 @@ function OperatorTrips() {
 
 function OperatorReports() {
   const [buses, setBuses] = useState([]);
-  const [trips, setTrips] = useState([]);
-  const [filters, setFilters] = useState({ from: '', to: '', tripId: '', busId: '' });
+  const [filters, setFilters] = useState({ from: '', to: '', busId: '', departureLocation: '', arrivalLocation: '' });
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const locationOptions = useLocationOptions();
 
   const load = async () => {
     setLoading(true);
     try {
-      const [busData, tripData, reportData] = await Promise.all([
+      const [busData, reportData] = await Promise.all([
         operatorPortalApi.listBuses({ page: 1, pageSize: 100 }),
-        operatorPortalApi.listTrips({ page: 1, pageSize: 100 }),
         operatorPortalApi.revenueReport(cleanParams(filters)),
       ]);
       setBuses(normalizePagedResponse(busData).items);
-      setTrips(normalizePagedResponse(tripData).items);
       setReport(reportData);
     } catch (err) {
       alert(err.message || 'Không tải được báo cáo doanh thu.');
@@ -828,14 +995,14 @@ function OperatorReports() {
       <div className="admin-section-head">
         <div>
           <h3>Báo cáo doanh thu</h3>
-          <p className="muted">Thống kê theo chuyến, theo xe hoặc theo khoảng thời gian.</p>
+          <p className="muted">Thống kê doanh thu theo thời gian, xe, điểm đi và điểm đến.</p>
         </div>
       </div>
 
       <div className="operator-report-filters">
         <input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} />
         <input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
-        <select value={filters.busId} onChange={(e) => setFilters({ ...filters, busId: e.target.value, tripId: '' })}>
+        <select value={filters.busId} onChange={(e) => setFilters({ ...filters, busId: e.target.value })}>
           <option value="">Tất cả xe</option>
           {buses.map((bus) => (
             <option key={pick(bus, ['busID', 'BusID'])} value={pick(bus, ['busID', 'BusID'])}>
@@ -843,14 +1010,18 @@ function OperatorReports() {
             </option>
           ))}
         </select>
-        <select value={filters.tripId} onChange={(e) => setFilters({ ...filters, tripId: e.target.value })}>
-          <option value="">Tất cả chuyến</option>
-          {trips.map((trip) => (
-            <option key={pick(trip, ['tripID', 'TripID'])} value={pick(trip, ['tripID', 'TripID'])}>
-              #{pick(trip, ['tripID', 'TripID'])} - {pick(trip, ['departureLocation', 'DepartureLocation'])}
-            </option>
-          ))}
-        </select>
+        <OperatorLocationSuggestInput
+          value={filters.departureLocation}
+          onChange={(value) => setFilters({ ...filters, departureLocation: value })}
+          options={locationOptions}
+          placeholder="Điểm đi"
+        />
+        <OperatorLocationSuggestInput
+          value={filters.arrivalLocation}
+          onChange={(value) => setFilters({ ...filters, arrivalLocation: value })}
+          options={locationOptions}
+          placeholder="Điểm đến"
+        />
         <button className="btn btn-primary" type="button" onClick={load}>Lọc báo cáo</button>
       </div>
 
@@ -864,10 +1035,7 @@ function OperatorReports() {
             <div className="stat-card"><div><p>Số ghế bán</p><h2>{report?.totalSeats || 0}</h2></div><i className="fa-solid fa-couch" /></div>
           </section>
 
-          <div className="admin-grid">
-            <ReportTable title="Theo chuyến" rows={report?.byTrip || []} mode="trip" />
-            <ReportTable title="Theo xe" rows={report?.byBus || []} mode="bus" />
-          </div>
+          <ReportTable rows={report?.byTrip || []} />
         </>
       )}
     </section>
@@ -906,7 +1074,7 @@ function OperatorSettings() {
   );
 }
 
-function TripsTable({ trips, onEdit, onDelete, compact = false }) {
+function TripsTable({ trips, onEdit, onDelete, onComplete, compact = false, now = Date.now() }) {
   if (!trips.length) return <p className="muted">Chưa có dữ liệu.</p>;
 
   return (
@@ -919,6 +1087,7 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
             <th>Khởi hành</th>
             <th>Giá vé</th>
             <th>Chi tiết</th>
+            <th>Trạng thái</th>
             {!compact && <th>Thao tác</th>}
           </tr>
         </thead>
@@ -926,12 +1095,12 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
           {trips.map((trip) => {
             const id = pick(trip, ['tripID', 'TripID']);
             const amenities = normalizeAmenities(pick(trip, ['amenities', 'Amenities'], []));
+            const runtimeStatus = getRuntimeTripStatus(trip, now);
+            const canComplete = canCompleteRuntimeTrip(trip, now);
             return (
               <tr key={id}>
                 <td>
                   <b>{pick(trip, ['departureLocation', 'DepartureLocation'])}</b> đến <b>{pick(trip, ['arrivalLocation', 'ArrivalLocation'])}</b>
-                  <br />
-                  <span className="badge">{labelTripStatus(pick(trip, ['status', 'Status']))}</span>
                 </td>
                 <td>
                   <div className="operator-bus-cell">
@@ -951,8 +1120,14 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
                   <div>{Math.round((pick(trip, ['estimatedDurationMinutes', 'EstimatedDurationMinutes'], 0) || 0) / 60)} giờ dự kiến</div>
                   <div>{amenities.slice(0, 3).map((item) => <span className="badge operator-badge" key={item}>{item}</span>)}</div>
                 </td>
+                <td>
+                  <span className="badge">{labelTripStatus(runtimeStatus)}</span>
+                </td>
                 {!compact && (
                   <td className="admin-actions">
+                    {canComplete && onComplete && (
+                      <button className="btn btn-primary" type="button" onClick={() => onComplete(trip)}>Hoàn thành</button>
+                    )}
                     <button className="btn btn-outline" type="button" onClick={() => onEdit(trip)}>Sửa</button>
                     <button className="btn btn-danger" type="button" onClick={() => onDelete(id)}>Xóa</button>
                   </td>
@@ -966,7 +1141,7 @@ function TripsTable({ trips, onEdit, onDelete, compact = false }) {
   );
 }
 
-function CloneDraftEditor({ draft, index, buses, onChange, onRemove }) {
+function CloneDraftEditor({ draft, index, buses, locationOptions, onChange, onRemove }) {
   return (
     <section className="operator-clone-draft">
       <div className="operator-clone-draft-title">
@@ -977,7 +1152,7 @@ function CloneDraftEditor({ draft, index, buses, onChange, onRemove }) {
         <button className="btn btn-danger" type="button" onClick={onRemove}>Xóa lịch</button>
       </div>
 
-      <div className="admin-form-grid admin-form-grid-modal">
+      <div className="admin-form-grid admin-form-grid-modal operator-clone-draft-grid">
         <label className="operator-form-field">
           <span>Xe</span>
           <select value={draft.busID} onChange={(e) => onChange({ busID: e.target.value })} required>
@@ -991,11 +1166,23 @@ function CloneDraftEditor({ draft, index, buses, onChange, onRemove }) {
         </label>
         <label className="operator-form-field">
           <span>Điểm đi</span>
-          <input value={draft.departureLocation} onChange={(e) => onChange({ departureLocation: e.target.value })} required />
+          <OperatorLocationSuggestInput
+            value={draft.departureLocation}
+            onChange={(value) => onChange({ departureLocation: value })}
+            options={locationOptions}
+            placeholder="Nhập điểm đi"
+            required
+          />
         </label>
         <label className="operator-form-field">
           <span>Điểm đến</span>
-          <input value={draft.arrivalLocation} onChange={(e) => onChange({ arrivalLocation: e.target.value })} required />
+          <OperatorLocationSuggestInput
+            value={draft.arrivalLocation}
+            onChange={(value) => onChange({ arrivalLocation: value })}
+            options={locationOptions}
+            placeholder="Nhập điểm đến"
+            required
+          />
         </label>
         <label className="operator-form-field">
           <span>Trạng thái</span>
@@ -1019,7 +1206,7 @@ function CloneDraftEditor({ draft, index, buses, onChange, onRemove }) {
           <input type="number" min="1" value={draft.price} onChange={(e) => onChange({ price: e.target.value })} required />
         </label>
         <label className="operator-form-field">
-          <span>Ghế trống</span>
+          <span>Số ghế</span>
           <input type="number" min="0" value={draft.availableSeats} onChange={(e) => onChange({ availableSeats: e.target.value })} />
         </label>
       </div>
@@ -1130,29 +1317,42 @@ function StopEditor({ stops, onChange }) {
       </div>
       {stops.map((stop, index) => (
         <div className="operator-stop-row" key={`${index}-${stop.stopOrder}`}>
-          <input value={stop.stopName} onChange={(e) => update(index, 'stopName', e.target.value)} placeholder="Tên điểm" />
-          <input value={stop.stopAddress || ''} onChange={(e) => update(index, 'stopAddress', e.target.value)} placeholder="Địa chỉ" />
-          <select value={stop.stopType} onChange={(e) => update(index, 'stopType', Number(e.target.value))}>
-            <option value={1}>Điểm đón</option>
-            <option value={2}>Điểm trả</option>
-            <option value={3}>Đón/trả</option>
-          </select>
-          <input type="number" min="0" value={stop.arrivalOffset || 0} onChange={(e) => update(index, 'arrivalOffset', Number(e.target.value))} placeholder="Phút từ giờ đi" />
+          <label className="operator-form-field">
+            <span>Tên điểm</span>
+            <input value={stop.stopName} onChange={(e) => update(index, 'stopName', e.target.value)} />
+          </label>
+          <label className="operator-form-field">
+            <span>Địa chỉ</span>
+            <input value={stop.stopAddress || ''} onChange={(e) => update(index, 'stopAddress', e.target.value)} />
+          </label>
+          <label className="operator-form-field">
+            <span>Loại điểm</span>
+            <select value={stop.stopType} onChange={(e) => update(index, 'stopType', Number(e.target.value))}>
+              <option value={1}>Điểm đón</option>
+              <option value={2}>Điểm trả</option>
+              <option value={3}>Đón/trả</option>
+            </select>
+          </label>
+          <label className="operator-form-field">
+            <span>Đón dự kiến sau xuất phát (phút)</span>
+            <input type="number" min="0" value={stop.arrivalOffset || 0} onChange={(e) => update(index, 'arrivalOffset', Number(e.target.value))} />
+          </label>
         </div>
       ))}
     </div>
   );
 }
 
-function ReportTable({ title, rows, mode }) {
+function ReportTable({ rows }) {
   return (
     <section className="admin-card">
-      <h3>{title}</h3>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>{mode === 'trip' ? 'Chuyến' : 'Xe'}</th>
+              <th>Chuyến</th>
+              <th>Xe</th>
+              <th>Khởi hành</th>
               <th>Đơn</th>
               <th>Ghế</th>
               <th>Doanh thu</th>
@@ -1160,19 +1360,21 @@ function ReportTable({ title, rows, mode }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={`${mode}-${pick(row, ['tripID', 'TripID', 'busID', 'BusID'])}`}>
+              <tr key={`revenue-${pick(row, ['tripID', 'TripID'], pick(row, ['busID', 'BusID']))}`}>
                 <td>
-                  {mode === 'trip'
-                    ? `#${pick(row, ['tripID', 'TripID'])} - ${pick(row, ['departureLocation', 'DepartureLocation'])} đến ${pick(row, ['arrivalLocation', 'ArrivalLocation'])}`
-                    : `${pick(row, ['licensePlate', 'LicensePlate'])} - ${labelBusType(pick(row, ['busType', 'BusType']))}`}
+                  #{pick(row, ['tripID', 'TripID'])} - {pick(row, ['departureLocation', 'DepartureLocation'])} đến {pick(row, ['arrivalLocation', 'ArrivalLocation'])}
                 </td>
+                <td>
+                  {pick(row, ['licensePlate', 'LicensePlate'])}
+                </td>
+                <td>{formatDateTime(pick(row, ['departureTime', 'DepartureTime']))}</td>
                 <td>{pick(row, ['bookingCount', 'BookingCount'], 0)}</td>
                 <td>{pick(row, ['seatCount', 'SeatCount'], 0)}</td>
                 <td>{formatVND(pick(row, ['revenue', 'Revenue'], 0))}</td>
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={4}>Chưa có doanh thu trong bộ lọc này.</td></tr>
+              <tr><td colSpan={6}>Chưa có doanh thu trong bộ lọc này.</td></tr>
             )}
           </tbody>
         </table>
@@ -1197,10 +1399,21 @@ function FilterBar({ filters, setFilters, onSearch, onClear }) {
   );
 }
 
-function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
+function TripFilterBar({ filters, buses, locationOptions, setFilters, onSearch, onClear }) {
   return (
     <div className="operator-filter-bar operator-trip-filter-bar">
-      <input value={filters.route} onChange={(e) => setFilters({ ...filters, route: e.target.value })} placeholder="Tìm điểm đi/đến" />
+      <OperatorLocationSuggestInput
+        value={filters.departureLocation}
+        onChange={(value) => setFilters({ ...filters, departureLocation: value })}
+        options={locationOptions}
+        placeholder="Điểm đi"
+      />
+      <OperatorLocationSuggestInput
+        value={filters.arrivalLocation}
+        onChange={(value) => setFilters({ ...filters, arrivalLocation: value })}
+        options={locationOptions}
+        placeholder="Điểm đến"
+      />
       <select value={filters.dateMode} onChange={(e) => setFilters({ ...filters, dateMode: e.target.value })}>
         <option value="day">Theo ngày</option>
         <option value="week">Theo tuần</option>
@@ -1221,8 +1434,10 @@ function TripFilterBar({ filters, buses, setFilters, onSearch, onClear }) {
         <option value="Completed">Hoàn thành</option>
         <option value="Cancelled">Đã hủy</option>
       </select>
-      <button className="btn btn-primary" type="button" onClick={onSearch}>Lọc</button>
-      <button className="btn btn-outline" type="button" onClick={onClear}>Xóa lọc</button>
+      <div className="operator-filter-actions">
+        <button className="btn btn-primary" type="button" onClick={onSearch}>Lọc</button>
+        <button className="btn btn-outline" type="button" onClick={onClear}>Xóa lọc</button>
+      </div>
     </div>
   );
 }
@@ -1407,7 +1622,8 @@ function cleanParams(params) {
 
 function formatTripFilterSummary(filters) {
   const parts = [];
-  if (filters.route) parts.push(`Tuyến: ${filters.route}`);
+  if (filters.departureLocation) parts.push(`Điểm đi: ${filters.departureLocation}`);
+  if (filters.arrivalLocation) parts.push(`Điểm đến: ${filters.arrivalLocation}`);
   if (filters.departureDate) {
     parts.push(`${filters.dateMode === 'week' ? 'Tuần chứa ngày' : 'Ngày'}: ${filters.departureDate}`);
   }
@@ -1415,6 +1631,33 @@ function formatTripFilterSummary(filters) {
   if (filters.status) parts.push(`Trạng thái: ${labelTripStatus(filters.status)}`);
 
   return parts.length ? parts.join(' | ') : 'Chưa áp dụng bộ lọc, sẽ lấy toàn bộ danh sách chuyến.';
+}
+
+function getRuntimeTripStatus(trip, now = Date.now()) {
+  const status = tripStatusName(pick(trip, ['status', 'Status'], 'Scheduled'));
+
+  if (status === 'Completed' || status === 'Cancelled') return status;
+
+  const departureAt = getTimeValue(pick(trip, ['departureTime', 'DepartureTime']));
+  if (Number.isFinite(departureAt) && departureAt <= now) return 'On-going';
+
+  return 'Scheduled';
+}
+
+function canCompleteRuntimeTrip(trip, now = Date.now()) {
+  const status = tripStatusName(pick(trip, ['status', 'Status'], 'Scheduled'));
+  if (status === 'Completed' || status === 'Cancelled') return false;
+
+  if (Boolean(pick(trip, ['canComplete', 'CanComplete'], false))) return true;
+
+  const arrivalAt = getTimeValue(pick(trip, ['arrivalTime', 'ArrivalTime']));
+  return Number.isFinite(arrivalAt) && arrivalAt <= now;
+}
+
+function getTimeValue(value) {
+  if (!value) return Number.NaN;
+  const date = new Date(value);
+  return date.getTime();
 }
 
 function mapTripDetailToForm(detail, tripID = pick(detail, ['tripID', 'TripID'], null)) {

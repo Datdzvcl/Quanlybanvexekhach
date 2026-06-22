@@ -179,6 +179,20 @@ export default function MyTickets() {
     loadBookings();
   }, []);
 
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadBookings();
+    };
+
+    window.addEventListener('focus', loadBookings);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.removeEventListener('focus', loadBookings);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, []);
+
   const requestCancel = async (bookingId) => {
     const reason = window.prompt('Nhập lý do yêu cầu hủy vé:', 'Khách yêu cầu hủy vé');
     if (reason === null) return;

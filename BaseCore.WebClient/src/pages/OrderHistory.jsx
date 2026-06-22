@@ -27,27 +27,41 @@ export default function OrderHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const loadBookings = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await bookingApi.my();
+      const all = Array.isArray(data) ? data : [];
+      // Chỉ lấy vé đã hoàn thành hoặc đã hủy
+      const history = all.filter((item) => {
+        const status = bookingStatusName(pick(item, ['bookingStatus', 'BookingStatus'], ''));
+        return HISTORY_STATUSES.includes(String(status));
+      });
+      setBookings(history);
+    } catch (err) {
+      setError(err.message || 'Không tải được lịch sử đơn hàng.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadBookings = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await bookingApi.my();
-        const all = Array.isArray(data) ? data : [];
-        // Chỉ lấy vé đã hoàn thành hoặc đã hủy
-        const history = all.filter((item) => {
-          const status = bookingStatusName(pick(item, ['bookingStatus', 'BookingStatus'], ''));
-          return HISTORY_STATUSES.includes(String(status));
-        });
-        setBookings(history);
-      } catch (err) {
-        setError(err.message || 'Không tải được lịch sử đơn hàng.');
-      } finally {
-        setLoading(false);
-      }
+    loadBookings();
+  }, []);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadBookings();
     };
 
-    loadBookings();
+    window.addEventListener('focus', loadBookings);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.removeEventListener('focus', loadBookings);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
 
   return (
@@ -79,6 +93,8 @@ export default function OrderHistory() {
               const paymentStatus = pick(item, ['paymentStatus', 'PaymentStatus'], '--');
               const bookingStatus = bookingStatusName(pick(item, ['bookingStatus', 'BookingStatus'], '--'));
               const seatLabels = pick(item, ['seatLabels', 'SeatLabels'], []);
+              const cancelReason = pick(item, ['cancelReason', 'CancelReason'], '');
+              const refundAmount = Number(pick(item, ['refundAmount', 'RefundAmount'], 0) || 0);
 
               return (
                 <article className="my-ticket-card" key={bookingId}>
@@ -93,6 +109,13 @@ export default function OrderHistory() {
                       <span><i className="fa-solid fa-couch" /> {Array.isArray(seatLabels) ? seatLabels.join(', ') : seatLabels}</span>
                       <span><i className="fa-solid fa-money-bill" /> {formatVND(pick(item, ['totalPrice', 'TotalPrice'], 0))}</span>
                     </div>
+                    {bookingStatus === 'Cancelled' && cancelReason && (
+                      <div className="ticket-cancel-notice">
+                        <strong>Thông báo hủy chuyến</strong>
+                        <p>{cancelReason}</p>
+                        <span>Hoàn tiền: {formatVND(refundAmount)}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="my-ticket-side">

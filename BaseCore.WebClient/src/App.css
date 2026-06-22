@@ -3792,7 +3792,8 @@ a:hover,
 }
 
 .ticket-status.status-paid,
-.ticket-status.status-confirmed {
+.ticket-status.status-confirmed,
+.ticket-status.status-refunded {
   background: #ecfdf5;
   color: #047857;
 }
@@ -3807,6 +3808,31 @@ a:hover,
 .ticket-status.status-cancelled {
   background: #fff1f2;
   color: #be123c;
+}
+
+.ticket-cancel-notice {
+  margin-top: 14px;
+  border: 1px solid #fecdd3;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #9f1239;
+  padding: 12px 14px;
+}
+
+.ticket-cancel-notice strong,
+.ticket-cancel-notice span {
+  display: block;
+  font-weight: 900;
+}
+
+.ticket-cancel-notice p {
+  margin: 6px 0;
+  color: #be123c;
+  font-weight: 700;
+}
+
+.ticket-cancel-notice-detail {
+  margin-bottom: 18px;
 }
 
 .ticket-detail-hero {
@@ -4565,7 +4591,45 @@ a:hover,
 }
 
 .operator-trip-filter-bar {
-  grid-template-columns: minmax(180px, 1.2fr) minmax(120px, 0.6fr) minmax(150px, 0.8fr) minmax(170px, 1fr) minmax(170px, 1fr) auto auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.operator-trip-filter-bar > .operator-location-suggest {
+  flex: 1 1 170px;
+}
+
+.operator-trip-filter-bar > input,
+.operator-trip-filter-bar > select {
+  flex: 1 1 145px;
+  min-width: 0;
+}
+
+.operator-trip-filter-bar > .operator-filter-actions {
+  flex: 1 0 100%;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.operator-trip-filter-bar > .operator-filter-actions > button {
+  flex: 0 0 auto;
+  min-height: 54px;
+  padding-left: 24px;
+  padding-right: 24px;
+  white-space: nowrap;
+}
+
+.operator-report-filters {
+  grid-template-columns:
+    minmax(150px, 0.9fr)
+    minmax(150px, 0.9fr)
+    minmax(170px, 1fr)
+    minmax(170px, 1fr)
+    minmax(170px, 1fr)
+    auto;
 }
 
 .operator-clone-form {
@@ -4638,6 +4702,36 @@ a:hover,
   background: #f8fbff;
 }
 
+.operator-trip-form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.operator-trip-form-grid input,
+.operator-trip-form-grid select {
+  min-width: 0;
+}
+
+.operator-clone-draft-grid {
+  grid-template-columns:
+    minmax(240px, 1fr)
+    minmax(240px, 1fr)
+    minmax(180px, 0.72fr)
+    minmax(160px, 0.64fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.operator-clone-draft-grid .operator-form-field {
+  min-width: 0;
+}
+
+.operator-clone-draft-grid input,
+.operator-clone-draft-grid select {
+  min-width: 0;
+}
+
 .operator-filter-bar input,
 .operator-filter-bar select,
 .operator-report-filters input,
@@ -4653,6 +4747,71 @@ a:hover,
   padding: 8px 12px;
   font: inherit;
   background: #fff;
+}
+
+.operator-location-suggest {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.operator-location-suggest.open {
+  z-index: 160;
+}
+
+.operator-location-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(360px, 82vw);
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px 12px 4px;
+  border: 1px solid #d7e5fb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+  z-index: 4000;
+}
+
+.operator-location-menu strong {
+  display: block;
+  margin: 2px 0 8px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.operator-location-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-bottom: 1px solid #eef2f7;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.operator-location-menu button:hover {
+  color: #1d4ed8;
+  background: #f8fbff;
+}
+
+.operator-location-menu button i {
+  color: #94a3b8;
+}
+
+.operator-location-menu p {
+  margin: 0;
+  padding: 8px 0 12px;
+  color: #64748b;
+  font-size: 0.9rem;
 }
 
 .operator-bus-cell {
@@ -4922,7 +5081,7 @@ a:hover,
 
 .operator-stop-row {
   display: grid;
-  grid-template-columns: 1.2fr 1.5fr 130px 130px;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.45fr) minmax(150px, 0.5fr) minmax(220px, 0.75fr);
   gap: 8px;
   margin-bottom: 8px;
 }

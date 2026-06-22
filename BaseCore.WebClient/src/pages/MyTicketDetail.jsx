@@ -123,6 +123,8 @@ export default function MyTicketDetail() {
   const paymentStatus = pick(booking, ['paymentStatus', 'PaymentStatus'], '--');
   const bookingStatus = bookingStatusName(pick(booking, ['bookingStatus', 'BookingStatus'], '--'));
   const canRequestCancel = !['Cancelled', 'CancelRequested'].includes(String(bookingStatus));
+  const cancelReason = pick(booking, ['cancelReason', 'CancelReason'], '');
+  const refundAmount = Number(pick(booking, ['refundAmount', 'RefundAmount'], 0) || 0);
   const code = qrValue(booking);
 
   return (
@@ -144,6 +146,14 @@ export default function MyTicketDetail() {
               <span className={statusClass(bookingStatus)}>{labelBookingStatus(bookingStatus)}</span>
             </div>
           </div>
+
+          {bookingStatus === 'Cancelled' && cancelReason && (
+            <div className="ticket-cancel-notice ticket-cancel-notice-detail">
+              <strong>Thông báo hủy chuyến</strong>
+              <p>{cancelReason}</p>
+              <span>Hoàn tiền: {formatVND(refundAmount)}</span>
+            </div>
+          )}
 
           <div className="ticket-detail-grid">
             <div><span>Nhà xe</span><strong>{pick(booking, ['operatorName', 'OperatorName'], pick(operator, ['name', 'Name'], '--'))}</strong></div>
