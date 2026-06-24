@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { formatVND, pick } from '../api';
@@ -41,16 +41,47 @@ function normalizeStops(response) {
   const items = response?.items || response?.Items || [];
 
   return {
-    pickupStops: pickupStops.length ? pickupStops : items.filter((item) => Number(pick(item, ['stopType', 'StopType'])) === 1),
-    dropoffStops: dropoffStops.length ? dropoffStops : items.filter((item) => Number(pick(item, ['stopType', 'StopType'])) === 2),
+    pickupStops: pickupStops.length
+      ? pickupStops
+      : items.filter((item) => { const t = Number(pick(item, ['stopType', 'StopType'])); return t === 1 || t === 3; }),
+    dropoffStops: dropoffStops.length
+      ? dropoffStops
+      : items.filter((item) => { const t = Number(pick(item, ['stopType', 'StopType'])); return t === 2 || t === 3; }),
   };
 }
 
-function StopOption({ stop, checked, name, onChange }) {
+function addMinutes(dateStr, minutes) {
+  if (!dateStr || minutes == null) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  d.setMinutes(d.getMinutes() + Number(minutes));
+  return d;
+}
+
+function formatTime(date, departureDate) {
+  if (!date) return null;
+  const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  if (departureDate) {
+    const startOfDep = new Date(departureDate);
+    startOfDep.setHours(0, 0, 0, 0);
+    const startOfEst = new Date(date);
+    startOfEst.setHours(0, 0, 0, 0);
+    const dayDiff = Math.round((startOfEst - startOfDep) / 86400000);
+    if (dayDiff > 0) return `${timeStr} (+${dayDiff} ngày)`;
+  }
+  return timeStr;
+}
+
+function StopOption({ stop, checked, name, onChange, departureTime }) {
   const id = Number(pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']));
   const stopName = pick(stop, ['stopName', 'StopName'], 'Điểm dừng');
   const stopAddress = pick(stop, ['stopAddress', 'StopAddress'], '');
   const stopOrder = pick(stop, ['stopOrder', 'StopOrder'], '');
+  const arrivalOffset = pick(stop, ['arrivalOffset', 'ArrivalOffset']);
+
+  const estimatedTime = departureTime != null && arrivalOffset != null
+    ? formatTime(addMinutes(departureTime, arrivalOffset), departureTime)
+    : null;
 
   return (
     <label className={`stop-option ${checked ? 'selected' : ''}`}>
@@ -64,9 +95,66 @@ function StopOption({ stop, checked, name, onChange }) {
       <span className="stop-option-body">
         <strong>{stopName}</strong>
         {stopAddress && <small>{stopAddress}</small>}
-        {stopOrder !== '' && <em>Thứ tự dừng: {stopOrder}</em>}
+        <span className="stop-option-meta">
+          {stopOrder !== '' && <em>Thứ tự dừng: {stopOrder}</em>}
+          {estimatedTime && <em className="stop-estimated-time">⏱ Dự kiến: {estimatedTime}</em>}
+        </span>
       </span>
     </label>
+  );
+}
+
+function ScrollableStopList({ stops, selected, name, onChange, departureTime, emptyText }) {
+  const scrollRef = useRef(null);
+  const [showFade, setShowFade] = useState(false);
+
+  const checkFade = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const needsScroll = el.scrollHeight > el.clientHeight + 4;
+    setShowFade(needsScroll && el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+  };
+
+  useEffect(() => { checkFade(); }, [stops]);
+
+  return (
+    <div className="stop-list-outer">
+      {stops.length > 0 && (
+        <div className="stop-list-count">
+          <i className="fa-solid fa-map-pin" />
+          {stops.length} điểm khả dụng
+        </div>
+      )}
+      <div className="stop-list-wrapper">
+        <div className="stop-list-scroll" ref={scrollRef} onScroll={checkFade}>
+          <div className="stop-option-list">
+            {stops.length === 0 ? (
+              <p className="muted">{emptyText}</p>
+            ) : (
+              stops.map((stop) => {
+                const id = Number(pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']));
+                return (
+                  <StopOption
+                    key={id}
+                    stop={stop}
+                    name={name}
+                    checked={selected === id}
+                    onChange={onChange}
+                    departureTime={departureTime}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
+        {showFade && <div className="stop-list-fade" />}
+      </div>
+      {showFade && (
+        <p className="stop-scroll-hint">
+          <i className="fa-solid fa-chevron-down" /> Cuộn để xem thêm điểm
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -82,6 +170,7 @@ export default function PickupDropoff() {
 
   const trip = pendingBooking?.trip || {};
   const tripId = pendingBooking?.tripId;
+  const departureTime = pick(trip, ['departureTime', 'DepartureTime']);
 
   useEffect(() => {
     if (!tripId) {
@@ -199,7 +288,7 @@ export default function PickupDropoff() {
           <span>Thông tin hành trình</span>
           <h1>Chọn điểm đón và điểm trả</h1>
           <p>Hoàn tất điểm lên xe và xuống xe trước khi nhập thông tin liên hệ.</p>
-          <BookingSteps currentStep={2} />
+          <BookingSteps step={2} />
         </div>
       </section>
 
@@ -214,24 +303,14 @@ export default function PickupDropoff() {
               </div>
             </div>
 
-            <div className="stop-option-list">
-              {pickupStops.length === 0 ? (
-                <p className="muted">Chuyến này chưa có điểm đón khả dụng.</p>
-              ) : (
-                pickupStops.map((stop) => {
-                  const id = Number(pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']));
-                  return (
-                    <StopOption
-                      key={id}
-                      stop={stop}
-                      name="pickupStop"
-                      checked={pickupStopId === id}
-                      onChange={setPickupStopId}
-                    />
-                  );
-                })
-              )}
-            </div>
+            <ScrollableStopList
+              stops={pickupStops}
+              selected={pickupStopId}
+              name="pickupStop"
+              onChange={setPickupStopId}
+              departureTime={departureTime}
+              emptyText="Chuyến này chưa có điểm đón khả dụng."
+            />
           </div>
 
           <div className="pickup-section-card">
@@ -243,24 +322,14 @@ export default function PickupDropoff() {
               </div>
             </div>
 
-            <div className="stop-option-list">
-              {dropoffStops.length === 0 ? (
-                <p className="muted">Chuyến này chưa có điểm trả khả dụng.</p>
-              ) : (
-                dropoffStops.map((stop) => {
-                  const id = Number(pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']));
-                  return (
-                    <StopOption
-                      key={id}
-                      stop={stop}
-                      name="dropoffStop"
-                      checked={dropoffStopId === id}
-                      onChange={setDropoffStopId}
-                    />
-                  );
-                })
-              )}
-            </div>
+            <ScrollableStopList
+              stops={dropoffStops}
+              selected={dropoffStopId}
+              name="dropoffStop"
+              onChange={setDropoffStopId}
+              departureTime={departureTime}
+              emptyText="Chuyến này chưa có điểm trả khả dụng."
+            />
           </div>
         </main>
 

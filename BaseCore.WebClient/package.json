@@ -12,8 +12,8 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "axios": "^1.13.4",
     "bootstrap": "4.6",
+    "html5-qrcode": "^2.3.8",
     "jquery": "^3.7.1",
-    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.0"

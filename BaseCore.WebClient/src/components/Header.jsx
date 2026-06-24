@@ -1,118 +1,97 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
-import Navbar from './Navbar';
-import { useAuth } from '../contexts/AuthContext';
-import { isAdminRole } from '../api';
-import { notificationApi } from '../services/notificationApi';
-
-const AVATAR_COLORS = [
-  '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#9333ea', '#dc2626',
-];
-
-function getAvatarColor(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-function getInitials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function formatNotifTime(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  const now = new Date();
-  const diff = now - date;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Vừa xong';
-  if (mins < 60) return `${mins} phút trước`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  return date.toLocaleDateString('vi-VN');
-}
-
-function notifLink(notif) {
-  if (notif.type === 4 && notif.bookingID) return `/review/${notif.bookingID}`;
-  if (notif.bookingID) return `/my-tickets/${notif.bookingID}`;
-  return '/my-tickets';
-}
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import Navbar from "./Navbar";
+import { useAuth } from "../contexts/AuthContext";
+import { isAdminRole, isOperatorRole } from "../api";
+import { notificationApi } from "../services/notificationApi";
 
 export default function Header({ simple = false }) {
   const navigate = useNavigate();
   const { token, user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const notifRef = useRef(null);
 
   const closeMenus = () => {
     setMenuOpen(false);
     setAccountOpen(false);
-    setNotifOpen(false);
+    setNotificationOpen(false);
+  };
+
+  const loadNotifications = async () => {
+    if (!token || !user) return;
+    try {
+      const data = await notificationApi.my(8);
+      setNotifications(data?.items || data?.Items || []);
+      setUnreadCount(Number(data?.unreadCount ?? data?.UnreadCount ?? 0));
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
   };
 
   const handleLogout = () => {
     logout();
     closeMenus();
-    navigate('/');
+    navigate("/");
   };
-
-  const loadNotifications = async () => {
-    if (!token) return;
-    try {
-      const result = await notificationApi.getMyNotifications(1, 10);
-      setNotifications(result.items || []);
-      setUnreadCount(result.unreadCount || 0);
-    } catch {
-      // silently fail
-    }
-  };
-
-  useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 60000);
-    return () => clearInterval(interval);
-  }, [token]);
 
   useEffect(() => {
     const handleClick = (event) => {
-      if (!event.target.closest('.user-header')) closeMenus();
+      if (!event.target.closest(".user-header")) {
+        closeMenus();
+      }
     };
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
   }, []);
 
-  const handleNotifClick = async (notif) => {
-    if (!notif.isRead) {
-      try {
-        await notificationApi.markRead(notif.notificationID);
-        setNotifications((prev) =>
-          prev.map((n) => n.notificationID === notif.notificationID ? { ...n, isRead: true } : n)
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-      } catch { }
+  useEffect(() => {
+    if (!token || !user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
     }
-    setNotifOpen(false);
-    navigate(notifLink(notif));
+
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 30000);
+    return () => window.clearInterval(timer);
+  }, [token, user?.userId]);
+
+  const openNotifications = async (event) => {
+    event.stopPropagation();
+    const nextOpen = !notificationOpen;
+    setNotificationOpen(nextOpen);
+    setAccountOpen(false);
+    if (nextOpen) await loadNotifications();
   };
 
-  const handleMarkAllRead = async () => {
+  const markNotificationRead = async (notification) => {
+    const id = notification.notificationID || notification.NotificationID;
+    const link = notification.link || notification.Link;
+    if (!id) return;
+    try {
+      await notificationApi.markRead(id);
+      await loadNotifications();
+    } catch {
+      // Keep the header usable even if notification sync fails.
+    }
+    setNotificationOpen(false);
+    if (link) navigate(link);
+  };
+
+  const markAllNotificationsRead = async (event) => {
+    event.stopPropagation();
     try {
       await notificationApi.markAllRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch { }
+      await loadNotifications();
+    } catch {
+      // Keep the header usable even if notification sync fails.
+    }
   };
-
-  const displayName = user?.fullName || user?.email || '';
-  const initials = getInitials(displayName);
-  const avatarColor = getAvatarColor(displayName);
 
   return (
     <header className="user-header">
@@ -135,91 +114,81 @@ export default function Header({ simple = false }) {
               }}
               aria-label="Mở menu"
             >
-              <i className={`fa-solid ${menuOpen ? 'fa-xmark' : 'fa-bars'}`} />
+              <i className={`fa-solid ${menuOpen ? "fa-xmark" : "fa-bars"}`} />
             </button>
 
-            <div className={`user-header-center ${menuOpen ? 'open' : ''}`}>
+            <div className={`user-header-center ${menuOpen ? "open" : ""}`}>
               <Navbar onNavigate={closeMenus} />
             </div>
           </>
         )}
 
         <div className="user-header-actions">
-          {token && user ? (
-            <div className="header-user-group">
-              {/* Notification bell */}
-              <div className="notif-bell-wrap" ref={notifRef}>
+          {!simple && (token && user ? (
+            <>
+              <div className="notification-menu">
                 <button
-                  className="notif-bell-btn"
+                  className="notification-trigger"
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setNotifOpen((v) => !v);
-                    setAccountOpen(false);
-                    if (!notifOpen) loadNotifications();
-                  }}
+                  onClick={openNotifications}
                   aria-label="Thông báo"
                 >
-                  <i className="fa-solid fa-bell" />
-                  {unreadCount > 0 && (
-                    <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                  )}
+                  <i className="fa-regular fa-bell" />
+                  {unreadCount > 0 && <span>{unreadCount > 9 ? "9+" : unreadCount}</span>}
                 </button>
 
-                {notifOpen && (
-                  <div className="notif-dropdown">
-                    <div className="notif-dropdown-head">
-                      <span className="notif-dropdown-title">Thông báo</span>
-                      <button type="button" className="notif-mark-all-btn" onClick={handleMarkAllRead}>
+                {notificationOpen && (
+                  <div className="notification-dropdown">
+                    <div className="notification-dropdown-head">
+                      <strong>Thông báo</strong>
+                      <button type="button" onClick={markAllNotificationsRead} disabled={unreadCount <= 0}>
                         Đã đọc tất cả
                       </button>
                     </div>
-
                     {notifications.length === 0 ? (
-                      <div className="notif-empty">
-                        <p>Chưa có thông báo.</p>
-                      </div>
+                      <p className="notification-empty">Chưa có thông báo.</p>
                     ) : (
-                      <div className="notif-list">
-                        {notifications.map((notif) => (
-                          <button
-                            key={notif.notificationID}
-                            type="button"
-                            className={`notif-item${notif.isRead ? '' : ' unread'}`}
-                            onClick={() => handleNotifClick(notif)}
-                          >
-                            <div className="notif-item-body">
-                              <span className="notif-item-title">{notif.title}</span>
-                              <span className="notif-item-msg">{notif.message}</span>
-                            </div>
-                          </button>
-                        ))}
+                      <div className="notification-list">
+                        {notifications.map((item) => {
+                          const id = item.notificationID || item.NotificationID;
+                          const isRead = Boolean(item.isRead ?? item.IsRead);
+                          return (
+                            <button
+                              type="button"
+                              className={`notification-item ${isRead ? "" : "unread"}`}
+                              key={id}
+                              onClick={() => markNotificationRead(item)}
+                              style={{ cursor: (item.link || item.Link) ? 'pointer' : 'default' }}
+                            >
+                              <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                                {item.title || item.Title}
+                                {(item.link || item.Link) && <i className="fa-solid fa-chevron-right" style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }} />}
+                              </span>
+                              <small>{item.message || item.Message}</small>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Account menu */}
               <div className="account-menu">
                 <button
                   className="account-trigger"
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
+                    setNotificationOpen(false);
                     setAccountOpen((value) => !value);
-                    setNotifOpen(false);
                   }}
                 >
-                  <div
-                    className="user-avatar-circle"
-                    style={{ background: avatarColor }}
-                    aria-hidden="true"
-                  >
-                    {initials}
-                  </div>
-                  <span>{displayName}</span>
-                  <i className={`fa-solid fa-chevron-${accountOpen ? 'up' : 'down'}`} />
+                  <i className="fa-solid fa-user" />
+                  <span>{user.fullName || user.email}</span>
+                  <i
+                    className={`fa-solid fa-chevron-${accountOpen ? "up" : "down"}`}
+                  />
                 </button>
 
                 {accountOpen && (
@@ -232,11 +201,21 @@ export default function Header({ simple = false }) {
                       <i className="fa-solid fa-ticket" />
                       Vé của tôi
                     </Link>
-                    <Link to="/order-history" onClick={closeMenus}>
+                     <Link to="/order-history" onClick={closeMenus}>        {/* thêm dòng này */}
                       <i className="fa-solid fa-clock-rotate-left" />
                       Lịch sử đơn hàng
                     </Link>
-                    {isAdminRole(user.role) && (
+                    <Link to="/change-password" onClick={closeMenus}>
+                      <i className="fa-solid fa-lock" />
+                      Đổi mật khẩu
+                    </Link>
+                    {/* {isAdminRole(user.role) && (
+                      <Link to="/admin" onClick={closeMenus}>
+                        <i className="fa-solid fa-gauge-high" />
+                        Xem trang quản trị
+                      </Link>
+                    )} */}
+                    {(isAdminRole(user.role) || isOperatorRole(user.role)) && (
                       <Link to="/admin" onClick={closeMenus}>
                         <i className="fa-solid fa-gauge-high" />
                         Xem trang quản trị
@@ -249,13 +228,13 @@ export default function Header({ simple = false }) {
                   </div>
                 )}
               </div>
-            </div>
+            </>
           ) : (
             <div className="guest-actions">
               <Link to="/login" className="btn btn-outline">Đăng nhập</Link>
               <Link to="/register" className="btn btn-primary">Đăng ký</Link>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </header>

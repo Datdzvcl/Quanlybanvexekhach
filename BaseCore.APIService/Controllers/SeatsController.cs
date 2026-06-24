@@ -3,10 +3,10 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Repository;
 using BaseCore.Entities;
-using BaseCore.Common;
 using System.Data;
 using System.Security.Claims;
 using System.Text.Json;
+using BaseCore.Common;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -14,6 +14,11 @@ namespace BaseCore.APIService.Controllers
     [ApiController]
     public class SeatsController : ControllerBase
     {
+        private const string HoldingStatus = "Holding";
+        private const string ReleasedStatus = "Released";
+        private const string ExpiredStatus = "Expired";
+        private static readonly TimeSpan SeatHoldDuration = TimeSpan.FromMinutes(20);
+
         private readonly MySqlDbContext _context;
 
         public SeatsController(MySqlDbContext context)
@@ -33,7 +38,6 @@ namespace BaseCore.APIService.Controllers
                     x.TripID,
                     x.AvailableSeats,
                     Capacity = x.Bus != null ? x.Bus.Capacity : 0,
-                    SeatLayoutType = x.Bus != null ? x.Bus.SeatLayoutType : null,
                     SeatLayout = x.Bus != null ? x.Bus.SeatLayout : null
                 })
                 .FirstOrDefaultAsync();
@@ -42,8 +46,12 @@ namespace BaseCore.APIService.Controllers
                 return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
             var capacity = Math.Max(trip.Capacity, 0);
-            var seatLayout = ResolveSeatLayout(trip.SeatLayout, trip.SeatLayoutType, capacity);
-            var seatLabels = seatLayout.Seats;
+            var layoutCells = ParseSeatLayout(trip.SeatLayout);
+            var seatLabels = layoutCells != null
+                ? layoutCells.Where(c => c.Type == "seat" && !string.IsNullOrWhiteSpace(c.Label))
+                             .Select(c => c.Label!)
+                             .ToList()
+                : GenerateSeatLabels(capacity);
             var currentUserId = GetCurrentUserId();
             var now = DateTime.Now;
 
@@ -51,11 +59,13 @@ namespace BaseCore.APIService.Controllers
                 .AsNoTracking()
                 .Include(x => x.Booking)
                 .Where(x =>
-                    x.IsActive &&
                     x.Booking != null &&
                     x.Booking.TripID == tripId &&
-                    (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled") &&
-                    x.Booking.BookingStatus != DomainCodes.BookingCancelled)
+                    // (x.Booking.BookingStatus == null || x.Booking.BookingStatus != BookingStatusConstant.Cancelled) &&
+                    // (x.Booking.BookingStatus == null || x.Booking.BookingStatus != BookingStatusConstant.Cancelled))
+                    x.Booking.BookingStatus != BookingStatusConstant.Cancelled &&
+                x.Booking.BookingStatus != BookingStatusConstant.Refunded &&      // ← thêm
+                x.Booking.BookingStatus != BookingStatusConstant.CancelRequested)
                 .Select(x => x.SeatLabel)
                 .ToListAsync();
 
@@ -69,7 +79,7 @@ namespace BaseCore.APIService.Controllers
                 .AsNoTracking()
                 .Where(x =>
                     x.TripID == tripId &&
-                    x.Status == DomainCodes.SeatHoldHolding &&
+                    x.Status == SeatHoldStatusConstant.Holding &&
                     x.HoldExpiresAt > now)
                 .Select(x => new
                 {
@@ -106,7 +116,10 @@ namespace BaseCore.APIService.Controllers
                 return new
                 {
                     seatLabel = label,
-                    status
+                    status,
+                    holdExpiresAt = holdBySeat.TryGetValue(normalizedLabel, out var activeHold)
+                        ? activeHold.HoldExpiresAt
+                        : (DateTime?)null
                 };
             }).ToList();
 
@@ -114,10 +127,8 @@ namespace BaseCore.APIService.Controllers
             {
                 tripID = trip.TripID,
                 capacity,
-                layoutType = trip.SeatLayoutType,
-                rows = seatLayout.Rows,
-                seatsPerRow = seatLayout.SeatsPerRow,
-                seats
+                seats,
+                layout = trip.SeatLayout
             });
         }
 
@@ -143,18 +154,19 @@ namespace BaseCore.APIService.Controllers
                 if (trip == null)
                     return NotFound(new { message = "Không tìm thấy chuyến xe" });
 
-                var validSeatLabels = ResolveSeatLayout(
-                        trip.Bus?.SeatLayout,
-                        trip.Bus?.SeatLayoutType,
-                        Math.Max(trip.Bus?.Capacity ?? 0, 0))
-                    .Seats;
+                var busLayout = ParseSeatLayout(trip.Bus?.SeatLayout);
+                var validSeatLabels = busLayout != null
+                    ? busLayout.Where(c => c.Type == "seat" && !string.IsNullOrWhiteSpace(c.Label))
+                               .Select(c => c.Label!)
+                               .ToList()
+                    : GenerateSeatLabels(Math.Max(trip.Bus?.Capacity ?? 0, 0));
                 var validSeats = validSeatLabels.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var invalidSeats = requestedSeats.Where(x => !validSeats.Contains(x)).ToList();
                 if (invalidSeats.Count > 0)
                     return BadRequest(new { message = $"Ghế không tồn tại: {string.Join(", ", invalidSeats)}" });
 
                 var now = DateTime.Now;
-                var holdExpiresAt = now.AddMinutes(20);
+                var holdExpiresAt = now.Add(SeatHoldDuration);
 
                 await ExpireOldHolds(request.TripId, requestedSeats, now);
 
@@ -162,10 +174,12 @@ namespace BaseCore.APIService.Controllers
                     .Include(x => x.Booking)
                     .Where(x =>
                     x.Booking != null &&
-                    x.IsActive &&
                     x.Booking.TripID == request.TripId &&
-                    (x.Booking.PaymentStatus == null || x.Booking.PaymentStatus != "Cancelled") &&
-                    x.Booking.BookingStatus != DomainCodes.BookingCancelled)
+                    // (x.Booking.BookingStatus == null || x.Booking.BookingStatus != BookingStatusConstant.Cancelled) &&
+                    // (x.Booking.BookingStatus == null || x.Booking.BookingStatus != BookingStatusConstant.Cancelled))
+                     x.Booking.BookingStatus != BookingStatusConstant.Cancelled &&
+                     x.Booking.BookingStatus != BookingStatusConstant.Refunded &&
+                     x.Booking.BookingStatus != BookingStatusConstant.CancelRequested)
                     .Select(x => x.SeatLabel)
                     .ToListAsync();
 
@@ -179,9 +193,9 @@ namespace BaseCore.APIService.Controllers
                 var activeHolds = await _context.SeatHolds
                     .Where(x =>
                         x.TripID == request.TripId &&
-                        x.Status == DomainCodes.SeatHoldHolding &&
+                    x.Status == SeatHoldStatusConstant.Holding &&
                         x.HoldExpiresAt > now &&
-                        requestedSeats.Contains(x.SeatLabel))
+                        requestedSeats.Contains(x.SeatLabel.ToUpper()))
                     .ToListAsync();
 
                 var conflictSeats = activeHolds
@@ -202,7 +216,7 @@ namespace BaseCore.APIService.Controllers
                     if (currentHold != null)
                     {
                         currentHold.HoldExpiresAt = holdExpiresAt;
-                        currentHold.Status = DomainCodes.SeatHoldHolding;
+                        currentHold.Status = SeatHoldStatusConstant.Holding;
                         continue;
                     }
 
@@ -212,7 +226,7 @@ namespace BaseCore.APIService.Controllers
                         SeatLabel = seatLabel,
                         UserID = currentUserId,
                         SessionId = sessionId,
-                        Status = DomainCodes.SeatHoldHolding,
+                        Status = SeatHoldStatusConstant.Holding,
                         HoldExpiresAt = holdExpiresAt,
                         CreatedAt = now
                     });
@@ -253,9 +267,9 @@ namespace BaseCore.APIService.Controllers
             var ownedHolds = await _context.SeatHolds
                 .Where(x =>
                     x.TripID == request.TripId &&
-                    x.Status == DomainCodes.SeatHoldHolding &&
+                    x.Status == SeatHoldStatusConstant.Holding &&
                     x.HoldExpiresAt > now &&
-                    requestedSeats.Contains(x.SeatLabel))
+                    requestedSeats.Contains(x.SeatLabel.ToUpper()))
                 .ToListAsync();
 
             var releasableHolds = ownedHolds
@@ -264,7 +278,7 @@ namespace BaseCore.APIService.Controllers
 
             foreach (var hold in releasableHolds)
             {
-                hold.Status = DomainCodes.SeatHoldReleased;
+                hold.Status = SeatHoldStatusConstant.Released;
             }
 
             await _context.SaveChangesAsync();
@@ -287,14 +301,14 @@ namespace BaseCore.APIService.Controllers
             var expiredHolds = await _context.SeatHolds
                 .Where(x =>
                     x.TripID == tripId &&
-                    x.Status == DomainCodes.SeatHoldHolding &&
+                    x.Status == SeatHoldStatusConstant.Holding &&
                     x.HoldExpiresAt <= now &&
-                    seatLabels.Contains(x.SeatLabel))
+                    seatLabels.Contains(x.SeatLabel.ToUpper()))
                 .ToListAsync();
 
             foreach (var hold in expiredHolds)
             {
-                hold.Status = DomainCodes.SeatHoldReleased;
+                hold.Status = SeatHoldStatusConstant.Released;
             }
 
             if (expiredHolds.Count > 0)
@@ -344,11 +358,13 @@ namespace BaseCore.APIService.Controllers
 
         private static bool IsOwnedByCurrent(int? holdUserId, string? holdSessionId, int? currentUserId, string? sessionId)
         {
-            if (currentUserId.HasValue)
-                return holdUserId.HasValue && holdUserId.Value == currentUserId.Value;
+            var isMineByUser = currentUserId.HasValue &&
+                               holdUserId.HasValue &&
+                               holdUserId.Value == currentUserId.Value;
+            var isMineBySession = !string.IsNullOrWhiteSpace(sessionId) &&
+                                  string.Equals(holdSessionId, sessionId, StringComparison.OrdinalIgnoreCase);
 
-            return !string.IsNullOrWhiteSpace(sessionId) &&
-                   string.Equals(holdSessionId, sessionId, StringComparison.OrdinalIgnoreCase);
+            return isMineByUser || isMineBySession;
         }
 
         private static List<string> NormalizeSeatLabels(List<string>? seatLabels)
@@ -368,211 +384,6 @@ namespace BaseCore.APIService.Controllers
         private static string? NormalizeSessionId(string? sessionId)
         {
             return string.IsNullOrWhiteSpace(sessionId) ? null : sessionId.Trim();
-        }
-
-        private static SeatLayoutConfig ResolveSeatLayout(string? seatLayout, string? layoutType, int capacity)
-        {
-            capacity = Math.Clamp(capacity, 0, 80);
-            var config = ReadSeatLayoutConfig(seatLayout);
-            if (config.Seats.Count == 0)
-                config.Seats.AddRange(GenerateSeatLabels(capacity));
-
-            var (rows, seatsPerRow) = ResolveSeatDimensions(config, layoutType, capacity);
-
-            config.Rows = rows;
-            config.SeatsPerRow = seatsPerRow;
-            return config;
-        }
-
-        private static SeatLayoutConfig ReadSeatLayoutConfig(string? seatLayout)
-        {
-            var config = new SeatLayoutConfig();
-            if (string.IsNullOrWhiteSpace(seatLayout))
-                return config;
-
-            try
-            {
-                using var document = JsonDocument.Parse(seatLayout);
-                var root = document.RootElement;
-                if (root.ValueKind == JsonValueKind.Object)
-                {
-                    config.Rows = TryReadPositiveInt(root, "rows", "Rows");
-                    config.SeatsPerRow = TryReadPositiveInt(root, "seatsPerRow", "SeatsPerRow", "seats_per_row");
-
-                    if (root.TryGetProperty("seats", out var seatsElement) ||
-                        root.TryGetProperty("Seats", out seatsElement))
-                    {
-                        config.Seats.AddRange(ReadSeatLabels(seatsElement));
-                    }
-
-                    return config;
-                }
-
-                config.Seats.AddRange(ReadSeatLabels(root));
-                return config;
-            }
-            catch (JsonException)
-            {
-                return config;
-            }
-        }
-
-        private static int? TryReadPositiveInt(JsonElement root, params string[] propertyNames)
-        {
-            foreach (var propertyName in propertyNames)
-            {
-                if (!root.TryGetProperty(propertyName, out var property))
-                    continue;
-
-                if (property.ValueKind == JsonValueKind.Number &&
-                    property.TryGetInt32(out var number) &&
-                    number > 0)
-                    return number;
-
-                if (property.ValueKind == JsonValueKind.String &&
-                    int.TryParse(property.GetString(), out number) &&
-                    number > 0)
-                    return number;
-            }
-
-            return null;
-        }
-
-        private static int NormalizeSeatDimension(int? requestedValue, int fallbackValue, int maxValue)
-        {
-            var value = requestedValue.GetValueOrDefault(fallbackValue);
-            if (value <= 0)
-                value = fallbackValue;
-
-            return value <= 0 ? 0 : Math.Clamp(value, 1, maxValue);
-        }
-
-        private static (int Rows, int SeatsPerRow) ResolveSeatDimensions(SeatLayoutConfig config, string? layoutType, int capacity)
-        {
-            capacity = Math.Clamp(capacity, 0, 80);
-            var seatsToArrange = GetSeatsToArrange(layoutType, capacity);
-            if (seatsToArrange == 0)
-                return (0, 0);
-
-            var maxSeatsPerRow = Math.Clamp(seatsToArrange, 1, 10);
-            var defaultSeatsPerRow = Math.Min(4, maxSeatsPerRow);
-
-            if (config.Rows.HasValue && config.SeatsPerRow.HasValue)
-            {
-                var rows = NormalizeSeatDimension(config.Rows, InferRows(layoutType, capacity, defaultSeatsPerRow), seatsToArrange);
-                var seatsPerRow = NormalizeSeatDimension(config.SeatsPerRow, defaultSeatsPerRow, maxSeatsPerRow);
-
-                if (rows * seatsPerRow >= seatsToArrange)
-                    return (rows, seatsPerRow);
-
-                return FitSeatLayoutByRows(seatsToArrange, rows);
-            }
-
-            if (config.SeatsPerRow.HasValue)
-            {
-                var seatsPerRow = NormalizeSeatDimension(config.SeatsPerRow, defaultSeatsPerRow, maxSeatsPerRow);
-                return FitSeatLayoutByColumns(seatsToArrange, seatsPerRow);
-            }
-
-            if (config.Rows.HasValue)
-                return FitSeatLayoutByRows(seatsToArrange, config.Rows.Value);
-
-            return FitSeatLayoutByColumns(seatsToArrange, defaultSeatsPerRow);
-        }
-
-        private static int InferSeatsPerRow(string? layoutType, int capacity, int? rows)
-        {
-            var seatsToArrange = GetSeatsToArrange(layoutType, capacity);
-            if (seatsToArrange == 0)
-                return 0;
-
-            if (!rows.HasValue || rows.Value <= 0)
-                return Math.Min(4, Math.Clamp(seatsToArrange, 1, 10));
-
-            return FitSeatLayoutByRows(seatsToArrange, rows.Value).SeatsPerRow;
-        }
-
-        private static int InferRows(string? layoutType, int capacity, int seatsPerRow)
-        {
-            var seatsToArrange = GetSeatsToArrange(layoutType, capacity);
-            if (seatsToArrange == 0)
-                return 0;
-
-            return FitSeatLayoutByColumns(seatsToArrange, seatsPerRow).Rows;
-        }
-
-        private static int GetSeatsToArrange(string? layoutType, int capacity)
-        {
-            capacity = Math.Clamp(capacity, 0, 80);
-            return IsTwoFloorLayout(layoutType)
-                ? (int)Math.Ceiling(capacity / 2d)
-                : capacity;
-        }
-
-        private static (int Rows, int SeatsPerRow) FitSeatLayoutByRows(int seatsToArrange, int requestedRows)
-        {
-            var maxSeatsPerRow = Math.Clamp(seatsToArrange, 1, 10);
-            var minRows = Math.Max(1, (int)Math.Ceiling(seatsToArrange / (double)maxSeatsPerRow));
-            var rows = Math.Clamp(requestedRows, minRows, seatsToArrange);
-            var seatsPerRow = Math.Clamp((int)Math.Ceiling(seatsToArrange / (double)rows), 1, maxSeatsPerRow);
-
-            return (rows, seatsPerRow);
-        }
-
-        private static (int Rows, int SeatsPerRow) FitSeatLayoutByColumns(int seatsToArrange, int requestedSeatsPerRow)
-        {
-            var maxSeatsPerRow = Math.Clamp(seatsToArrange, 1, 10);
-            var seatsPerRow = Math.Clamp(requestedSeatsPerRow, 1, maxSeatsPerRow);
-            var rows = Math.Max(1, (int)Math.Ceiling(seatsToArrange / (double)seatsPerRow));
-
-            return (rows, seatsPerRow);
-        }
-
-        private static bool IsTwoFloorLayout(string? layoutType)
-        {
-            var key = new string((layoutType ?? string.Empty)
-                .ToLowerInvariant()
-                .Where(char.IsLetterOrDigit)
-                .ToArray());
-
-            return key.Contains('2') || key.Contains("hai") || key.Contains("two");
-        }
-
-        private static List<string> ReadSeatLabels(JsonElement seatsElement)
-        {
-            if (seatsElement.ValueKind != JsonValueKind.Array)
-                return new List<string>();
-
-            var seats = new List<string>();
-            foreach (var item in seatsElement.EnumerateArray())
-            {
-                var label = item.ValueKind == JsonValueKind.String
-                    ? item.GetString()
-                    : TryReadSeatLabel(item);
-
-                if (!string.IsNullOrWhiteSpace(label))
-                    seats.Add(NormalizeSeatLabel(label));
-            }
-
-            return seats
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        private static string? TryReadSeatLabel(JsonElement item)
-        {
-            if (item.ValueKind != JsonValueKind.Object)
-                return null;
-
-            if (item.TryGetProperty("seatLabel", out var seatLabel) ||
-                item.TryGetProperty("SeatLabel", out seatLabel) ||
-                item.TryGetProperty("label", out seatLabel) ||
-                item.TryGetProperty("Label", out seatLabel))
-            {
-                return seatLabel.ValueKind == JsonValueKind.String ? seatLabel.GetString() : null;
-            }
-
-            return null;
         }
 
         private static List<string> GenerateSeatLabels(int capacity)
@@ -605,12 +416,25 @@ namespace BaseCore.APIService.Controllers
             return label;
         }
 
-        private sealed class SeatLayoutConfig
+        private static List<SeatCell>? ParseSeatLayout(string? json)
         {
-            public int? Rows { get; set; }
-            public int? SeatsPerRow { get; set; }
-            public List<string> Seats { get; } = new();
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<List<SeatCell>>(json,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch { return null; }
         }
+    }
+
+    public class SeatCell
+    {
+        public int Floor { get; set; }
+        public int Row { get; set; }
+        public int Col { get; set; }
+        public string Type { get; set; } = "seat"; // "seat" | "aisle" | "empty"
+        public string? Label { get; set; }
     }
 
     public class SeatHoldRequest

@@ -1,33 +1,29 @@
 const STEPS = [
-  { label: 'CHỌN GHẾ', icon: 'fa-couch' },
-  { label: 'ĐIỂM ĐÓN/TRẢ', icon: 'fa-map-pin' },
-  { label: 'THÔNG TIN', icon: 'fa-address-card' },
-  { label: 'THANH TOÁN', icon: 'fa-credit-card' },
+  { label: 'Chọn ghế',      icon: 'fa-couch' },
+  { label: 'Điểm đón/trả',  icon: 'fa-location-dot' },
+  { label: 'Thông tin',     icon: 'fa-address-card' },
+  { label: 'Thanh toán',    icon: 'fa-credit-card' },
 ];
 
-export default function BookingSteps({ currentStep }) {
+export default function BookingSteps({ step }) {
   return (
-    <div className="booking-steps-bar">
-      {STEPS.map((step, index) => {
-        const stepNum = index + 1;
-        const isDone = stepNum < currentStep;
-        const isActive = stepNum === currentStep;
+    <div className="booking-steps">
+      {STEPS.map((s, index) => {
+        const num = index + 1;
+        const done    = num < step;
+        const current = num === step;
         return (
-          <div key={step.label} className="booking-step-row">
-            <div className="booking-step-item">
-              <div className={`booking-step-circle${isDone ? ' done' : isActive ? ' active' : ''}`}>
-                {isDone
-                  ? <i className="fa-solid fa-check" />
-                  : <i className={`fa-solid ${step.icon}`} />
-                }
-              </div>
-              <span className={`booking-step-label${isActive ? ' active' : isDone ? ' done' : ''}`}>
-                {step.label}
-              </span>
+          <div
+            key={s.label}
+            className={`booking-step ${done ? 'done' : ''} ${current ? 'current' : ''}`}
+          >
+            <div className="booking-step-circle">
+              {done
+                ? <i className="fa-solid fa-check" />
+                : <i className={`fa-solid ${s.icon}`} />}
             </div>
-            {index < STEPS.length - 1 && (
-              <div className={`booking-step-connector${isDone ? ' done' : ''}`} />
-            )}
+            <span className="booking-step-label">{s.label}</span>
+            {index < STEPS.length - 1 && <div className="booking-step-line" />}
           </div>
         );
       })}

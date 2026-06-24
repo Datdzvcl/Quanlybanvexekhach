@@ -27,6 +27,10 @@ function getSeatStatus(seat) {
   return pick(seat, ['status', 'Status'], 'Available');
 }
 
+function getSeatHoldExpiresAt(seat) {
+  return pick(seat, ['holdExpiresAt', 'HoldExpiresAt']);
+}
+
 function normalizeTrip(data) {
   const bus = data?.bus || data?.Bus || {};
   const operator = data?.operator || data?.Operator || {};
@@ -62,52 +66,6 @@ function formatCountdown(ms) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function isTwoFloorLayout(value) {
-  const key = String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-
-  return ['2tang', 'haitang', 'twofloor', '2floor', 'sleeper', 'giuongnam'].includes(key);
-}
-
-function resolveSeatGridConfig(layoutType, capacity, seatCount, rows, seatsPerRow) {
-  const total = Math.max(0, Number(capacity || seatCount || 0));
-  const normalizedSeatsPerRow = clampPositiveNumber(seatsPerRow, 4, 10);
-  const seatsToArrange = isTwoFloorLayout(layoutType) ? Math.ceil(total / 2) : total;
-  const normalizedRows = clampPositiveNumber(rows, Math.max(1, Math.ceil(seatsToArrange / normalizedSeatsPerRow)), 80);
-
-  return {
-    rows: normalizedRows,
-    seatsPerRow: normalizedSeatsPerRow,
-  };
-}
-
-function buildSeatFloor(name, seats, rows, seatsPerRow) {
-  const normalizedRows = Math.max(0, Number(rows || 0));
-  const normalizedSeatsPerRow = Math.max(1, Number(seatsPerRow || 1));
-  const slotCount = Math.max(seats.length, normalizedRows * normalizedSeatsPerRow);
-
-  return {
-    name,
-    seats,
-    seatsPerRow: normalizedSeatsPerRow,
-    slots: Array.from({ length: slotCount }, (_, index) => seats[index] || null),
-  };
-}
-
-function clampPositiveNumber(value, fallback, max) {
-  const number = Number(value);
-  const fallbackNumber = Number(fallback || 0);
-
-  if (!Number.isFinite(number) || number <= 0) {
-    return fallbackNumber > 0 ? Math.min(max, Math.max(1, Math.floor(fallbackNumber))) : 0;
-  }
-
-  return Math.min(max, Math.max(1, Math.floor(number)));
-}
-
 export default function SeatSelection() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -115,9 +73,7 @@ export default function SeatSelection() {
   const [sessionId] = useState(() => ensureSessionId());
   const [trip, setTrip] = useState(null);
   const [seats, setSeats] = useState([]);
-  const [seatLayoutType, setSeatLayoutType] = useState('');
-  const [seatLayoutRows, setSeatLayoutRows] = useState(0);
-  const [seatLayoutSeatsPerRow, setSeatLayoutSeatsPerRow] = useState(4);
+  const [layout, setLayout] = useState(null); // parsed SeatCell[] from API
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [holdExpiresAt, setHoldExpiresAt] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -128,11 +84,30 @@ export default function SeatSelection() {
   const loadSeats = useCallback(async () => {
     const response = await seatApi.getByTrip(tripId, { sessionId });
     const nextSeats = response?.seats || response?.Seats || [];
-    setSeatLayoutType(response?.layoutType || response?.LayoutType || '');
-    setSeatLayoutRows(Number(response?.rows || response?.Rows || 0));
-    setSeatLayoutSeatsPerRow(Number(response?.seatsPerRow || response?.SeatsPerRow || 4));
+    const rawLayout = response?.layout || response?.Layout || null;
+    try {
+      setLayout(rawLayout ? JSON.parse(rawLayout) : null);
+    } catch { setLayout(null); }
+    const myHeldSeats = nextSeats.filter((seat) => getSeatStatus(seat) === 'HoldingByMe');
+    const myHoldExpiresAt = myHeldSeats
+      .map(getSeatHoldExpiresAt)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
     setSeats(nextSeats);
-    setSelectedSeats(nextSeats.filter((seat) => getSeatStatus(seat) === 'HoldingByMe').map(getSeatLabel));
+    setSelectedSeats(myHeldSeats.map(getSeatLabel));
+    if (myHoldExpiresAt) {
+      setHoldExpiresAt(myHoldExpiresAt);
+      localStorage.setItem(HOLD_STORAGE_KEY, JSON.stringify({
+        tripId,
+        sessionId,
+        seatLabels: myHeldSeats.map(getSeatLabel),
+        holdExpiresAt: myHoldExpiresAt,
+      }));
+    } else {
+      setHoldExpiresAt(null);
+      localStorage.removeItem(HOLD_STORAGE_KEY);
+    }
   }, [sessionId, tripId]);
 
   const loadData = useCallback(async () => {
@@ -189,49 +164,46 @@ export default function SeatSelection() {
 
   const total = useMemo(() => Number(trip?.price || 0) * selectedSeats.length, [selectedSeats.length, trip?.price]);
   const remainingMs = holdExpiresAt ? new Date(holdExpiresAt).getTime() - now : 0;
+  const canContinue = selectedSeats.length > 0 && holdExpiresAt && remainingMs > 0;
 
   const floors = useMemo(() => {
+    // Custom layout từ nhà xe
+    if (Array.isArray(layout) && layout.length > 0) {
+      const floorNums = [...new Set(layout.map(c => c.floor ?? 1))].sort((a, b) => a - b);
+      return floorNums.map(f => {
+        const floorCells = layout.filter(c => (c.floor ?? 1) === f);
+        const rows = Math.max(...floorCells.map(c => c.row ?? 0)) + 1;
+        const cols = Math.max(...floorCells.map(c => c.col ?? 0)) + 1;
+        const grid = Array.from({ length: rows }, (_, r) =>
+          Array.from({ length: cols }, (_, c) => {
+            const cell = floorCells.find(fc => fc.row === r && fc.col === c);
+            if (!cell || cell.type !== 'seat' || !cell.label) return { type: cell?.type || 'empty', label: null, status: null };
+            const seat = seatByLabel.get(cell.label);
+            return {
+              type: 'seat', label: cell.label,
+              status: seat ? getSeatStatus(seat) : 'Available',
+              holdExpiresAt: seat ? getSeatHoldExpiresAt(seat) : null,
+            };
+          })
+        );
+        return { name: floorNums.length > 1 ? `Tầng ${f}` : 'Sơ đồ ghế', grid, cols };
+      });
+    }
+
+    // Fallback: lưới mặc định
     const allSeats = seats.map((seat) => ({
       label: getSeatLabel(seat),
       status: getSeatStatus(seat),
     }));
-
-    const gridConfig = resolveSeatGridConfig(
-      seatLayoutType,
-      trip?.capacity || allSeats.length,
-      allSeats.length,
-      seatLayoutRows,
-      seatLayoutSeatsPerRow,
-    );
-
-    if (isTwoFloorLayout(seatLayoutType)) {
-      const firstFloor = allSeats.filter((seat) => /^A/i.test(seat.label));
-      const secondFloor = allSeats.filter((seat) => /^B/i.test(seat.label));
-
-      if (firstFloor.length + secondFloor.length === allSeats.length) {
-        return [
-          buildSeatFloor('Tầng 1', firstFloor, gridConfig.rows, gridConfig.seatsPerRow),
-          buildSeatFloor('Tầng 2', secondFloor, gridConfig.rows, gridConfig.seatsPerRow),
-        ];
-      }
-
+    if ((trip?.capacity || allSeats.length) > 40) {
       const half = Math.ceil(allSeats.length / 2);
       return [
-        buildSeatFloor('Tầng 1', allSeats.slice(0, half), gridConfig.rows, gridConfig.seatsPerRow),
-        buildSeatFloor('Tầng 2', allSeats.slice(half), gridConfig.rows, gridConfig.seatsPerRow),
+        { name: 'Tầng 1', seats: allSeats.slice(0, half) },
+        { name: 'Tầng 2', seats: allSeats.slice(half) },
       ];
     }
-
-    if (!seatLayoutType && (trip?.capacity || allSeats.length) > 40) {
-      const half = Math.ceil(allSeats.length / 2);
-      return [
-        buildSeatFloor('Tầng 1', allSeats.slice(0, half), gridConfig.rows, gridConfig.seatsPerRow),
-        buildSeatFloor('Tầng 2', allSeats.slice(half), gridConfig.rows, gridConfig.seatsPerRow),
-      ];
-    }
-
-    return [buildSeatFloor('Sơ đồ ghế', allSeats, gridConfig.rows, gridConfig.seatsPerRow)];
-  }, [seats, seatLayoutRows, seatLayoutSeatsPerRow, seatLayoutType, trip?.capacity]);
+    return [{ name: 'Sơ đồ ghế', seats: allSeats }];
+  }, [layout, seats, seatByLabel, trip?.capacity]);
 
   const holdSeat = async (seatLabel) => {
     setBusySeat(seatLabel);
@@ -313,6 +285,12 @@ export default function SeatSelection() {
       return;
     }
 
+    if (!holdExpiresAt || remainingMs <= 0) {
+      alert('Đã hết thời gian giữ ghế. Vui lòng chọn lại.');
+      loadSeats().catch(() => {});
+      return;
+    }
+
     let bookingLeg = 'single';
     try {
       const roundTrip = JSON.parse(localStorage.getItem(ROUND_TRIP_KEY) || 'null');
@@ -363,7 +341,7 @@ export default function SeatSelection() {
           <span>Chọn ghế</span>
           <h1>{trip.departureLocation} → {trip.arrivalLocation}</h1>
           <p>{trip.operatorName} · {trip.busType} · {formatDateTime(trip.departureTime)}</p>
-          <BookingSteps currentStep={1} />
+          <BookingSteps step={1} />
         </div>
       </section>
 
@@ -372,7 +350,7 @@ export default function SeatSelection() {
           <div className="seat-toolbar">
             <div>
               <h2>Sơ đồ ghế</h2>
-              <p>Chọn ghế còn trống để giữ chỗ trong 20 phút.</p>
+              <p>Chọn ghế còn trống để giữ chỗ trong 10 phút.</p>
             </div>
             {holdExpiresAt && remainingMs > 0 && (
               <div className="hold-countdown-box">
@@ -390,49 +368,72 @@ export default function SeatSelection() {
           </div>
 
           <div className={`bus-floor-wrapper ${floors.length > 1 ? 'two-floor' : ''}`}>
-            {floors.map((floor) => (
-              <div className="bus-floor" key={floor.name}>
-                <div className="bus-floor-head">
-                  <strong>{floor.name}</strong>
-                  <span>{floor.seats.length} ghế</span>
+            {floors.map((floor) => {
+              const seatCount = floor.grid
+                ? floor.grid.flat().filter(c => c.type === 'seat').length
+                : floor.seats?.length ?? 0;
+              return (
+                <div className="bus-floor" key={floor.name}>
+                  <div className="bus-floor-head">
+                    <strong>{floor.name}</strong>
+                    <span>{seatCount} ghế</span>
+                  </div>
+                  <div className="driver-row">
+                    <i className="fa-solid fa-steering-wheel" />
+                    <span>Tài xế</span>
+                  </div>
+                  {floor.grid ? (
+                    // Custom layout — render theo grid từ nhà xe
+                    <div style={{
+                      display: 'inline-grid',
+                      gridTemplateColumns: `repeat(${floor.cols}, 44px)`,
+                      gap: 8,
+                    }}>
+                      {floor.grid.flat().map((cell, idx) => {
+                        if (cell.type === 'aisle') return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '1.1rem' }}>↕</div>
+                        );
+                        if (cell.type === 'empty' || !cell.label) return <div key={idx} />;
+                        const isSelected = selectedSeats.includes(cell.label) || cell.status === 'HoldingByMe';
+                        const disabled = cell.status === 'Booked' || cell.status === 'HoldingByOther' || busySeat === cell.label;
+                        return (
+                          <button
+                            type="button"
+                            key={idx}
+                            disabled={disabled}
+                            onClick={() => toggleSeat(cell.label)}
+                            className={`seat-v2 status-${(cell.status || 'available').toLowerCase()} ${isSelected ? 'selected' : ''}`}
+                            title={`${cell.label} - ${labelSeatStatus(cell.status || 'Available')}`}
+                          >
+                            {busySeat === cell.label ? <i className="fa-solid fa-spinner fa-spin" /> : cell.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    // Lưới mặc định
+                    <div className="seat-grid-v2">
+                      {floor.seats.map((seat) => {
+                        const isSelected = selectedSeats.includes(seat.label) || seat.status === 'HoldingByMe';
+                        const disabled = seat.status === 'Booked' || seat.status === 'HoldingByOther' || busySeat === seat.label;
+                        return (
+                          <button
+                            type="button"
+                            key={seat.label}
+                            disabled={disabled}
+                            onClick={() => toggleSeat(seat.label)}
+                            className={`seat-v2 status-${seat.status.toLowerCase()} ${isSelected ? 'selected' : ''}`}
+                            title={`${seat.label} - ${labelSeatStatus(seat.status)}`}
+                          >
+                            {busySeat === seat.label ? <i className="fa-solid fa-spinner fa-spin" /> : seat.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="driver-row">
-                  <i className="fa-solid fa-steering-wheel" />
-                  <span>Tài xế</span>
-                </div>
-                <div
-                  className="seat-grid-v2"
-                  style={{ gridTemplateColumns: `repeat(${floor.seatsPerRow}, minmax(42px, 1fr))` }}
-                >
-                  {floor.slots.map((seat, index) => {
-                    if (!seat) {
-                      return (
-                        <span
-                          className="seat-placeholder-v2"
-                          key={`${floor.name}-empty-${index}`}
-                          aria-label="Vị trí trống"
-                        />
-                      );
-                    }
-
-                    const isSelected = selectedSeats.includes(seat.label) || seat.status === 'HoldingByMe';
-                    const disabled = seat.status === 'Booked' || seat.status === 'HoldingByOther' || busySeat === seat.label;
-                    return (
-                      <button
-                        type="button"
-                        key={seat.label}
-                        disabled={disabled}
-                        onClick={() => toggleSeat(seat.label)}
-                        className={`seat-v2 status-${seat.status.toLowerCase()} ${isSelected ? 'selected' : ''}`}
-                        title={`${seat.label} - ${labelSeatStatus(seat.status)}`}
-                      >
-                        {busySeat === seat.label ? <i className="fa-solid fa-spinner fa-spin" /> : seat.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -461,7 +462,7 @@ export default function SeatSelection() {
             <strong>{formatVND(total)}</strong>
           </div>
 
-          <button type="button" className="btn btn-primary seat-continue-btn" onClick={continueBooking}>
+          <button type="button" className="btn btn-primary seat-continue-btn" onClick={continueBooking} disabled={!canContinue}>
             Tiếp tục
             <i className="fa-solid fa-chevron-right" />
           </button>

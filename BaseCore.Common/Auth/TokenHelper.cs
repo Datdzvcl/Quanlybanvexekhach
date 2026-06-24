@@ -59,10 +59,46 @@ namespace BaseCore.Common
             return $"PBKDF2$HMACSHA256${iterationCount}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
         }
 
+        // public static bool VerifyPasswordHash(string password, string storedHash)
+        // {
+        //     if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(storedHash))
+        //         return false;
+
+        //     var parts = storedHash.Split('$');
+        //     if (parts.Length != 5 ||
+        //         parts[0] != "PBKDF2" ||
+        //         parts[1] != "HMACSHA256" ||
+        //         !int.TryParse(parts[2], out var iterationCount))
+        //     {
+        //         return false;
+        //     }
+
+        //     try
+        //     {
+        //         var salt = Convert.FromBase64String(parts[3]);
+        //         var expectedHash = Convert.FromBase64String(parts[4]);
+        //         var actualHash = KeyDerivation.Pbkdf2(
+        //             password: password,
+        //             salt: salt,
+        //             prf: KeyDerivationPrf.HMACSHA256,
+        //             iterationCount: iterationCount,
+        //             numBytesRequested: expectedHash.Length);
+
+        //         return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+        //     }
+        //     catch (FormatException)
+        //     {
+        //         return false;
+        //     }
+        // }
         public static bool VerifyPasswordHash(string password, string storedHash)
         {
             if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(storedHash))
                 return false;
+
+            // Fallback: nếu DB đang lưu plain text thì so sánh trực tiếp
+            if (!storedHash.StartsWith("PBKDF2$"))
+                return password == storedHash;
 
             var parts = storedHash.Split('$');
             if (parts.Length != 5 ||
@@ -91,7 +127,6 @@ namespace BaseCore.Common
                 return false;
             }
         }
-
         public static bool IsValidPassword(string password, byte[] salt, string hashedParam)
         {
             var hashed = Convert.ToBase64String(KeyDerivation.Pbkdf2(
@@ -104,10 +139,60 @@ namespace BaseCore.Common
             return hashed.Equals(hashedParam);
         }
 
-        public static string GenerateToken(string secretKey, int minuteExpireTime, string userId, string userName, string roles)
+        // public static string GenerateToken(string secretKey, int minuteExpireTime, string userId, string userName, string roles)
+        // {
+        //     var tokenHandler = new JwtSecurityTokenHandler();
+        //     var key = Encoding.ASCII.GetBytes(secretKey);
+
+        //     var tokenDescriptor = new SecurityTokenDescriptor
+        //     {
+        //         Subject = new ClaimsIdentity(new Claim[]
+        //         {
+        //             new Claim(ClaimTypes.Name, userName),
+        //             new Claim(ClaimTypes.NameIdentifier, userId),
+        //             new Claim(ClaimTypes.Role, roles)
+        //         }),
+        //         Expires = DateTime.UtcNow.AddMinutes(minuteExpireTime),
+        //         SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        //     };
+
+        //     var token = tokenHandler.CreateToken(tokenDescriptor);
+        //     return tokenHandler.WriteToken(token);
+        // }
+        // SAU
+        // public static string GenerateToken(string secretKey, int minuteExpireTime, string userId, string userName, byte role)
+        // {
+        //     var tokenHandler = new JwtSecurityTokenHandler();
+        //     var key = Encoding.ASCII.GetBytes(secretKey);
+
+        //     var tokenDescriptor = new SecurityTokenDescriptor
+        //     {
+        //         Subject = new ClaimsIdentity(new Claim[]
+        //         {
+        //             new Claim(ClaimTypes.Name, userName),
+        //             new Claim(ClaimTypes.NameIdentifier, userId),
+        //             new Claim(ClaimTypes.Role, role.ToString())  // byte → "0", "1", "2", "3"
+        //         }),
+        //         Expires = DateTime.UtcNow.AddMinutes(minuteExpireTime),
+        //         SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        //     };
+
+        //     var token = tokenHandler.CreateToken(tokenDescriptor);
+        //     return tokenHandler.WriteToken(token);
+        // }
+        public static string GenerateToken(string secretKey, int minuteExpireTime, string userId, string userName, byte role)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(secretKey);
+
+            // Đổi byte role thành string tên
+            var roleName = role switch
+            {
+                RoleConstant.Admin    => "Admin",
+                RoleConstant.Operator => "Operator",
+                RoleConstant.Driver   => "Driver",
+                _                     => "Customer"
+            };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -115,7 +200,7 @@ namespace BaseCore.Common
                 {
                     new Claim(ClaimTypes.Name, userName),
                     new Claim(ClaimTypes.NameIdentifier, userId),
-                    new Claim(ClaimTypes.Role, roles)
+                    new Claim(ClaimTypes.Role, roleName)  // "Admin", "Operator", "Customer"
                 }),
                 Expires = DateTime.UtcNow.AddMinutes(minuteExpireTime),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
@@ -124,7 +209,6 @@ namespace BaseCore.Common
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
-
         private static TokenValidationParameters GetValidationParameters(string secretKey)
         {
             return new TokenValidationParameters

@@ -21,6 +21,11 @@ export const tripApi = {
     return response.data;
   },
 
+  async locations(params) {
+    const response = await apiClient.get('/api/trips/locations', { params });
+    return response.data;
+  },
+
   async getBookings(id, params) {
     const response = await apiClient.get(`/api/trips/${id}/bookings`, { params });
     return response.data;
@@ -38,6 +43,37 @@ export const tripApi = {
 
   async remove(id) {
     const response = await apiClient.delete(`/api/trips/${id}`);
+    return response.data;
+  },
+
+  async cancelTrip(id) {
+    const response = await apiClient.post(`/api/trips/${id}/cancel`);
+    return response.data;
+  },
+
+  async cloneTrips(sourceDate, targetDate) {
+    const response = await apiClient.post('/api/trips/clone', { sourceDate, targetDate });
+    return response.data;
+  },
+
+  async cloneWeek(sourceWeekStart, targetWeekStart) {
+    const response = await apiClient.post('/api/trips/clone-week', { sourceWeekStart, targetWeekStart });
+    return response.data;
+  },
+
+  // ── Quản lý điểm dừng/đón/trả của 1 chuyến ──────────────
+  async addStop(tripId, payload) {
+    const response = await apiClient.post(`/api/trips/${tripId}/stops`, payload);
+    return response.data;
+  },
+
+  async updateStop(tripId, stopId, payload) {
+    const response = await apiClient.put(`/api/trips/${tripId}/stops/${stopId}`, payload);
+    return response.data;
+  },
+
+  async removeStop(tripId, stopId) {
+    const response = await apiClient.delete(`/api/trips/${tripId}/stops/${stopId}`);
     return response.data;
   },
 };

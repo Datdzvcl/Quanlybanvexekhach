@@ -5,6 +5,7 @@ using BaseCore.Services.Authen;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Collections.Concurrent;
 
 namespace BaseCore.AuthService.Controllers
 {
@@ -40,7 +41,7 @@ namespace BaseCore.AuthService.Controllers
             if (user == null)
                 return Unauthorized(new { message = "Invalid email/phone or password" });
 
-            var role = DomainCodes.ToRoleName(user.Role);
+            var role = user.Role ;
 
             var token = TokenHelper.GenerateToken(
                 _secretKey,
@@ -79,7 +80,7 @@ namespace BaseCore.AuthService.Controllers
                     FullName = request.FullName ?? request.Email.Trim(),
                     Email = request.Email.Trim(),
                     Phone = request.Phone.Trim(),
-                    Role = DomainCodes.RoleCustomer,
+                    Role = RoleConstant.Customer,
                     CreatedAt = DateTime.Now
                 };
 
@@ -116,16 +117,82 @@ namespace BaseCore.AuthService.Controllers
             return Ok(ToUserResponse(user));
         }
 
-        private static AuthUserResponse ToUserResponse(BaseCore.Entities.User user)
+        // private static AuthUserResponse ToUserResponse(BaseCore.Entities.User user)
+        // {
+        //     return new AuthUserResponse
+        //     {
+        //         UserID = user.UserID,
+        //         FullName = user.FullName,
+        //         Email = user.Email,
+        //         Phone = user.Phone,
+        //         Role = user.Role ?? RoleConstant.Customer
+        //     };
+        // ─── OTP store (in-memory, hết hạn sau 15 phút) ──────────────
+        private static readonly ConcurrentDictionary<string, (string Otp, DateTime Expiry)> _otpStore = new();
+
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
-            return new AuthUserResponse
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return BadRequest(new { message = "Vui lòng nhập email" });
+
+            var email = request.Email.Trim().ToLower();
+            var user = await _userService.GetByLoginIdentifier(email);
+            if (user == null)
+                return Ok(new { message = "Nếu email tồn tại, mã OTP sẽ được gửi" });
+
+            var otp = Random.Shared.Next(100000, 999999).ToString();
+            _otpStore[email] = (otp, DateTime.Now.AddMinutes(15));
+
+            return Ok(new { message = "Mã OTP đã được tạo", otp, expiresIn = 15 });
+        }
+
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Otp) ||
+                string.IsNullOrWhiteSpace(request.NewPassword))
+                return BadRequest(new { message = "Thiếu thông tin" });
+
+            if (request.NewPassword.Length < 6)
+                return BadRequest(new { message = "Mật khẩu mới phải ít nhất 6 ký tự" });
+
+            var email = request.Email.Trim().ToLower();
+            if (!_otpStore.TryGetValue(email, out var entry))
+                return BadRequest(new { message = "Mã OTP không hợp lệ hoặc đã hết hạn" });
+
+            if (entry.Expiry < DateTime.Now)
             {
-                UserID = user.UserID,
-                FullName = user.FullName,
-                Email = user.Email,
-                Phone = user.Phone,
-                Role = DomainCodes.ToRoleName(user.Role)
-            };
+                _otpStore.TryRemove(email, out _);
+                return BadRequest(new { message = "Mã OTP đã hết hạn, vui lòng yêu cầu lại" });
+            }
+
+            if (entry.Otp != request.Otp.Trim())
+                return BadRequest(new { message = "Mã OTP không đúng" });
+
+            var user = await _userService.GetByLoginIdentifier(email);
+            if (user == null) return NotFound(new { message = "Không tìm thấy tài khoản" });
+
+            await _userService.Update(user, request.NewPassword);
+            _otpStore.TryRemove(email, out _);
+
+            return Ok(new { message = "Đặt lại mật khẩu thành công" });
+        }
+
+        private static AuthUserResponse ToUserResponse(BaseCore.Entities.User user)
+            {
+                return new AuthUserResponse
+                {
+                    UserID   = user.UserID,
+                    FullName = user.FullName,
+                    Email    = user.Email,
+                    Phone    = user.Phone,
+                    Role     = user.Role
+                };
+            }
         }
     }
 
@@ -156,7 +223,7 @@ namespace BaseCore.AuthService.Controllers
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
+        public byte Role { get; set; } 
     }
 
     public class RegisterRequest
@@ -166,4 +233,15 @@ namespace BaseCore.AuthService.Controllers
         public string? FullName { get; set; }
         public string Phone { get; set; } = string.Empty;
     }
-}
+
+    public class ForgotPasswordRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordRequest
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Otp { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }

@@ -7,6 +7,7 @@ namespace BaseCore.Services.Authen
     public interface IUserService
     {
         Task<User?> Authenticate(string loginIdentifier, string password);
+        Task<User?> GetByLoginIdentifier(string identifier);
         Task<List<User>> GetAll();
         Task<User?> GetById(int id);
         Task<User> Create(User user, string password);
@@ -39,6 +40,28 @@ namespace BaseCore.Services.Authen
 
         //     return user;
         // }
+        // public async Task<User?> Authenticate(string loginIdentifier, string password)
+        // {
+        //     if (string.IsNullOrWhiteSpace(loginIdentifier) || string.IsNullOrWhiteSpace(password))
+        //         return null;
+
+        //     var user = await _userRepository.GetByLoginIdentifierAsync(loginIdentifier.Trim());
+
+        //     if (user == null)
+        //         return null;
+
+        //     if (!TokenHelper.VerifyPasswordHash(password, user.PasswordHash))
+        //         return null;
+
+        //     // Nếu đang lưu plain text → tự động upgrade lên hash sau khi login
+        //     if (!user.PasswordHash.StartsWith("PBKDF2$"))
+        //     {
+        //         user.PasswordHash = TokenHelper.CreatePasswordHash(password);
+        //         await _userRepository.UpdateAsync(user);
+        //     }
+
+        //     return user;
+        // }
         public async Task<User?> Authenticate(string loginIdentifier, string password)
         {
             if (string.IsNullOrWhiteSpace(loginIdentifier) || string.IsNullOrWhiteSpace(password))
@@ -49,21 +72,30 @@ namespace BaseCore.Services.Authen
             if (user == null)
                 return null;
 
-            // Check hash trước (PBKDF2$HMACSHA256$...)
-            if (user.PasswordHash.StartsWith("PBKDF2$"))
+            // Kiểm tra plain text TRƯỚC
+            if (!user.PasswordHash.StartsWith("PBKDF2$"))
             {
-                if (!TokenHelper.VerifyPasswordHash(password, user.PasswordHash))
+                // Password đang lưu plain text
+                if (user.PasswordHash.Trim() != password.Trim())
                     return null;
+
+                // Tự động upgrade lên hash
+                user.PasswordHash = TokenHelper.CreatePasswordHash(password);
+                await _userRepository.UpdateAsync(user);
+                return user;
             }
-            else
-            {
-                // Fallback: so sánh plain text
-                if (user.PasswordHash != password)
-                    return null;
-            }
+
+            // Password đã hash → verify bình thường
+            if (!TokenHelper.VerifyPasswordHash(password, user.PasswordHash))
+                return null;
 
             return user;
         }
+        public async Task<User?> GetByLoginIdentifier(string identifier)
+        {
+            return await _userRepository.GetByLoginIdentifierAsync(identifier);
+        }
+
         public async Task<List<User>> GetAll()
         {
             return await _userRepository.GetAllAsync();
@@ -91,6 +123,8 @@ namespace BaseCore.Services.Authen
             user.Email = user.Email.Trim();
             user.Phone = user.Phone.Trim();
             user.FullName = string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName.Trim();
+            // user.Role = string.IsNullOrWhiteSpace(user.Role) ? RoleConstant.Customer : user.Role;
+            user.Role = user.Role == 0 ? RoleConstant.Customer : user.Role;
             user.PasswordHash = TokenHelper.CreatePasswordHash(password);
             user.CreatedAt ??= DateTime.Now;
 

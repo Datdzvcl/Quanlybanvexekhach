@@ -37,9 +37,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "BaseCore Auth Service API",
+        Title = "VeXeAZ Auth Service API",
         Version = "v1",
-        Description = "Authentication Microservice - Login, Register, User Management (Bài 10, 11)"
+        Description = "VeXeAZ Bus Ticket Booking System - Login, Register, Users and Roles"
     });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -98,13 +98,18 @@ builder.Services.AddAuthentication(x =>
     };
 });
 
+// builder.Services.AddAuthorization(options =>
+// {
+//     options.AddPolicy("AdminOnly", policy => policy.RequireRole(RoleConstant.Admin));
+//     options.AddPolicy("CustomerOnly", policy => policy.RequireRole(RoleConstant.Customer));
+//     options.AddPolicy("OperatorOnly", policy => policy.RequireRole(RoleConstant.Operator));
+// });
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole(RoleConstant.Admin));
-    options.AddPolicy("CustomerOnly", policy => policy.RequireRole(RoleConstant.Customer));
-    options.AddPolicy("OperatorOnly", policy => policy.RequireRole(RoleConstant.Operator));
+    options.AddPolicy("AdminOnly",    policy => policy.RequireRole(RoleConstant.Admin.ToString()));
+    options.AddPolicy("CustomerOnly", policy => policy.RequireRole(RoleConstant.Customer.ToString()));
+    options.AddPolicy("OperatorOnly", policy => policy.RequireRole(RoleConstant.Operator.ToString()));
 });
-
 var app = builder.Build();
 
 // Ensure database exists and seed default admin account
@@ -122,7 +127,7 @@ using (var scope = app.Services.CreateScope())
             Email = "admin@robotvibot.com",
             Phone = "0123456789",
             PasswordHash = TokenHelper.CreatePasswordHash("admin123"),
-            Role = DomainCodes.RoleAdmin,
+            Role = RoleConstant.Admin,
             CreatedAt = DateTime.Now
         });
 
@@ -131,45 +136,9 @@ using (var scope = app.Services.CreateScope())
     else if (!TokenHelper.VerifyPasswordHash("admin123", existingAdmin.PasswordHash))
     {
         existingAdmin.PasswordHash = TokenHelper.CreatePasswordHash("admin123");
-        existingAdmin.Role = DomainCodes.RoleAdmin;
+        existingAdmin.Role = RoleConstant.Admin;
         await dbContext.SaveChangesAsync();
     }
-
-    var operatorSeeds = new[]
-    {
-        new { FullName = "Nha xe Phuong Trang", Email = "operator.phuongtrang@vexeaz.vn", Phone = "19006067" },
-        new { FullName = "Nha xe Thanh Buoi", Email = "operator.thanhbuoi@vexeaz.vn", Phone = "19006079" },
-        new { FullName = "Nha xe Hai Van", Email = "operator.haivan@vexeaz.vn", Phone = "19006763" },
-        new { FullName = "Nha xe Sao Viet", Email = "operator.saoviet@vexeaz.vn", Phone = "19006746" }
-    };
-
-    foreach (var seed in operatorSeeds)
-    {
-        var operatorAccount = await dbContext.Users
-            .FirstOrDefaultAsync(u => u.Email == seed.Email || u.Phone == seed.Phone);
-
-        if (operatorAccount == null)
-        {
-            await dbContext.Users.AddAsync(new User
-            {
-                FullName = seed.FullName,
-                Email = seed.Email,
-                Phone = seed.Phone,
-                PasswordHash = TokenHelper.CreatePasswordHash("operator123"),
-                Role = DomainCodes.RoleOperator,
-                CreatedAt = DateTime.Now
-            });
-            continue;
-        }
-
-        operatorAccount.FullName = seed.FullName;
-        operatorAccount.Email = seed.Email;
-        operatorAccount.Phone = seed.Phone;
-        operatorAccount.Role = DomainCodes.RoleOperator;
-        operatorAccount.PasswordHash = TokenHelper.CreatePasswordHash("operator123");
-    }
-
-    await dbContext.SaveChangesAsync();
 }
 
 // Configure the HTTP request pipeline.
@@ -184,6 +153,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-Console.WriteLine("BaseCore Auth Service running on port 5002");
+Console.WriteLine("VeXeAZ Auth Service running on port 5002");
 Console.WriteLine("Endpoints: /api/auth, /api/users, /api/roles");
 app.Run();

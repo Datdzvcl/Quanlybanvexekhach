@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi } from '../services/authApi';
-import { roleName } from '../api';
 import {
   TOKEN_STORAGE_KEY,
   USER_STORAGE_KEY,
@@ -28,7 +27,7 @@ function normalizeUser(data) {
     fullName: rawUser?.fullName || rawUser?.FullName || rawUser?.name || '',
     email: rawUser?.email || rawUser?.Email || '',
     phone: rawUser?.phone || rawUser?.Phone || '',
-    role: roleName(rawUser?.role || rawUser?.Role || 'Customer'),
+    role: rawUser?.role || rawUser?.Role || 'Customer',
   };
 }
 

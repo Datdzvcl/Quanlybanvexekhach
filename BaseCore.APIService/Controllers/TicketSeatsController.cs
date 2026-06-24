@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
-
+using Microsoft.AspNetCore.Authorization;
 namespace BaseCore.APIService.Controllers
 {
     [Route("api/[controller]")]
@@ -20,7 +20,7 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetByTrip(int tripId)
         {
             var seats = await _context.TicketSeats
-                .Where(x => x.IsActive && x.Booking.TripID == tripId)
+                .Where(x => x.Booking.TripID == tripId)
                 .Select(x => new
                 {
                     x.TicketSeatID,
@@ -34,10 +34,11 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpGet("booking/{bookingId}")]
+        [Authorize]
         public async Task<IActionResult> GetByBooking(int bookingId)
         {
             var seats = await _context.TicketSeats
-                .Where(x => x.IsActive && x.BookingID == bookingId)
+                .Where(x => x.BookingID == bookingId)
                 .Select(x => new
                 {
                     x.TicketSeatID,
@@ -51,6 +52,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Operator")]
         public async Task<IActionResult> Create(List<TicketSeat> seats)
         {
             if (seats == null || seats.Count == 0)
@@ -68,16 +70,10 @@ namespace BaseCore.APIService.Controllers
                     .Include(x => x.Booking)
                     .AnyAsync(x =>
                         x.Booking.TripID == booking.TripID &&
-                        x.IsActive &&
                         x.SeatLabel == seat.SeatLabel);
 
                 if (exists)
                     return BadRequest($"Ghế {seat.SeatLabel} đã được đặt");
-            }
-
-            foreach (var seat in seats)
-            {
-                seat.IsActive = true;
             }
 
             _context.TicketSeats.AddRange(seats);
@@ -93,6 +89,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Operator")]
         public async Task<IActionResult> Delete(int id)
         {
             var seat = await _context.TicketSeats.FindAsync(id);
@@ -107,6 +104,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpDelete("booking/{bookingId}")]
+        [Authorize(Roles = "Operator")]
         public async Task<IActionResult> DeleteByBooking(int bookingId)
         {
             var seats = await _context.TicketSeats

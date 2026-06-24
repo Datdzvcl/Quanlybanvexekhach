@@ -27,4 +27,14 @@ export const authApi = {
     const response = await authClient.get('/api/auth/me');
     return response.data;
   },
+
+  async forgotPassword(email) {
+    const response = await authClient.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(email, otp, newPassword) {
+    const response = await authClient.post('/api/auth/reset-password', { email, otp, newPassword });
+    return response.data;
+  },
 };

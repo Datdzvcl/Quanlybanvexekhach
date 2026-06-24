@@ -25,4 +25,35 @@ export const busApi = {
     const response = await apiClient.delete(`/api/buses/${id}`);
     return response.data;
   },
+
+  // ── Image management ─────────────────────────────────────────
+  async getImages(busId) {
+    const response = await apiClient.get(`/api/busimages/bus/${busId}`);
+    return response.data;
+  },
+
+  async addImage(payload) {
+    const response = await apiClient.post('/api/busimages', payload);
+    return response.data;
+  },
+
+  async uploadImage(busId, file) {
+    const form = new FormData();
+    form.append('busId', busId);
+    form.append('file', file);
+    const response = await apiClient.post('/api/busimages/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  async setAvatar(imageId) {
+    const response = await apiClient.patch(`/api/busimages/${imageId}/avatar`);
+    return response.data;
+  },
+
+  async removeImage(imageId) {
+    const response = await apiClient.delete(`/api/busimages/${imageId}`);
+    return response.data;
+  },
 };
