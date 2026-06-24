@@ -539,13 +539,13 @@ export default function SearchResults() {
     setExpandedTripId((prev) => (prev === tripId ? null : tripId));
   };
 
+  const [operators, setOperators] = useState([]);
+
   const [filters, setFilters] = useState({
     busType: searchParams.get('busType') || '',
     departureTimeRange: searchParams.get('departureTimeRange') || '',
     arrivalTimeRange: searchParams.get('arrivalTimeRange') || '',
     operatorId: searchParams.get('operatorId') || '',
-    pickupStopId: searchParams.get('pickupStopId') || '',
-    dropoffStopId: searchParams.get('dropoffStopId') || '',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     sortBy: searchParams.get('sortBy') || '',
@@ -582,6 +582,13 @@ export default function SearchResults() {
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => setLocations(Array.isArray(data) ? data : []))
       .catch(() => setLocations([]));
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/operators/public`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setOperators(Array.isArray(data) ? data : []))
+      .catch(() => setOperators([]));
   }, []);
 
   useEffect(() => {
@@ -841,14 +848,12 @@ export default function SearchResults() {
                   departureTimeRange: '',
                   arrivalTimeRange: '',
                   operatorId: '',
-                  pickupStopId: '',
-                  dropoffStopId: '',
                   minPrice: '',
                   maxPrice: '',
                   sortBy: filters.sortBy,
                 });
                 const next = new URLSearchParams(searchParams);
-                ['busType', 'departureTimeRange', 'arrivalTimeRange', 'operatorId', 'pickupStopId', 'dropoffStopId', 'minPrice', 'maxPrice'].forEach((key) => next.delete(key));
+                ['busType', 'departureTimeRange', 'arrivalTimeRange', 'operatorId', 'minPrice', 'maxPrice'].forEach((key) => next.delete(key));
                 next.set('page', '1');
                 setSearchParams(next);
               }}
@@ -882,35 +887,14 @@ export default function SearchResults() {
 
           <label className="filter-control">
             <span>Nhà xe</span>
-            <input
-              type="number"
-              min="1"
-              value={filters.operatorId}
-              onChange={(event) => updateFilter('operatorId', event.target.value)}
-              placeholder="Mã nhà xe"
-            />
-          </label>
-
-          <label className="filter-control">
-            <span>Điểm đón</span>
-            <input
-              type="number"
-              min="1"
-              value={filters.pickupStopId}
-              onChange={(event) => updateFilter('pickupStopId', event.target.value)}
-              placeholder="Mã điểm đón"
-            />
-          </label>
-
-          <label className="filter-control">
-            <span>Điểm trả</span>
-            <input
-              type="number"
-              min="1"
-              value={filters.dropoffStopId}
-              onChange={(event) => updateFilter('dropoffStopId', event.target.value)}
-              placeholder="Mã điểm trả"
-            />
+            <select value={filters.operatorId} onChange={(event) => updateFilter('operatorId', event.target.value)}>
+              <option value="">Tất cả nhà xe</option>
+              {operators.map((op) => (
+                <option key={op.operatorID ?? op.OperatorID} value={op.operatorID ?? op.OperatorID}>
+                  {op.name ?? op.Name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="filter-control">

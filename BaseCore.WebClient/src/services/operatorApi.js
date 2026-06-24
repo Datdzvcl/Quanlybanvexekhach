@@ -1,6 +1,11 @@
 import { apiClient } from './httpClient';
 
 export const operatorApi = {
+  async listPublic() {
+    const response = await apiClient.get('/api/operators/public');
+    return response.data;
+  },
+
   async list(params) {
     const response = await apiClient.get('/api/operators', { params });
     return response.data;

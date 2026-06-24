@@ -66,6 +66,18 @@ namespace BaseCore.APIService.Controllers
             });
         }
 
+        [HttpGet("public")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPublic()
+        {
+            var items = await _context.Operators
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => new { x.OperatorID, x.Name })
+                .ToListAsync();
+            return Ok(items);
+        }
+
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
