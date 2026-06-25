@@ -1,57 +1,81 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import UserLayout from '../layouts/UserLayout';
-import { formatVND, labelSeatStatus, pick } from '../api';
-import { tripApi } from '../services/tripApi';
-import { seatApi } from '../services/seatApi';
-import BookingSteps from '../components/BookingSteps';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import UserLayout from "../layouts/UserLayout";
+import { formatVND, labelSeatStatus, pick } from "../api";
+import { tripApi } from "../services/tripApi";
+import { seatApi } from "../services/seatApi";
+import BookingSteps from "../components/BookingSteps";
 
-const SESSION_STORAGE_KEY = 'seatSessionId';
-const HOLD_STORAGE_KEY = 'currentSeatHold';
-const ROUND_TRIP_KEY = 'roundTripBooking';
+const SESSION_STORAGE_KEY = "seatSessionId";
+const HOLD_STORAGE_KEY = "currentSeatHold";
+const ROUND_TRIP_KEY = "roundTripBooking";
 
 function ensureSessionId() {
   const existing = localStorage.getItem(SESSION_STORAGE_KEY);
   if (existing) return existing;
 
-  const value = crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const value = crypto.randomUUID
+    ? crypto.randomUUID()
+    : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   localStorage.setItem(SESSION_STORAGE_KEY, value);
   return value;
 }
 
 function getSeatLabel(seat) {
-  return pick(seat, ['seatLabel', 'SeatLabel', 'label', 'Label']);
+  return pick(seat, ["seatLabel", "SeatLabel", "label", "Label"]);
 }
 
 function getSeatStatus(seat) {
-  return pick(seat, ['status', 'Status'], 'Available');
+  return pick(seat, ["status", "Status"], "Available");
+}
+
+function getSeatHoldExpiresAt(seat) {
+  return pick(seat, ["holdExpiresAt", "HoldExpiresAt"]);
 }
 
 function normalizeTrip(data) {
   const bus = data?.bus || data?.Bus || {};
   const operator = data?.operator || data?.Operator || {};
   return {
-    id: pick(data, ['tripID', 'TripID', 'tripId', 'id']),
-    operatorName: pick(data, ['operatorName', 'OperatorName'], pick(operator, ['name', 'Name'], 'Nhà xe')),
-    busType: pick(data, ['busType', 'BusType'], pick(bus, ['busType', 'BusType'], 'Xe khách')),
-    licensePlate: pick(data, ['licensePlate', 'LicensePlate'], pick(bus, ['licensePlate', 'LicensePlate'])),
-    departureLocation: pick(data, ['departureLocation', 'DepartureLocation']),
-    arrivalLocation: pick(data, ['arrivalLocation', 'ArrivalLocation']),
-    departureTime: pick(data, ['departureTime', 'DepartureTime']),
-    arrivalTime: pick(data, ['arrivalTime', 'ArrivalTime']),
-    price: Number(pick(data, ['price', 'Price'], 0)),
-    capacity: Number(pick(data, ['capacity', 'Capacity'], pick(bus, ['capacity', 'Capacity'], 0))),
+    id: pick(data, ["tripID", "TripID", "tripId", "id"]),
+    operatorName: pick(
+      data,
+      ["operatorName", "OperatorName"],
+      pick(operator, ["name", "Name"], "Nhà xe"),
+    ),
+    busType: pick(
+      data,
+      ["busType", "BusType"],
+      pick(bus, ["busType", "BusType"], "Xe khách"),
+    ),
+    licensePlate: pick(
+      data,
+      ["licensePlate", "LicensePlate"],
+      pick(bus, ["licensePlate", "LicensePlate"]),
+    ),
+    departureLocation: pick(data, ["departureLocation", "DepartureLocation"]),
+    arrivalLocation: pick(data, ["arrivalLocation", "ArrivalLocation"]),
+    departureTime: pick(data, ["departureTime", "DepartureTime"]),
+    arrivalTime: pick(data, ["arrivalTime", "ArrivalTime"]),
+    price: Number(pick(data, ["price", "Price"], 0)),
+    capacity: Number(
+      pick(
+        data,
+        ["capacity", "Capacity"],
+        pick(bus, ["capacity", "Capacity"], 0),
+      ),
+    ),
   };
 }
 
 function formatDateTime(value) {
-  if (!value) return '--';
-  return new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  if (!value) return "--";
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   }).format(new Date(value));
 }
 
@@ -59,53 +83,7 @@ function formatCountdown(ms) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function isTwoFloorLayout(value) {
-  const key = String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-
-  return ['2tang', 'haitang', 'twofloor', '2floor', 'sleeper', 'giuongnam'].includes(key);
-}
-
-function resolveSeatGridConfig(layoutType, capacity, seatCount, rows, seatsPerRow) {
-  const total = Math.max(0, Number(capacity || seatCount || 0));
-  const normalizedSeatsPerRow = clampPositiveNumber(seatsPerRow, 4, 10);
-  const seatsToArrange = isTwoFloorLayout(layoutType) ? Math.ceil(total / 2) : total;
-  const normalizedRows = clampPositiveNumber(rows, Math.max(1, Math.ceil(seatsToArrange / normalizedSeatsPerRow)), 80);
-
-  return {
-    rows: normalizedRows,
-    seatsPerRow: normalizedSeatsPerRow,
-  };
-}
-
-function buildSeatFloor(name, seats, rows, seatsPerRow) {
-  const normalizedRows = Math.max(0, Number(rows || 0));
-  const normalizedSeatsPerRow = Math.max(1, Number(seatsPerRow || 1));
-  const slotCount = Math.max(seats.length, normalizedRows * normalizedSeatsPerRow);
-
-  return {
-    name,
-    seats,
-    seatsPerRow: normalizedSeatsPerRow,
-    slots: Array.from({ length: slotCount }, (_, index) => seats[index] || null),
-  };
-}
-
-function clampPositiveNumber(value, fallback, max) {
-  const number = Number(value);
-  const fallbackNumber = Number(fallback || 0);
-
-  if (!Number.isFinite(number) || number <= 0) {
-    return fallbackNumber > 0 ? Math.min(max, Math.max(1, Math.floor(fallbackNumber))) : 0;
-  }
-
-  return Math.min(max, Math.max(1, Math.floor(number)));
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 export default function SeatSelection() {
@@ -115,29 +93,53 @@ export default function SeatSelection() {
   const [sessionId] = useState(() => ensureSessionId());
   const [trip, setTrip] = useState(null);
   const [seats, setSeats] = useState([]);
-  const [seatLayoutType, setSeatLayoutType] = useState('');
-  const [seatLayoutRows, setSeatLayoutRows] = useState(0);
-  const [seatLayoutSeatsPerRow, setSeatLayoutSeatsPerRow] = useState(4);
+  const [layout, setLayout] = useState(null); // parsed SeatCell[] from API
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [holdExpiresAt, setHoldExpiresAt] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [loading, setLoading] = useState(true);
-  const [busySeat, setBusySeat] = useState('');
-  const [error, setError] = useState('');
+  const [busySeat, setBusySeat] = useState("");
+  const [error, setError] = useState("");
 
   const loadSeats = useCallback(async () => {
     const response = await seatApi.getByTrip(tripId, { sessionId });
     const nextSeats = response?.seats || response?.Seats || [];
-    setSeatLayoutType(response?.layoutType || response?.LayoutType || '');
-    setSeatLayoutRows(Number(response?.rows || response?.Rows || 0));
-    setSeatLayoutSeatsPerRow(Number(response?.seatsPerRow || response?.SeatsPerRow || 4));
+    const rawLayout = response?.layout || response?.Layout || null;
+    try {
+      setLayout(rawLayout ? JSON.parse(rawLayout) : null);
+    } catch {
+      setLayout(null);
+    }
+    const myHeldSeats = nextSeats.filter(
+      (seat) => getSeatStatus(seat) === "HoldingByMe",
+    );
+    const myHoldExpiresAt = myHeldSeats
+      .map(getSeatHoldExpiresAt)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
     setSeats(nextSeats);
-    setSelectedSeats(nextSeats.filter((seat) => getSeatStatus(seat) === 'HoldingByMe').map(getSeatLabel));
+    setSelectedSeats(myHeldSeats.map(getSeatLabel));
+    if (myHoldExpiresAt) {
+      setHoldExpiresAt(myHoldExpiresAt);
+      localStorage.setItem(
+        HOLD_STORAGE_KEY,
+        JSON.stringify({
+          tripId,
+          sessionId,
+          seatLabels: myHeldSeats.map(getSeatLabel),
+          holdExpiresAt: myHoldExpiresAt,
+        }),
+      );
+    } else {
+      setHoldExpiresAt(null);
+      localStorage.removeItem(HOLD_STORAGE_KEY);
+    }
   }, [sessionId, tripId]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       const [tripData] = await Promise.all([
         tripApi.getById(tripId),
@@ -145,12 +147,18 @@ export default function SeatSelection() {
       ]);
       setTrip(normalizeTrip(tripData));
 
-      const storedHold = JSON.parse(localStorage.getItem(HOLD_STORAGE_KEY) || 'null');
-      if (storedHold?.tripId === tripId && storedHold?.sessionId === sessionId && new Date(storedHold.holdExpiresAt).getTime() > Date.now()) {
+      const storedHold = JSON.parse(
+        localStorage.getItem(HOLD_STORAGE_KEY) || "null",
+      );
+      if (
+        storedHold?.tripId === tripId &&
+        storedHold?.sessionId === sessionId &&
+        new Date(storedHold.holdExpiresAt).getTime() > Date.now()
+      ) {
         setHoldExpiresAt(storedHold.holdExpiresAt);
       }
     } catch (err) {
-      setError(err.message || 'Không thể tải dữ liệu chọn ghế.');
+      setError(err.message || "Không thể tải dữ liệu chọn ghế.");
     } finally {
       setLoading(false);
     }
@@ -158,7 +166,7 @@ export default function SeatSelection() {
 
   useEffect(() => {
     if (!tripId) {
-      navigate('/search-results', { replace: true });
+      navigate("/search-results", { replace: true });
       return;
     }
     loadData();
@@ -177,7 +185,7 @@ export default function SeatSelection() {
     localStorage.removeItem(HOLD_STORAGE_KEY);
     setHoldExpiresAt(null);
     setSelectedSeats([]);
-    alert('Đã hết thời gian giữ ghế. Vui lòng chọn lại.');
+    alert("Đã hết thời gian giữ ghế. Vui lòng chọn lại.");
     loadSeats().catch(() => {});
   }, [holdExpiresAt, loadSeats, now]);
 
@@ -187,51 +195,62 @@ export default function SeatSelection() {
     return map;
   }, [seats]);
 
-  const total = useMemo(() => Number(trip?.price || 0) * selectedSeats.length, [selectedSeats.length, trip?.price]);
-  const remainingMs = holdExpiresAt ? new Date(holdExpiresAt).getTime() - now : 0;
+  const total = useMemo(
+    () => Number(trip?.price || 0) * selectedSeats.length,
+    [selectedSeats.length, trip?.price],
+  );
+  const remainingMs = holdExpiresAt
+    ? new Date(holdExpiresAt).getTime() - now
+    : 0;
+  const canContinue =
+    selectedSeats.length > 0 && holdExpiresAt && remainingMs > 0;
 
   const floors = useMemo(() => {
+    // Custom layout từ nhà xe
+    if (Array.isArray(layout) && layout.length > 0) {
+      const floorNums = [...new Set(layout.map((c) => c.floor ?? 1))].sort(
+        (a, b) => a - b,
+      );
+      return floorNums.map((f) => {
+        const floorCells = layout.filter((c) => (c.floor ?? 1) === f);
+        const rows = Math.max(...floorCells.map((c) => c.row ?? 0)) + 1;
+        const cols = Math.max(...floorCells.map((c) => c.col ?? 0)) + 1;
+        const grid = Array.from({ length: rows }, (_, r) =>
+          Array.from({ length: cols }, (_, c) => {
+            const cell = floorCells.find((fc) => fc.row === r && fc.col === c);
+            if (!cell || cell.type !== "seat" || !cell.label)
+              return { type: cell?.type || "empty", label: null, status: null };
+            const seat = seatByLabel.get(cell.label);
+            return {
+              type: "seat",
+              label: cell.label,
+              status: seat ? getSeatStatus(seat) : "Available",
+              holdExpiresAt: seat ? getSeatHoldExpiresAt(seat) : null,
+            };
+          }),
+        );
+        return {
+          name: floorNums.length > 1 ? `Tầng ${f}` : "Sơ đồ ghế",
+          grid,
+          cols,
+        };
+      });
+    }
+
+    // Fallback: lưới mặc định
     const allSeats = seats.map((seat) => ({
       label: getSeatLabel(seat),
       status: getSeatStatus(seat),
     }));
-
-    const gridConfig = resolveSeatGridConfig(
-      seatLayoutType,
-      trip?.capacity || allSeats.length,
-      allSeats.length,
-      seatLayoutRows,
-      seatLayoutSeatsPerRow,
-    );
-
-    if (isTwoFloorLayout(seatLayoutType)) {
-      const firstFloor = allSeats.filter((seat) => /^A/i.test(seat.label));
-      const secondFloor = allSeats.filter((seat) => /^B/i.test(seat.label));
-
-      if (firstFloor.length + secondFloor.length === allSeats.length) {
-        return [
-          buildSeatFloor('Tầng 1', firstFloor, gridConfig.rows, gridConfig.seatsPerRow),
-          buildSeatFloor('Tầng 2', secondFloor, gridConfig.rows, gridConfig.seatsPerRow),
-        ];
-      }
-
+    if ((trip?.capacity || allSeats.length) > 40) {
       const half = Math.ceil(allSeats.length / 2);
       return [
-        buildSeatFloor('Tầng 1', allSeats.slice(0, half), gridConfig.rows, gridConfig.seatsPerRow),
-        buildSeatFloor('Tầng 2', allSeats.slice(half), gridConfig.rows, gridConfig.seatsPerRow),
+        { name: "Tầng 1", seats: allSeats.slice(0, half) },
+        { name: "Tầng 2", seats: allSeats.slice(half) },
       ];
     }
-
-    if (!seatLayoutType && (trip?.capacity || allSeats.length) > 40) {
-      const half = Math.ceil(allSeats.length / 2);
-      return [
-        buildSeatFloor('Tầng 1', allSeats.slice(0, half), gridConfig.rows, gridConfig.seatsPerRow),
-        buildSeatFloor('Tầng 2', allSeats.slice(half), gridConfig.rows, gridConfig.seatsPerRow),
-      ];
-    }
-
-    return [buildSeatFloor('Sơ đồ ghế', allSeats, gridConfig.rows, gridConfig.seatsPerRow)];
-  }, [seats, seatLayoutRows, seatLayoutSeatsPerRow, seatLayoutType, trip?.capacity]);
+    return [{ name: "Sơ đồ ghế", seats: allSeats }];
+  }, [layout, seats, seatByLabel, trip?.capacity]);
 
   const holdSeat = async (seatLabel) => {
     setBusySeat(seatLabel);
@@ -247,19 +266,22 @@ export default function SeatSelection() {
       setSelectedSeats(nextSeats);
       if (expiresAt) {
         setHoldExpiresAt(expiresAt);
-        localStorage.setItem(HOLD_STORAGE_KEY, JSON.stringify({
-          tripId,
-          sessionId,
-          seatLabels: nextSeats,
-          holdExpiresAt: expiresAt,
-        }));
+        localStorage.setItem(
+          HOLD_STORAGE_KEY,
+          JSON.stringify({
+            tripId,
+            sessionId,
+            seatLabels: nextSeats,
+            holdExpiresAt: expiresAt,
+          }),
+        );
       }
       await loadSeats();
     } catch (err) {
-      alert(err.message || 'Không thể giữ ghế này.');
+      alert(err.message || "Không thể giữ ghế này.");
       await loadSeats().catch(() => {});
     } finally {
-      setBusySeat('');
+      setBusySeat("");
     }
   };
 
@@ -278,28 +300,33 @@ export default function SeatSelection() {
         setHoldExpiresAt(null);
         localStorage.removeItem(HOLD_STORAGE_KEY);
       } else {
-        const storedHold = JSON.parse(localStorage.getItem(HOLD_STORAGE_KEY) || 'null');
-        localStorage.setItem(HOLD_STORAGE_KEY, JSON.stringify({
-          ...(storedHold || {}),
-          tripId,
-          sessionId,
-          seatLabels: nextSeats,
-        }));
+        const storedHold = JSON.parse(
+          localStorage.getItem(HOLD_STORAGE_KEY) || "null",
+        );
+        localStorage.setItem(
+          HOLD_STORAGE_KEY,
+          JSON.stringify({
+            ...(storedHold || {}),
+            tripId,
+            sessionId,
+            seatLabels: nextSeats,
+          }),
+        );
       }
       await loadSeats();
     } catch (err) {
-      alert(err.message || 'Không thể nhả ghế này.');
+      alert(err.message || "Không thể nhả ghế này.");
       await loadSeats().catch(() => {});
     } finally {
-      setBusySeat('');
+      setBusySeat("");
     }
   };
 
   const toggleSeat = (seatLabel) => {
     const status = getSeatStatus(seatByLabel.get(seatLabel));
-    if (status === 'Booked' || status === 'HoldingByOther') return;
+    if (status === "Booked" || status === "HoldingByOther") return;
 
-    if (selectedSeats.includes(seatLabel) || status === 'HoldingByMe') {
+    if (selectedSeats.includes(seatLabel) || status === "HoldingByMe") {
       releaseSeat(seatLabel);
       return;
     }
@@ -309,32 +336,43 @@ export default function SeatSelection() {
 
   const continueBooking = () => {
     if (selectedSeats.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 ghế.');
+      alert("Vui lòng chọn ít nhất 1 ghế.");
       return;
     }
 
-    let bookingLeg = 'single';
-    try {
-      const roundTrip = JSON.parse(localStorage.getItem(ROUND_TRIP_KEY) || 'null');
-      if (roundTrip?.returnDate) {
-        bookingLeg = roundTrip.stage === 'return' ? 'return' : 'outbound';
-      }
-    } catch {
-      bookingLeg = 'single';
+    if (!holdExpiresAt || remainingMs <= 0) {
+      alert("Đã hết thời gian giữ ghế. Vui lòng chọn lại.");
+      loadSeats().catch(() => {});
+      return;
     }
 
-    localStorage.setItem('pendingBooking', JSON.stringify({
-      tripId,
-      sessionId,
-      seatLabels: selectedSeats,
-      holdExpiresAt,
-      trip,
-      pricePerSeat: trip?.price || 0,
-      totalPrice: total,
-      bookingLeg,
-    }));
+    let bookingLeg = "single";
+    try {
+      const roundTrip = JSON.parse(
+        localStorage.getItem(ROUND_TRIP_KEY) || "null",
+      );
+      if (roundTrip?.returnDate) {
+        bookingLeg = roundTrip.stage === "return" ? "return" : "outbound";
+      }
+    } catch {
+      bookingLeg = "single";
+    }
 
-    navigate('/booking/pickup-dropoff');
+    localStorage.setItem(
+      "pendingBooking",
+      JSON.stringify({
+        tripId,
+        sessionId,
+        seatLabels: selectedSeats,
+        holdExpiresAt,
+        trip,
+        pricePerSeat: trip?.price || 0,
+        totalPrice: total,
+        bookingLeg,
+      }),
+    );
+
+    navigate("/booking/pickup-dropoff");
   };
 
   if (loading) {
@@ -350,7 +388,7 @@ export default function SeatSelection() {
       <UserLayout>
         <div className="container seat-page-error">
           <h1>Không thể mở trang chọn ghế</h1>
-          <p>{error || 'Không tìm thấy chuyến xe.'}</p>
+          <p>{error || "Không tìm thấy chuyến xe."}</p>
         </div>
       </UserLayout>
     );
@@ -361,9 +399,14 @@ export default function SeatSelection() {
       <section className="seat-page-hero">
         <div className="container">
           <span>Chọn ghế</span>
-          <h1>{trip.departureLocation} → {trip.arrivalLocation}</h1>
-          <p>{trip.operatorName} · {trip.busType} · {formatDateTime(trip.departureTime)}</p>
-          <BookingSteps currentStep={1} />
+          <h1>
+            {trip.departureLocation} → {trip.arrivalLocation}
+          </h1>
+          <p>
+            {trip.operatorName} · {trip.busType} ·{" "}
+            {formatDateTime(trip.departureTime)}
+          </p>
+          <BookingSteps step={1} />
         </div>
       </section>
 
@@ -383,56 +426,122 @@ export default function SeatSelection() {
           </div>
 
           <div className="seat-status-legend">
-            <span><b className="legend-available" /> Còn trống</span>
-            <span><b className="legend-selected" /> Đang chọn/Bạn đang giữ</span>
-            <span><b className="legend-booked" /> Đã đặt</span>
-            <span><b className="legend-other" /> Người khác đang giữ</span>
+            <span>
+              <b className="legend-available" /> Còn trống
+            </span>
+            <span>
+              <b className="legend-selected" /> Đang chọn/Bạn đang giữ
+            </span>
+            <span>
+              <b className="legend-booked" /> Đã đặt
+            </span>
+            <span>
+              <b className="legend-other" /> Người khác đang giữ
+            </span>
           </div>
 
-          <div className={`bus-floor-wrapper ${floors.length > 1 ? 'two-floor' : ''}`}>
-            {floors.map((floor) => (
-              <div className="bus-floor" key={floor.name}>
-                <div className="bus-floor-head">
-                  <strong>{floor.name}</strong>
-                  <span>{floor.seats.length} ghế</span>
+          <div
+            className={`bus-floor-wrapper ${floors.length > 1 ? "two-floor" : ""}`}
+          >
+            {floors.map((floor) => {
+              const seatCount = floor.grid
+                ? floor.grid.flat().filter((c) => c.type === "seat").length
+                : (floor.seats?.length ?? 0);
+              return (
+                <div className="bus-floor" key={floor.name}>
+                  <div className="bus-floor-head">
+                    <strong>{floor.name}</strong>
+                    <span>{seatCount} ghế</span>
+                  </div>
+                  <div className="driver-row">
+                    <i className="fa-solid fa-steering-wheel" />
+                    <span>Tài xế</span>
+                  </div>
+                  {floor.grid ? (
+                    // Custom layout — render theo grid từ nhà xe
+                    <div
+                      style={{
+                        display: "inline-grid",
+                        gridTemplateColumns: `repeat(${floor.cols}, 44px)`,
+                        gap: 8,
+                      }}
+                    >
+                      {floor.grid.flat().map((cell, idx) => {
+                        if (cell.type === "aisle")
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#94a3b8",
+                                fontSize: "1.1rem",
+                              }}
+                            >
+                              ↕
+                            </div>
+                          );
+                        if (cell.type === "empty" || !cell.label)
+                          return <div key={idx} />;
+                        const isSelected =
+                          selectedSeats.includes(cell.label) ||
+                          cell.status === "HoldingByMe";
+                        const disabled =
+                          cell.status === "Booked" ||
+                          cell.status === "HoldingByOther" ||
+                          busySeat === cell.label;
+                        return (
+                          <button
+                            type="button"
+                            key={idx}
+                            disabled={disabled}
+                            onClick={() => toggleSeat(cell.label)}
+                            className={`seat-v2 status-${(cell.status || "available").toLowerCase()} ${isSelected ? "selected" : ""}`}
+                            title={`${cell.label} - ${labelSeatStatus(cell.status || "Available")}`}
+                          >
+                            {busySeat === cell.label ? (
+                              <i className="fa-solid fa-spinner fa-spin" />
+                            ) : (
+                              cell.label
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    // Lưới mặc định
+                    <div className="seat-grid-v2">
+                      {floor.seats.map((seat) => {
+                        const isSelected =
+                          selectedSeats.includes(seat.label) ||
+                          seat.status === "HoldingByMe";
+                        const disabled =
+                          seat.status === "Booked" ||
+                          seat.status === "HoldingByOther" ||
+                          busySeat === seat.label;
+                        return (
+                          <button
+                            type="button"
+                            key={seat.label}
+                            disabled={disabled}
+                            onClick={() => toggleSeat(seat.label)}
+                            className={`seat-v2 status-${seat.status.toLowerCase()} ${isSelected ? "selected" : ""}`}
+                            title={`${seat.label} - ${labelSeatStatus(seat.status)}`}
+                          >
+                            {busySeat === seat.label ? (
+                              <i className="fa-solid fa-spinner fa-spin" />
+                            ) : (
+                              seat.label
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="driver-row">
-                  <i className="fa-solid fa-steering-wheel" />
-                  <span>Tài xế</span>
-                </div>
-                <div
-                  className="seat-grid-v2"
-                  style={{ gridTemplateColumns: `repeat(${floor.seatsPerRow}, minmax(42px, 1fr))` }}
-                >
-                  {floor.slots.map((seat, index) => {
-                    if (!seat) {
-                      return (
-                        <span
-                          className="seat-placeholder-v2"
-                          key={`${floor.name}-empty-${index}`}
-                          aria-label="Vị trí trống"
-                        />
-                      );
-                    }
-
-                    const isSelected = selectedSeats.includes(seat.label) || seat.status === 'HoldingByMe';
-                    const disabled = seat.status === 'Booked' || seat.status === 'HoldingByOther' || busySeat === seat.label;
-                    return (
-                      <button
-                        type="button"
-                        key={seat.label}
-                        disabled={disabled}
-                        onClick={() => toggleSeat(seat.label)}
-                        className={`seat-v2 status-${seat.status.toLowerCase()} ${isSelected ? 'selected' : ''}`}
-                        title={`${seat.label} - ${labelSeatStatus(seat.status)}`}
-                      >
-                        {busySeat === seat.label ? <i className="fa-solid fa-spinner fa-spin" /> : seat.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -441,12 +550,16 @@ export default function SeatSelection() {
           <div className="seat-summary-trip">
             <strong>{trip.operatorName}</strong>
             <span>{trip.busType}</span>
-            <p>{trip.departureLocation} → {trip.arrivalLocation}</p>
+            <p>
+              {trip.departureLocation} → {trip.arrivalLocation}
+            </p>
           </div>
 
           <div className="seat-summary-line">
             <span>Ghế đã chọn</span>
-            <strong>{selectedSeats.length ? selectedSeats.join(', ') : 'Chưa chọn'}</strong>
+            <strong>
+              {selectedSeats.length ? selectedSeats.join(", ") : "Chưa chọn"}
+            </strong>
           </div>
           <div className="seat-summary-line">
             <span>Số lượng ghế</span>
@@ -461,7 +574,12 @@ export default function SeatSelection() {
             <strong>{formatVND(total)}</strong>
           </div>
 
-          <button type="button" className="btn btn-primary seat-continue-btn" onClick={continueBooking}>
+          <button
+            type="button"
+            className="btn btn-primary seat-continue-btn"
+            onClick={continueBooking}
+            disabled={!canContinue}
+          >
             Tiếp tục
             <i className="fa-solid fa-chevron-right" />
           </button>

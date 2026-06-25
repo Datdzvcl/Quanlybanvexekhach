@@ -38,12 +38,12 @@ await app.UseOcelot();
 
 Console.WriteLine(@"
 ╔══════════════════════════════════════════════════════════════╗
-║              BaseCore API Gateway                            ║
+║              VeXeAZ API Gateway                              ║
 ║══════════════════════════════════════════════════════════════║
 ║  Gateway:        http://localhost:5000                       ║
-║  User Service:   http://localhost:5003                       ║
-║  Product Service: http://localhost:5001                      ║
-║  Order Service:  http://localhost:5002                       ║
+║  Auth Service:   http://localhost:5002                       ║
+║  Booking API:    http://localhost:5001                       ║
+║  Routes: trips, bookings, tickets, buses, operators          ║
 ╚══════════════════════════════════════════════════════════════╝
 ");
 

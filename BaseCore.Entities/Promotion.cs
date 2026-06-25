@@ -15,9 +15,12 @@ namespace BaseCore.Entities
         public DateTime EndDate { get; set; }
         public bool IsActive { get; set; }
         public bool IsPublic { get; set; }
-        public int? UserID { get; set; }
+        public bool IsNewUserOnly { get; set; } // chỉ áp dụng cho khách chưa đặt vé lần nào
+        public int? UserID { get; set; }   // khách hàng được dùng (private promo)
+        public int? OperatorID { get; set; } // nhà xe tạo ra mã này
 
         public User? User { get; set; }
+        public Operator? Operator { get; set; }
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }
 }

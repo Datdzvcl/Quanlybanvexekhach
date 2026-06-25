@@ -1,5 +1,6 @@
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import SeatHoldBanner from '../components/SeatHoldBanner';
 
 export default function UserLayout({ children, simpleHeader = false, hideFooter = false }) {
   return (
@@ -9,6 +10,7 @@ export default function UserLayout({ children, simpleHeader = false, hideFooter 
         {children}
       </main>
       {!hideFooter && <Footer />}
+      <SeatHoldBanner />
     </div>
   );
 }

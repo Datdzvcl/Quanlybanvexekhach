@@ -6,7 +6,7 @@ namespace BaseCore.AuthService.Controllers
 {
     /// <summary>
     /// Roles API Controller
-    /// Teaching: Role-based Authorization (Bài 10, 11)
+    /// VeXeAZ role-based authorization.
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -70,9 +70,9 @@ namespace BaseCore.AuthService.Controllers
             // Define permissions based on role
             var permissions = role.UserType switch
             {
-                1 => new[] { "users.read", "users.write", "users.delete", "products.read", "products.write", "products.delete", "orders.read", "orders.write", "orders.delete", "categories.read", "categories.write", "categories.delete", "roles.read", "roles.write" },
-                2 => new[] { "users.read", "products.read", "products.write", "orders.read", "orders.write", "categories.read" },
-                _ => new[] { "products.read", "orders.read", "categories.read" }
+                1 => new[] { "users.read", "users.write", "users.delete", "trips.read", "trips.write", "trips.delete", "bookings.read", "bookings.write", "bookings.delete", "buses.read", "buses.write", "operators.read", "operators.write", "roles.read", "roles.write" },
+                2 => new[] { "users.read", "trips.read", "trips.write", "bookings.read", "bookings.write", "buses.read", "operators.read" },
+                _ => new[] { "trips.read", "bookings.read", "tickets.read" }
             };
 
             return Ok(new

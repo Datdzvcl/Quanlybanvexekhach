@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (b.status === "Paid") {
           badgeClass = "badge-success";
           statusText = "Đã thanh toán";
-        } else if (b.status === "Pending") {
+        } else if (b.status === 0) {
           badgeClass = "badge-warning";
           statusText = "Chờ xử lý";
         } else if (b.status === "Cancelled") {
@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         // BUTTON
-        if (b.status === "Pending") {
+        if (b.status === 0) {
           actionBtn = `
         <button onclick="markAsPaid(${b.id})"
         style="border:none; background:var(--primary-color); color:white; padding:5px 10px; border-radius:4px; cursor:pointer;">

@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
-using BaseCore.Common;
 
 namespace BaseCore.Repository.EFCore
 {
@@ -30,13 +29,11 @@ namespace BaseCore.Repository.EFCore
             {
                 keyword = keyword.ToLower();
 
-                var roleCode = DomainCodes.IsValidRole(keyword) ? DomainCodes.ToRoleCode(keyword) : (byte?)null;
-
-                query = query.Where(u =>
+               query = query.Where(u =>
                     u.FullName.ToLower().Contains(keyword) ||
                     u.Email.ToLower().Contains(keyword) ||
                     u.Phone.ToLower().Contains(keyword) ||
-                    (roleCode.HasValue && u.Role == roleCode.Value));
+                    u.Role.ToString().Contains(keyword));
             }
 
             var totalCount = await query.CountAsync();

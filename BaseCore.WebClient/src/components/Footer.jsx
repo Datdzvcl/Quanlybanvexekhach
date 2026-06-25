@@ -6,10 +6,10 @@ export default function Footer() {
           <h3><i className="fa-solid fa-bus" /> VéXeAZ</h3>
           <p>Nền tảng đặt vé xe khách trực tuyến, hỗ trợ tìm chuyến, giữ ghế và quản lý vé nhanh chóng.</p>
           <div className="footer-socials" aria-label="Mạng xã hội">
-            <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">
+            <a href="https://web.facebook.com/a.glu2k5/" target="_blank" rel="noreferrer" aria-label="Facebook">
               <i className="fa-brands fa-facebook-f" />
             </a>
-            <a href="https://zalo.me" target="_blank" rel="noreferrer" aria-label="Zalo">
+            <a href="https://chat.zalo.me/" target="_blank" rel="noreferrer" aria-label="Zalo">
               Z
             </a>
             <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube">

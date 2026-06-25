@@ -84,7 +84,11 @@ export default function BookingContact() {
   const validate = () => {
     const nextErrors = {};
     if (!form.customerName.trim()) nextErrors.customerName = 'Vui lòng nhập tên người đi.';
-    if (!form.customerPhone.trim()) nextErrors.customerPhone = 'Vui lòng nhập số điện thoại.';
+    if (!form.customerPhone.trim()) {
+      nextErrors.customerPhone = 'Vui lòng nhập số điện thoại.';
+    } else if (!/^(0[3|5|7|8|9])[0-9]{8}$/.test(form.customerPhone.trim())) {
+      nextErrors.customerPhone = 'Số điện thoại không đúng định dạng Việt Nam (VD: 0912345678).';
+    }
 
     const email = form.customerEmail.trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -98,7 +102,6 @@ export default function BookingContact() {
   const submit = (event) => {
     event.preventDefault();
     if (!pendingBooking?.tripId) {
-      alert('Không tìm thấy dữ liệu đặt vé tạm. Vui lòng chọn lại chuyến.');
       navigate('/search-results');
       return;
     }
@@ -156,7 +159,7 @@ export default function BookingContact() {
           <span>Thông tin liên hệ</span>
           <h1>Nhập thông tin người đi</h1>
           <p>Thông tin này sẽ được dùng để xác nhận vé và gửi chi tiết đặt chỗ.</p>
-          <BookingSteps currentStep={3} />
+          <BookingSteps step={3} />
         </div>
       </section>
 

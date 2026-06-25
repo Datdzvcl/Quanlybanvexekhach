@@ -3,341 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { API_BASE, formatVND, pick } from '../api';
 import { tripApi } from '../services/tripApi';
-import { apiClient } from '../services/httpClient';
 import { reviewApi } from '../services/reviewApi';
 import { promotionApi } from '../services/promotionApi';
-
-function formatDuration(minutes) {
-  if (!minutes) return null;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m} phút`;
-  return m === 0 ? `${h} tiếng` : `${h} tiếng ${m} phút`;
-}
-
-function extractImageUrl(image) {
-  if (typeof image === 'string') return image;
-  return image?.imageUrl || image?.ImageUrl || image?.url || image?.Url || '';
-}
-
-function extractImageUrls(image) {
-  if (!image) return [];
-  if (Array.isArray(image)) return image.flatMap(extractImageUrls);
-
-  if (typeof image === 'string') {
-    const value = image.trim();
-    if (!value) return [];
-    if (value.startsWith('[')) {
-      try {
-        return extractImageUrls(JSON.parse(value));
-      } catch {
-        return [value];
-      }
-    }
-    return [value];
-  }
-
-  return extractImageUrls(
-    image.imageUrls || image.ImageUrls || image.images || image.Images || extractImageUrl(image)
-  );
-}
-
-function resolvePublicImageUrl(value) {
-  const url = String(value || '').trim();
-  if (!url) return '';
-  if (/^(data:|blob:|https?:\/\/)/i.test(url)) return url;
-  if (url.startsWith('/')) return `${API_BASE}${url}`;
-  if (url.startsWith('uploads/')) return `${API_BASE}/${url}`;
-  return url;
-}
-
-function getTripImageFallback(tripData) {
-  const bus = pick(tripData, ['bus', 'Bus']);
-  const urls = extractImageUrls(
-    pick(tripData, ['busImageUrls', 'BusImageUrls']) ||
-    pick(tripData, ['busImageUrl', 'BusImageUrl']) ||
-    pick(bus, ['imageUrls', 'ImageUrls']) ||
-    pick(bus, ['imageUrl', 'ImageUrl'])
-  ).map(resolvePublicImageUrl).filter(Boolean);
-
-  return urls.map((url) => ({ imageUrl: url, url }));
-}
-
-const DETAIL_TABS = [
-  { key: 'stops', label: 'Đón/trả' },
-  { key: 'promo', label: 'Giảm giá' },
-  { key: 'reviews', label: 'Đánh giá' },
-  { key: 'policy', label: 'Chính sách' },
-  { key: 'images', label: 'Hình ảnh' },
-];
-
-function StopDot({ type }) {
-  return <span className={`stop-dot ${type === 'pickup' ? 'pickup' : 'dropoff'}`} />;
-}
-
-function TripDetailTabs({ tripId, tripData }) {
-  const [activeTab, setActiveTab] = useState('stops');
-  const [stops, setStops] = useState(null);
-  const [reviews, setReviews] = useState(null);
-  const [promotions, setPromotions] = useState(null);
-  const [images, setImages] = useState(null);
-  const [loading, setLoading] = useState({});
-
-  const load = (tab) => {
-    if (tab === 'stops' && !stops) {
-      setLoading((p) => ({ ...p, stops: true }));
-      apiClient.get(`/api/trips/${tripId}/stops`).then((r) => {
-        const d = r.data;
-        const pickup = d?.pickupStops || d?.PickupStops ||
-          (Array.isArray(d?.items) ? d.items.filter((s) => Number(s.stopType ?? s.StopType) === 1) : []);
-        const dropoff = d?.dropoffStops || d?.DropoffStops ||
-          (Array.isArray(d?.items) ? d.items.filter((s) => Number(s.stopType ?? s.StopType) === 2) : []);
-        setStops({ pickup, dropoff });
-      }).catch(() => setStops({ pickup: [], dropoff: [] }))
-        .finally(() => setLoading((p) => ({ ...p, stops: false })));
-    }
-    if (tab === 'reviews' && !reviews) {
-      setLoading((p) => ({ ...p, reviews: true }));
-      reviewApi.getByTrip(tripId, 1, 10).then((r) => setReviews(r))
-        .catch(() => setReviews({ items: [], averageRating: 0, totalCount: 0 }))
-        .finally(() => setLoading((p) => ({ ...p, reviews: false })));
-    }
-    if (tab === 'promo' && !promotions) {
-      setLoading((p) => ({ ...p, promo: true }));
-      promotionApi.listPublic().then((items) => setPromotions(Array.isArray(items) ? items : []))
-        .catch(() => setPromotions([]))
-        .finally(() => setLoading((p) => ({ ...p, promo: false })));
-    }
-    if (tab === 'images' && !images) {
-      setLoading((p) => ({ ...p, images: true }));
-      const bus = pick(tripData, ['bus', 'Bus']);
-      const busId = bus?.busID ?? bus?.BusID ?? pick(tripData, ['busId', 'BusID', 'busID']);
-      const fallbackImages = getTripImageFallback(tripData);
-
-      if (!busId) {
-        setImages(fallbackImages);
-        setLoading((p) => ({ ...p, images: false }));
-        return;
-      }
-
-      apiClient.get(`/api/buses/${busId}/images`).then((r) => {
-        const d = r.data;
-        const list = Array.isArray(d) ? d : (d?.items || d?.Images || []);
-        setImages(list.length > 0 ? list : fallbackImages);
-      }).catch(() => setImages(fallbackImages))
-        .finally(() => setLoading((p) => ({ ...p, images: false })));
-    }
-  };
-
-  const switchTab = (tab) => {
-    setActiveTab(tab);
-    load(tab);
-  };
-
-  // auto-load stops
-  useEffect(() => { load('stops'); }, [tripId]);
-
-  const [lightbox, setLightbox] = useState(null);
-  const imageUrls = useMemo(() => (
-    (images || [])
-      .flatMap(extractImageUrls)
-      .map(resolvePublicImageUrl)
-      .filter(Boolean)
-  ), [images]);
-
-  return (
-    <div className="trip-tabs-panel">
-      <div className="trip-tabs-nav">
-        {DETAIL_TABS.map((tab) => (
-          <button key={tab.key} type="button"
-            className={`trip-tab-btn${activeTab === tab.key ? ' active' : ''}`}
-            onClick={() => switchTab(tab.key)}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="trip-tabs-content">
-        {/* ── Đón/trả ── */}
-        {activeTab === 'stops' && (
-          loading.stops ? <div className="trip-tabs-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div> : (
-            <div className="trip-stops-grid">
-              <div className="trip-stops-col">
-                <h4><i className="fa-solid fa-location-dot" /> Điểm đón</h4>
-                {(stops?.pickup || []).length === 0
-                  ? <p className="trip-tabs-empty">Chưa có điểm đón.</p>
-                  : (stops.pickup.map((s) => {
-                    const name = pick(s, ['stopName', 'StopName'], 'Điểm dừng');
-                    const addr = pick(s, ['stopAddress', 'StopAddress'], '');
-                    const offset = pick(s, ['offsetMinutes', 'OffsetMinutes', 'stopOffset', 'StopOffset']);
-                    return (
-                      <div key={pick(s, ['stopPointID', 'StopPointID'])} className="trip-stop-item">
-                        <StopDot type="pickup" />
-                        <div>
-                          <strong>{name}</strong>
-                          {addr && <span>{addr}</span>}
-                          {offset != null && <em>+{offset} phút so với giờ khởi hành</em>}
-                        </div>
-                      </div>
-                    );
-                  }))}
-              </div>
-              <div className="trip-stops-col">
-                <h4><i className="fa-solid fa-flag-checkered" /> Điểm trả</h4>
-                {(stops?.dropoff || []).length === 0
-                  ? <p className="trip-tabs-empty">Chưa có điểm trả.</p>
-                  : (stops.dropoff.map((s) => {
-                    const name = pick(s, ['stopName', 'StopName'], 'Điểm dừng');
-                    const addr = pick(s, ['stopAddress', 'StopAddress'], '');
-                    const offset = pick(s, ['offsetMinutes', 'OffsetMinutes', 'stopOffset', 'StopOffset']);
-                    return (
-                      <div key={pick(s, ['stopPointID', 'StopPointID'])} className="trip-stop-item">
-                        <StopDot type="dropoff" />
-                        <div>
-                          <strong>{name}</strong>
-                          {addr && <span>{addr}</span>}
-                          {offset != null && <em>+{offset} phút so với giờ khởi hành</em>}
-                        </div>
-                      </div>
-                    );
-                  }))}
-              </div>
-            </div>
-          )
-        )}
-
-        {/* ── Giảm giá ── */}
-        {activeTab === 'promo' && (
-          loading.promo ? <div className="trip-tabs-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div> : (
-            promotions?.length === 0 ? <p className="trip-tabs-empty">Hiện chưa có mã giảm giá nào.</p> : (
-              <div className="trip-promo-list">
-                {(promotions || []).map((item) => {
-                  const code = pick(item, ['code', 'Code'], '');
-                  const discountType = Number(pick(item, ['discountType', 'DiscountType'], 1));
-                  const discountValue = pick(item, ['discountValue', 'DiscountValue'], 0);
-                  const maxDiscount = Number(pick(item, ['maxDiscountAmount', 'MaxDiscountAmount'], 0));
-                  const minOrder = Number(pick(item, ['minOrderValue', 'MinOrderValue'], 0));
-                  const endDate = pick(item, ['endDate', 'EndDate']);
-                  const usageLimit = pick(item, ['usageLimit', 'UsageLimit']);
-                  const usageCount = Number(pick(item, ['usageCount', 'UsageCount'], 0));
-                  const remaining = usageLimit != null ? Number(usageLimit) - usageCount : null;
-                  const discountText = discountType === 1
-                    ? (maxDiscount > 0 ? `Giảm ${discountValue}% tối đa ${formatVND(maxDiscount)}` : `Giảm ${discountValue}%`)
-                    : `Giảm ${formatVND(discountValue)}`;
-                  return (
-                    <div key={code} className="trip-promo-item">
-                      <div className="trip-promo-code">{code}</div>
-                      <div className="trip-promo-body">
-                        <strong>{discountText}</strong>
-                        <span>
-                          {pick(item, ['description', 'Description']) || ''}
-                        </span>
-                        <small>
-                          {minOrder > 0 ? `Đơn từ ${formatVND(minOrder)} · ` : ''}
-                          {remaining != null ? `Còn ${remaining} lượt · ` : 'Không giới hạn lượt dùng · '}
-                          {endDate ? `Hết hạn ${new Date(endDate).toLocaleDateString('vi-VN')}` : ''}
-                        </small>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          )
-        )}
-
-        {/* ── Đánh giá ── */}
-        {activeTab === 'reviews' && (
-          loading.reviews ? <div className="trip-tabs-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div> : (
-            reviews?.totalCount === 0 || !reviews ? (
-              <p className="trip-tabs-empty">Chưa có đánh giá nào cho chuyến xe này.</p>
-            ) : (
-              <div className="trip-reviews-panel">
-                <div className="trip-reviews-summary">
-                  <span className="trip-reviews-avg">{Number(reviews.averageRating || 0).toFixed(1)}</span>
-                  <i className="fa-solid fa-star" />
-                  <span className="trip-reviews-count">{reviews.totalCount} đánh giá</span>
-                </div>
-                <div className="trip-review-list">
-                  {(reviews.items || []).map((rv) => {
-                    const name = pick(rv, ['customerName', 'CustomerName', 'userName', 'UserName', 'user', 'User'])
-                      || (typeof pick(rv, ['user', 'User']) === 'object' ? pick(rv.user ?? rv.User, ['fullName', 'FullName', 'name', 'Name']) : null)
-                      || 'Khách hàng';
-                    const rating = Number(pick(rv, ['rating', 'Rating'], 0));
-                    const comment = pick(rv, ['comment', 'Comment'], '');
-                    const createdAt = pick(rv, ['createdAt', 'CreatedAt']);
-                    return (
-                      <div key={pick(rv, ['reviewID', 'ReviewID'])} className="trip-review-item">
-                        <div className="trip-review-header">
-                          <strong>{name}</strong>
-                          <span>{createdAt ? new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(createdAt)) : ''}</span>
-                        </div>
-                        <div className="trip-review-stars">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <i key={i} className={`fa-solid fa-star${i < rating ? ' active' : ''}`} />
-                          ))}
-                        </div>
-                        {comment && <p>{comment}</p>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )
-          )
-        )}
-
-        {/* ── Chính sách ── */}
-        {activeTab === 'policy' && (
-          <div className="trip-policy-panel">
-            <h4>Điều kiện đặt vé</h4>
-            <ul>
-              <li>Vé đã mua không được hoàn trả sau khi xác nhận thanh toán.</li>
-              <li>Có thể đổi vé trước giờ khởi hành ít nhất 24 giờ (phí đổi vé 50.000đ).</li>
-              <li>Khách hàng phải có mặt trước giờ xuất phát ít nhất 15 phút.</li>
-            </ul>
-            <h4>Hành lý</h4>
-            <ul>
-              <li>Miễn phí 20kg hành lý ký gửi và 7kg hành lý xách tay.</li>
-              <li>Hành lý quá kích thước hoặc trọng lượng sẽ tính phụ phí.</li>
-              <li>Không vận chuyển hàng hóa nguy hiểm, dễ cháy nổ.</li>
-            </ul>
-            <h4>Hỗ trợ khách hàng</h4>
-            <p>Hotline: <strong>1900 xxxx</strong> (7:00 – 22:00 hàng ngày)</p>
-            <p>Email: <strong>support@vexeaz.vn</strong></p>
-          </div>
-        )}
-
-        {/* ── Hình ảnh ── */}
-        {activeTab === 'images' && (
-          loading.images ? <div className="trip-tabs-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div> : (
-            imageUrls.length === 0 ? (
-              <p className="trip-tabs-empty">Nhà xe chưa cập nhật ảnh xe.</p>
-            ) : (
-              <>
-                <div className="trip-images-grid">
-                  {imageUrls.map((url, idx) => (
-                    <button key={`${url}-${idx}`} type="button" className="trip-image-thumb" onClick={() => setLightbox(url)}>
-                      <img src={url} alt={`Ảnh xe ${idx + 1}`} loading="lazy" />
-                    </button>
-                  ))}
-                </div>
-                {lightbox && (
-                  <div className="trip-lightbox" onClick={() => setLightbox(null)}>
-                    <button type="button" className="trip-lightbox-close" onClick={() => setLightbox(null)}>
-                      <i className="fa-solid fa-xmark" />
-                    </button>
-                    <img src={lightbox} alt="Ảnh xe phóng to" onClick={(e) => e.stopPropagation()} />
-                  </div>
-                )}
-              </>
-            )
-          )
-        )}
-      </div>
-    </div>
-  );
-}
+import { busApi } from '../services/busApi';
 
 const PAGE_SIZE = 10;
 const LAST_SEARCH_KEY = 'lastTripSearchQuery';
@@ -353,6 +21,16 @@ const timeRanges = [
 
 const busTypes = ['', 'Ghế ngồi', 'Giường nằm', 'Limousine'];
 
+const AMENITY_ICONS = {
+  wifi:    { icon: 'fa-wifi',         label: 'WiFi' },
+  water:   { icon: 'fa-bottle-water', label: 'Nước uống' },
+  charger: { icon: 'fa-plug',         label: 'Cổng sạc' },
+  ac:      { icon: 'fa-snowflake',    label: 'Điều hòa' },
+  usb:     { icon: 'fa-usb',          label: 'USB' },
+  blanket: { icon: 'fa-bed',          label: 'Chăn mền' },
+  tv:      { icon: 'fa-tv',           label: 'TV/Màn hình' },
+};
+
 const sortOptions = [
   { value: '', label: 'Mặc định' },
   { value: 'price_asc', label: 'Giá thấp đến cao' },
@@ -361,9 +39,42 @@ const sortOptions = [
   { value: 'departure_desc', label: 'Giờ xuất phát muộn nhất' },
 ];
 
+const DETAIL_TABS = [
+  { key: 'pickup',   label: 'Đón/trả' },
+  { key: 'discount', label: 'Giảm giá' },
+  { key: 'review',   label: 'Đánh giá' },
+  { key: 'policy',   label: 'Chính sách' },
+  { key: 'images',   label: 'Hình ảnh' },
+];
+
+function normalizeStops(response) {
+  const pickupStops  = response?.pickupStops  || response?.PickupStops  || [];
+  const dropoffStops = response?.dropoffStops || response?.DropoffStops || [];
+  const items        = response?.items        || response?.Items        || [];
+  return {
+    pickupStops: pickupStops.length
+      ? pickupStops
+      : items.filter((s) => { const t = Number(pick(s, ['stopType', 'StopType'])); return t === 1 || t === 3; }),
+    dropoffStops: dropoffStops.length
+      ? dropoffStops
+      : items.filter((s) => { const t = Number(pick(s, ['stopType', 'StopType'])); return t === 2 || t === 3; }),
+  };
+}
+
 function formatDate(value) {
   if (!value) return '--';
   return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value));
+}
+
+function formatReviewDate(value) {
+  if (!value) return '--';
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -403,9 +114,74 @@ function formatDateLabel(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+// function LocationPicker({ label, value, onChange, options, icon, accentClass, placeholder }) {
+//   const [open, setOpen] = useState(false);
+//   const [isTyping, setIsTyping] = useState(false);
+//   const filteredOptions = useMemo(() => {
+//     const keyword = isTyping ? normalizeText(value) : '';
+//     const source = keyword
+//       ? options.filter((item) => normalizeText(item).includes(keyword))
+//       : options;
+//     return source.slice(0, 12);
+//   }, [isTyping, options, value]);
+
+//   const selectLocation = (location) => {
+//     onChange(location);
+//     setIsTyping(false);
+//     setOpen(false);
+//   };
+
+//   return (
+//     <div className={`home-location-picker ${open ? 'open' : ''}`}>
+//       <i className={`fa-solid ${icon} ${accentClass}`} />
+//       <label>
+//         <span>{label}</span>
+//         <input
+//           value={value}
+//           placeholder={placeholder}
+//           onFocus={() => {
+//             setIsTyping(false);
+//             setOpen(true);
+//           }}
+//           onChange={(event) => {
+//             onChange(event.target.value);
+//             setIsTyping(true);
+//             setOpen(true);
+//           }}
+//           onBlur={() => window.setTimeout(() => {
+//             setIsTyping(false);
+//             setOpen(false);
+//           }, 120)}
+//         />
+//       </label>
+
+//       {open && (
+//         <div className="home-location-menu">
+//           <strong>Địa điểm phổ biến</strong>
+//           {filteredOptions.length > 0 ? (
+//             filteredOptions.map((location) => (
+//               <button
+//                 type="button"
+//                 key={location}
+//                 onMouseDown={(event) => event.preventDefault()}
+//                 onClick={() => selectLocation(location)}
+//               >
+//                 <i className="fa-solid fa-location-dot" />
+//                 <span>{location}</span>
+//               </button>
+//             ))
+//           ) : (
+//             <p>Không có gợi ý phù hợp. Bạn có thể nhập tay.</p>
+//           )}
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 function LocationPicker({ label, value, onChange, options, icon, accentClass, placeholder }) {
   const [open, setOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+
   const filteredOptions = useMemo(() => {
     const keyword = isTyping ? normalizeText(value) : '';
     const source = keyword
@@ -531,25 +307,41 @@ export default function SearchResults() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const today = useMemo(() => getToday(), []);
-  const [locations, setLocations] = useState([]);
+  const [reviewModal, setReviewModal] = useState({
+    open: false,
+    loading: false,
+    title: '',
+    subtitle: '',
+    items: [],
+    averageRating: 0,
+    reviewCount: 0,
+    error: '',
+  });
   const [expandedTripId, setExpandedTripId] = useState(null);
-
-  const toggleDetail = (tripId) => {
-    setExpandedTripId((prev) => (prev === tripId ? null : tripId));
-  };
-
-  const [operators, setOperators] = useState([]);
+  const [activeTab, setActiveTab] = useState('pickup');
+  const [tripDetailData, setTripDetailData] = useState({});
+  const [tripDetailLoading, setTripDetailLoading] = useState({});
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const today = useMemo(() => getToday(), []);
+  // const [locations, setLocations] = useState([]);
+  const [departureOptions, setDepartureOptions] = useState([]);
+const [arrivalOptions, setArrivalOptions] = useState([]);
 
   const [filters, setFilters] = useState({
     busType: searchParams.get('busType') || '',
     departureTimeRange: searchParams.get('departureTimeRange') || '',
     arrivalTimeRange: searchParams.get('arrivalTimeRange') || '',
     operatorId: searchParams.get('operatorId') || '',
+    operatorIds: searchParams.get('operatorIds') || '',
+    pickupStopId: searchParams.get('pickupStopId') || '',
+    dropoffStopId: searchParams.get('dropoffStopId') || '',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     sortBy: searchParams.get('sortBy') || '',
   });
+
+  const [operators, setOperators] = useState([]);
+  const [operatorSearch, setOperatorSearch] = useState('');
 
   const baseQuery = useMemo(() => ({
     from: searchParams.get('from') || '',
@@ -567,26 +359,38 @@ export default function SearchResults() {
     returnDate: '',
   });
 
-  const locationOptions = useMemo(() => {
-    return Array.from(new Set(
-      locations
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
-    )).sort((a, b) => a.localeCompare(b, 'vi'));
-  }, [locations]);
+  // const locationOptions = useMemo(() => {
+  //   return Array.from(new Set(
+  //     locations
+  //       .map((item) => String(item || '').trim())
+  //       .filter(Boolean)
+  //   )).sort((a, b) => a.localeCompare(b, 'vi'));
+  // }, [locations]);
 
   const page = Number(searchParams.get('page') || 1);
 
+  // useEffect(() => {
+  //   fetch(`${API_BASE}/api/trips/locations`)
+  //     .then((response) => (response.ok ? response.json() : []))
+  //     .then((data) => setLocations(Array.isArray(data) ? data : []))
+  //     .catch(() => setLocations([]));
+  // }, []);
   useEffect(() => {
-    fetch(`${API_BASE}/api/trips/locations`)
-      .then((response) => (response.ok ? response.json() : []))
-      .then((data) => setLocations(Array.isArray(data) ? data : []))
-      .catch(() => setLocations([]));
-  }, []);
+  fetch(`${API_BASE}/api/trips/locations`)
+    .then((response) => response.json())
+    .then((data) => {
+      setDepartureOptions(data.departures || []);
+      setArrivalOptions(data.arrivals || []);
+    })
+    .catch(() => {
+      setDepartureOptions([]);
+      setArrivalOptions([]);
+    });
+}, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/operators/public`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then((r) => r.json())
       .then((data) => setOperators(Array.isArray(data) ? data : []))
       .catch(() => setOperators([]));
   }, []);
@@ -614,39 +418,77 @@ export default function SearchResults() {
     }
   }, [baseQuery, roundTripStage]);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError('');
+  // useEffect(() => {
+  //   const load = async () => {
+  //     setLoading(true);
+  //     setError('');
 
-      try {
-        const params = {
-          ...baseQuery,
-          ...filters,
-          page,
-          pageSize: PAGE_SIZE,
-        };
+  //     try {
+  //       const params = {
+  //         ...baseQuery,
+  //         ...filters,
+  //         page,
+  //         pageSize: PAGE_SIZE,
+  //       };
 
-        Object.keys(params).forEach((key) => {
-          if (params[key] === '' || params[key] == null) delete params[key];
-        });
+  //       Object.keys(params).forEach((key) => {
+  //         if (params[key] === '' || params[key] == null) delete params[key];
+  //       });
 
-        const response = await tripApi.search(params);
-        const result = parseItems(response);
-        setItems(result.items);
-        setPagination(result);
-      } catch (err) {
-        setError(err.message || 'Không thể tải danh sách chuyến xe.');
-        setItems([]);
-        setPagination({ totalCount: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 });
-      } finally {
-        setLoading(false);
-      }
-    };
+  //       const response = await tripApi.search(params);
+  //       const result = parseItems(response);
+  //       setItems(result.items);
+  //       setPagination(result);
+  //     } catch (err) {
+  //       setError(err.message || 'Không thể tải danh sách chuyến xe.');
+  //       setItems([]);
+  //       setPagination({ totalCount: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 });
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    load();
-  }, [baseQuery, filters, page]);
+  //   load();
+  // }, [baseQuery, filters, page]);
+useEffect(() => {
+  const load = async () => {
+    // ← Thêm guard này
+    if (!baseQuery.from || !baseQuery.to || !baseQuery.departureDate) {
+      setItems([]);
+      setPagination({ totalCount: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 });
+      return;
+    }
 
+    setLoading(true);
+    setError('');
+
+    try {
+      const params = {
+        ...baseQuery,
+        ...filters,
+        page,
+        pageSize: PAGE_SIZE,
+      };
+
+      Object.keys(params).forEach((key) => {
+        if (params[key] === '' || params[key] == null) delete params[key];
+      });
+
+      const response = await tripApi.search(params);
+      const result = parseItems(response);
+      setItems(result.items);
+      setPagination(result);
+    } catch (err) {
+      setError(err.message || 'Không thể tải danh sách chuyến xe.');
+      setItems([]);
+      setPagination({ totalCount: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  load();
+}, [baseQuery, filters, page]);
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
     const next = new URLSearchParams(searchParams);
@@ -655,6 +497,14 @@ export default function SearchResults() {
     next.set('page', '1');
     setSearchParams(next);
   };
+
+  const toggleOperator = (id) => {
+    const current = filters.operatorIds ? filters.operatorIds.split(',').map(Number).filter(Boolean) : [];
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+    updateFilter('operatorIds', next.join(','));
+  };
+
+  const selectedOpIds = filters.operatorIds ? filters.operatorIds.split(',').map(Number).filter(Boolean) : [];
 
   const goToPage = (nextPage) => {
     const next = new URLSearchParams(searchParams);
@@ -689,6 +539,93 @@ export default function SearchResults() {
     }
 
     navigate(`/trips/${id}/seats`);
+  };
+
+  const openReviewModal = async ({ id, title, subtitle }) => {
+    if (!id) return;
+    setReviewModal({
+      open: true,
+      loading: true,
+      title,
+      subtitle,
+      items: [],
+      averageRating: 0,
+      reviewCount: 0,
+      error: '',
+    });
+
+    try {
+      const data = await reviewApi.byOperator(id);
+      setReviewModal({
+        open: true,
+        loading: false,
+        title,
+        subtitle,
+        items: data?.items || data?.Items || [],
+        averageRating: Number(data?.averageRating ?? data?.AverageRating ?? 0),
+        reviewCount: Number(data?.reviewCount ?? data?.ReviewCount ?? 0),
+        error: '',
+      });
+    } catch (err) {
+      setReviewModal((current) => ({
+        ...current,
+        loading: false,
+        error: err.message || 'Không tải được đánh giá.',
+      }));
+    }
+  };
+
+  const closeReviewModal = () => {
+    setReviewModal((current) => ({ ...current, open: false }));
+  };
+
+  const loadTripDetail = async (tripId, tabKey, trip) => {
+    if (tabKey === 'policy') return;
+    const cacheKey = `${tripId}_${tabKey}`;
+    if (tripDetailData[cacheKey] !== undefined) return;
+
+    setTripDetailLoading((prev) => ({ ...prev, [cacheKey]: true }));
+    try {
+      let data;
+      if (tabKey === 'pickup') {
+        const response = await tripApi.getStops(tripId);
+        data = normalizeStops(response);
+      } else if (tabKey === 'review') {
+        const operatorId = pick(trip, ['operatorID', 'operatorId', 'OperatorID']);
+        data = await reviewApi.byOperator(operatorId);
+      } else if (tabKey === 'discount') {
+        const response = await promotionApi.publicList();
+        data = Array.isArray(response) ? response : (response?.items || response?.Items || []);
+      } else if (tabKey === 'images') {
+        const busId = pick(trip, ['busID', 'busId', 'BusID']);
+        if (busId) {
+          const response = await busApi.getImages(busId);
+          data = Array.isArray(response) ? response : (response?.items || response?.Items || []);
+        } else {
+          data = [];
+        }
+      }
+      setTripDetailData((prev) => ({ ...prev, [cacheKey]: data }));
+    } catch {
+      setTripDetailData((prev) => ({ ...prev, [cacheKey]: null }));
+    } finally {
+      setTripDetailLoading((prev) => ({ ...prev, [cacheKey]: false }));
+    }
+  };
+
+  const toggleTripDetail = (tripId, trip) => {
+    if (expandedTripId === tripId) {
+      setExpandedTripId(null);
+    } else {
+      setExpandedTripId(tripId);
+      setActiveTab('pickup');
+      loadTripDetail(tripId, 'pickup', trip);
+    }
+  };
+
+  const switchDetailTab = (tabKey, tripId, trip) => {
+    setActiveTab(tabKey);
+    loadTripDetail(tripId, tabKey, trip);
   };
 
   const updateSearchForm = (key, value) => {
@@ -760,11 +697,20 @@ export default function SearchResults() {
         <div className="container">
           <form className="featured-search modern-home-search" onSubmit={submitSearch}>
             <div className="home-search-widget">
-              <LocationPicker
+              {/* <LocationPicker
                 label="Nơi xuất phát"
                 value={searchForm.from}
                 onChange={(value) => updateSearchForm('from', value)}
                 options={locationOptions}
+                icon="fa-circle-dot"
+                accentClass="from"
+                placeholder="Chọn điểm đi"
+              /> */}
+              <LocationPicker
+                label="Nơi xuất phát"
+                value={searchForm.from}
+                onChange={(value) => updateSearchForm('from', value)}
+                options={departureOptions}   // ← đổi từ locationOptions
                 icon="fa-circle-dot"
                 accentClass="from"
                 placeholder="Chọn điểm đi"
@@ -779,11 +725,20 @@ export default function SearchResults() {
                 <i className="fa-solid fa-right-left" />
               </button>
 
-              <LocationPicker
+              {/* <LocationPicker
                 label="Nơi đến"
                 value={searchForm.to}
                 onChange={(value) => updateSearchForm('to', value)}
                 options={locationOptions}
+                icon="fa-location-dot"
+                accentClass="to"
+                placeholder="Chọn điểm đến"
+              /> */}
+              <LocationPicker
+                label="Nơi đến"
+                value={searchForm.to}
+                onChange={(value) => updateSearchForm('to', value)}
+                options={arrivalOptions}     // ← đổi từ locationOptions
                 icon="fa-location-dot"
                 accentClass="to"
                 placeholder="Chọn điểm đến"
@@ -848,12 +803,16 @@ export default function SearchResults() {
                   departureTimeRange: '',
                   arrivalTimeRange: '',
                   operatorId: '',
+                  operatorIds: '',
+                  pickupStopId: '',
+                  dropoffStopId: '',
                   minPrice: '',
                   maxPrice: '',
                   sortBy: filters.sortBy,
                 });
+                setOperatorSearch('');
                 const next = new URLSearchParams(searchParams);
-                ['busType', 'departureTimeRange', 'arrivalTimeRange', 'operatorId', 'minPrice', 'maxPrice'].forEach((key) => next.delete(key));
+                ['busType', 'departureTimeRange', 'arrivalTimeRange', 'operatorId', 'operatorIds', 'pickupStopId', 'dropoffStopId', 'minPrice', 'maxPrice'].forEach((key) => next.delete(key));
                 next.set('page', '1');
                 setSearchParams(next);
               }}
@@ -885,18 +844,6 @@ export default function SearchResults() {
             </select>
           </label>
 
-          <label className="filter-control">
-            <span>Nhà xe</span>
-            <select value={filters.operatorId} onChange={(event) => updateFilter('operatorId', event.target.value)}>
-              <option value="">Tất cả nhà xe</option>
-              {operators.map((op) => (
-                <option key={op.operatorID ?? op.OperatorID} value={op.operatorID ?? op.OperatorID}>
-                  {op.name ?? op.Name}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <div className="filter-control">
             <span>Khoảng giá</span>
             <div className="price-filter-row">
@@ -916,6 +863,53 @@ export default function SearchResults() {
               />
             </div>
           </div>
+
+          {operators.length > 0 && (
+            <div className="filter-control filter-operator-group">
+              <span>Nhà xe</span>
+              <div className="filter-operator-search">
+                <i className="fa-solid fa-magnifying-glass" />
+                <input
+                  type="text"
+                  placeholder="Tìm trong danh sách"
+                  value={operatorSearch}
+                  onChange={(e) => setOperatorSearch(e.target.value)}
+                />
+              </div>
+              <div className="filter-operator-list">
+                {operators
+                  .filter((op) => pick(op, ['name', 'Name'], '').toLowerCase().includes(operatorSearch.toLowerCase()))
+                  .map((op) => {
+                    const id = pick(op, ['operatorID', 'OperatorID', 'id']);
+                    const name = pick(op, ['name', 'Name'], 'Nhà xe');
+                    const rating = Number(pick(op, ['averageRating', 'AverageRating', 'rating']) || 0);
+                    const reviewCount = Number(pick(op, ['reviewCount', 'ReviewCount', 'totalReviews']) || 0);
+                    const checked = selectedOpIds.includes(Number(id));
+                    return (
+                      <label key={id} className={`filter-operator-item ${checked ? 'checked' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleOperator(Number(id))}
+                        />
+                        <span className="filter-op-info">
+                          <span className="filter-op-name">{name}</span>
+                          {rating > 0 ? (
+                            <span className="filter-op-rating">
+                              <span className="stars">{rating.toFixed(1)}</span>
+                              <i className="fa-solid fa-star" />
+                              {reviewCount > 0 && <span className="count">({reviewCount})</span>}
+                            </span>
+                          ) : (
+                            <span className="filter-op-no-rating">Chưa có đánh giá</span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </aside>
 
         <main className="search-results-main">
@@ -952,12 +946,15 @@ export default function SearchResults() {
                 const operatorImageUrl = pick(trip, ['operatorImageUrl', 'OperatorImageUrl'], '');
                 const departureTime = pick(trip, ['departureTime', 'DepartureTime']);
                 const arrivalTime = pick(trip, ['arrivalTime', 'ArrivalTime']);
-
-                const avgRating = Number(pick(trip, ['averageRating', 'AverageRating']) || 0);
-                const reviewCount = Number(pick(trip, ['reviewCount', 'ReviewCount']) || 0);
+                const operatorId = pick(trip, ['operatorID', 'operatorId', 'OperatorID']);
+                const averageRating = Number(pick(trip, ['averageRating', 'AverageRating'], 0));
+                const reviewCount = Number(pick(trip, ['reviewCount', 'ReviewCount'], 0));
 
                 return (
-                  <article className={`trip-result-card ${expandedTripId === tripId ? 'expanded' : ''}`} key={tripId || `${operatorName}-${departureTime}`}>
+                  <article
+                    className={`trip-result-card${expandedTripId === tripId ? ' trip-result-card--expanded' : ''}`}
+                    key={tripId || `${operatorName}-${departureTime}`}
+                  >
                     <div className="operator-avatar">
                       {operatorImageUrl ? (
                         <img src={operatorImageUrl} alt={operatorName} />
@@ -969,18 +966,48 @@ export default function SearchResults() {
                     <div className="trip-result-body">
                       <div className="trip-result-title">
                         <div>
-                          <h2>{operatorName}</h2>
+                          <h2
+                            style={{ cursor: operatorId ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            onClick={() => operatorId && navigate(`/nha-xe/${operatorId}`)}
+                            title={operatorId ? `Xem thông tin ${operatorName}` : ''}
+                          >
+                            {operatorName}
+                            {operatorId && <i className="fa-solid fa-circle-info" style={{ fontSize: 13, color: '#93c5fd' }} />}
+                          </h2>
                           <p>{pick(trip, ['busType', 'BusType'], 'Xe khách')}</p>
+                          {(() => {
+                            const raw = pick(trip, ['amenities', 'Amenities'], '');
+                            const list = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+                            if (!list.length) return null;
+                            return (
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                                {list.map(key => {
+                                  const a = AMENITY_ICONS[key];
+                                  return a ? (
+                                    <span key={key} title={a.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#475569', background: '#f1f5f9', borderRadius: 12, padding: '2px 8px' }}>
+                                      <i className={`fa-solid ${a.icon}`} style={{ color: '#2563eb' }} />
+                                      {a.label}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            );
+                          })()}
+                          <button
+                            type="button"
+                            className="trip-rating-line"
+                            disabled={!operatorId || reviewCount <= 0}
+                            // onClick={() => openReviewModal({
+                            //   id: operatorId,
+                            //   title: `Đánh giá nhà xe ${operatorName}`,
+                            //   subtitle: `${averageRating.toFixed(1)} ★ | ${reviewCount} đánh giá`,
+                            // })}
+                          >
+                            {reviewCount > 0 ? `Nhà xe ${averageRating.toFixed(1)} ★ | ${reviewCount} đánh giá` : 'Nhà xe chưa có đánh giá'}
+                          </button>
                         </div>
-                        <span className="trip-seats-badge">{pick(trip, ['availableSeats', 'AvailableSeats'], 0)} ghế còn</span>
+                        <span>{pick(trip, ['availableSeats', 'AvailableSeats'], 0)} ghế còn</span>
                       </div>
-
-                      {(avgRating > 0 || reviewCount > 0) && (
-                        <div className="trip-rating-badge">
-                          <i className="fa-solid fa-star" />
-                          {avgRating > 0 ? Number(avgRating).toFixed(1) : '--'} | {reviewCount} đánh giá
-                        </div>
-                      )}
 
                       <div className="trip-time-row">
                         <div>
@@ -995,19 +1022,6 @@ export default function SearchResults() {
                           <p>{pick(trip, ['arrivalLocation', 'ArrivalLocation'])}</p>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        className="trip-detail-toggle"
-                        onClick={() => toggleDetail(tripId)}
-                      >
-                        Thông tin chi tiết
-                        <i className={`fa-solid fa-chevron-${expandedTripId === tripId ? 'up' : 'down'}`} />
-                      </button>
-
-                      {expandedTripId === tripId && (
-                        <TripDetailTabs tripId={tripId} tripData={trip} />
-                      )}
                     </div>
 
                     <div className="trip-result-action">
@@ -1015,11 +1029,215 @@ export default function SearchResults() {
                       <button className="btn btn-primary" type="button" onClick={() => chooseTrip(trip)}>
                         Chọn chuyến
                       </button>
-                      <button type="button" className="trip-detail-toggle-mobile"
-                        onClick={() => toggleDetail(tripId)}>
-                        Thông tin chi tiết <i className={`fa-solid fa-chevron-${expandedTripId === tripId ? 'up' : 'down'}`} />
+                      <button
+                        type="button"
+                        className={`trip-detail-toggle-btn${expandedTripId === tripId ? ' active' : ''}`}
+                        onClick={() => toggleTripDetail(tripId, trip)}
+                      >
+                        Thông tin chi tiết
+                        <i className={`fa-solid fa-chevron-${expandedTripId === tripId ? 'up' : 'down'}`} />
                       </button>
                     </div>
+
+                    {expandedTripId === tripId && (
+                      <div className="trip-detail-panel">
+                        {/* ── Tab bar ── */}
+                        <div className="trip-detail-tabs">
+                          {DETAIL_TABS.map((tab) => (
+                            <button
+                              key={tab.key}
+                              type="button"
+                              className={`trip-detail-tab-btn${activeTab === tab.key ? ' active' : ''}`}
+                              onClick={() => switchDetailTab(tab.key, tripId, trip)}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* ── Tab content ── */}
+                        <div className="trip-detail-content">
+
+                          {/* Đón / Trả */}
+                          {activeTab === 'pickup' && (() => {
+                            const ck = `${tripId}_pickup`;
+                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
+                            const data = tripDetailData[ck];
+                            if (!data) return <div className="td-empty">Không tải được điểm đón/trả.</div>;
+                            const { pickupStops, dropoffStops } = data;
+                            return (
+                              <div className="td-pickup-grid">
+                                <div className="td-stops-col">
+                                  <div className="td-stops-head"><i className="fa-solid fa-circle-dot" /> Điểm đón</div>
+                                  {pickupStops.length === 0
+                                    ? <p className="td-no-stops">Chưa có điểm đón.</p>
+                                    : pickupStops.map((stop) => {
+                                        const sid = pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']);
+                                        const name = pick(stop, ['stopName', 'StopName'], 'Điểm dừng');
+                                        const addr = pick(stop, ['stopAddress', 'StopAddress'], '');
+                                        const offset = pick(stop, ['arrivalOffset', 'ArrivalOffset']);
+                                        return (
+                                          <div key={sid} className="td-stop-item">
+                                            <i className="fa-solid fa-circle td-dot-blue" />
+                                            <div>
+                                              <strong>{name}</strong>
+                                              {addr && <small>{addr}</small>}
+                                              {offset != null && <span>+{offset} phút so với giờ khởi hành</span>}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                </div>
+                                <div className="td-stops-col">
+                                  <div className="td-stops-head"><i className="fa-solid fa-location-dot" /> Điểm trả</div>
+                                  {dropoffStops.length === 0
+                                    ? <p className="td-no-stops">Chưa có điểm trả.</p>
+                                    : dropoffStops.map((stop) => {
+                                        const sid = pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']);
+                                        const name = pick(stop, ['stopName', 'StopName'], 'Điểm dừng');
+                                        const addr = pick(stop, ['stopAddress', 'StopAddress'], '');
+                                        const offset = pick(stop, ['arrivalOffset', 'ArrivalOffset']);
+                                        return (
+                                          <div key={sid} className="td-stop-item">
+                                            <i className="fa-solid fa-circle td-dot-orange" />
+                                            <div>
+                                              <strong>{name}</strong>
+                                              {addr && <small>{addr}</small>}
+                                              {offset != null && <span>+{offset} phút so với giờ khởi hành</span>}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Giảm giá */}
+                          {activeTab === 'discount' && (() => {
+                            const ck = `${tripId}_discount`;
+                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
+                            const data = tripDetailData[ck];
+                            if (!data || data.length === 0) return <div className="td-empty">Không có mã giảm giá.</div>;
+                            return (
+                              <div className="td-discount-list">
+                                {data.map((promo) => {
+                                  const code = pick(promo, ['code', 'Code'], '');
+                                  const discountType = pick(promo, ['discountType', 'DiscountType'], 'fixed');
+                                  const discountValue = Number(pick(promo, ['discountValue', 'DiscountValue', 'value', 'Value'], 0));
+                                  const maxDiscount = Number(pick(promo, ['maxDiscount', 'MaxDiscount'], 0));
+                                  const minOrderAmount = Number(pick(promo, ['minOrderAmount', 'MinOrderAmount'], 0));
+                                  const usageLimit = Number(pick(promo, ['usageLimit', 'UsageLimit'], 0));
+                                  const usedCount = Number(pick(promo, ['usedCount', 'UsedCount'], 0));
+                                  const expiryDate = pick(promo, ['expiryDate', 'ExpiryDate', 'endDate', 'EndDate']);
+                                  const description = pick(promo, ['description', 'Description'], '');
+                                  const remaining = usageLimit > 0 ? usageLimit - usedCount : null;
+                                  const isPercent = String(discountType).toLowerCase().includes('percent');
+                                  const discountText = isPercent
+                                    ? `Giảm ${discountValue}%${maxDiscount > 0 ? ` (tối đa ${formatVND(maxDiscount)})` : ''}`
+                                    : `Giảm ${formatVND(discountValue)}`;
+                                  const promoId = pick(promo, ['promotionID', 'PromotionID', 'id', 'Id']);
+                                  return (
+                                    <div key={promoId || code} className="td-promo-card">
+                                      <div className="td-promo-code">{code}</div>
+                                      <div className="td-promo-discount">{discountText}</div>
+                                      {description && <div className="td-promo-desc">{description}</div>}
+                                      <div className="td-promo-meta">
+                                        {minOrderAmount > 0 && <span>Đơn từ {formatVND(minOrderAmount)}</span>}
+                                        {remaining !== null && remaining > 0 && <span>Còn {remaining} lượt</span>}
+                                        {expiryDate && <span>Hết hạn {formatDate(expiryDate)}</span>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Đánh giá */}
+                          {activeTab === 'review' && (() => {
+                            const ck = `${tripId}_review`;
+                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
+                            const data = tripDetailData[ck];
+                            const avgRating = Number(data?.averageRating ?? data?.AverageRating ?? 0);
+                            const reviewItems = data?.items || data?.Items || [];
+                            if (!data || reviewItems.length === 0) return <div className="td-empty"><i className="fa-regular fa-star" /> Chưa có đánh giá.</div>;
+                            return (
+                              <div className="td-review-section">
+                                <div className="td-review-header">
+                                  <span className="td-avg-rating">{avgRating.toFixed(1)}</span>
+                                  <i className="fa-solid fa-star td-star-icon" />
+                                  <span className="td-review-count">{reviewItems.length} đánh giá</span>
+                                </div>
+                                <div className="td-review-list">
+                                  {reviewItems.map((item) => {
+                                    const rating = Number(pick(item, ['rating', 'Rating'], 0));
+                                    const rid = pick(item, ['reviewID', 'ReviewID', 'id', 'Id']);
+                                    return (
+                                      <div key={rid} className="td-review-item">
+                                        <div className="td-review-top">
+                                          <strong>{pick(item, ['userName', 'UserName'], 'Khách hàng')}</strong>
+                                          <span>{formatReviewDate(pick(item, ['createdAt', 'CreatedAt']))}</span>
+                                        </div>
+                                        <div className="td-review-stars">
+                                          {'★'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
+                                        </div>
+                                        <p>{pick(item, ['comment', 'Comment'], '') || 'Không có bình luận.'}</p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Chính sách */}
+                          {activeTab === 'policy' && (
+                            <div className="td-policy">
+                              <h4>Điều kiện đặt vé</h4>
+                              <ul>
+                                <li>Vé đã mua không được hoàn trả sau khi xác nhận thanh toán.</li>
+                                <li>Có thể đổi vé trước giờ khởi hành ít nhất 24 giờ (phí đổi vé 50.000đ).</li>
+                                <li>Khách hàng phải có mặt trước giờ xuất phát ít nhất 15 phút.</li>
+                              </ul>
+                              <h4>Hành lý</h4>
+                              <ul>
+                                <li>Miễn phí 20kg hành lý ký gửi và 7kg hành lý xách tay.</li>
+                                <li>Hành lý quá kích thước hoặc trọng lượng sẽ tính phụ phí.</li>
+                                <li>Không vận chuyển hàng hóa nguy hiểm, dễ cháy nổ.</li>
+                              </ul>
+                              <h4>Hỗ trợ khách hàng</h4>
+                              <p>Hotline: <strong>1900 xxxx</strong> (7:00 – 22:00 hàng ngày)</p>
+                              <p>Email: <strong>support@vexeaz.vn</strong></p>
+                            </div>
+                          )}
+
+                          {/* Hình ảnh */}
+                          {activeTab === 'images' && (() => {
+                            const ck = `${tripId}_images`;
+                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
+                            const data = tripDetailData[ck];
+                            if (!data || data.length === 0) return <div className="td-empty"><i className="fa-regular fa-image" /> Chưa có hình ảnh.</div>;
+                            return (
+                              <div className="td-images-grid">
+                                {data.map((img) => {
+                                  const imgId = pick(img, ['imageID', 'ImageID', 'id', 'Id']);
+                                  const rawUrl = pick(img, ['imageURL', 'imageUrl', 'ImageURL', 'ImageUrl', 'url', 'Url'], '');
+                                  if (!rawUrl) return null;
+                                  const url = rawUrl.startsWith('/') ? `${API_BASE}${rawUrl}` : rawUrl;
+                                  return (
+                                    <button key={imgId} type="button" className="td-img-thumb" onClick={() => setLightboxImage(url)}>
+                                      <img src={url} alt="Ảnh xe" />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+
+                        </div>
+                      </div>
+                    )}
                   </article>
                 );
               })}
@@ -1039,6 +1257,65 @@ export default function SearchResults() {
           )}
         </main>
       </section>
+
+      {lightboxImage && (
+        <div className="td-lightbox-overlay" onClick={() => setLightboxImage(null)}>
+          <button type="button" className="td-lightbox-close" onClick={() => setLightboxImage(null)} aria-label="Đóng ảnh">
+            <i className="fa-solid fa-xmark" />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Ảnh xe phóng to"
+            className="td-lightbox-img"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {reviewModal.open && (
+        <div className="review-modal-backdrop" role="dialog" aria-modal="true" aria-label={reviewModal.title}>
+          <div className="review-modal">
+            <div className="review-modal-head">
+              <div>
+                <span>Đánh giá</span>
+                <h2>{reviewModal.title}</h2>
+                <p>{reviewModal.subtitle || `${reviewModal.averageRating.toFixed(1)} ★ | ${reviewModal.reviewCount} đánh giá`}</p>
+              </div>
+              <button type="button" onClick={closeReviewModal} aria-label="Đóng đánh giá">
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            {reviewModal.loading && <div className="loading">Đang tải đánh giá...</div>}
+            {reviewModal.error && <div className="error-msg">{reviewModal.error}</div>}
+            {!reviewModal.loading && !reviewModal.error && reviewModal.items.length === 0 && (
+              <div className="empty-state compact">
+                <i className="fa-regular fa-star" />
+                <h3>Chưa có đánh giá</h3>
+                <p>Các đánh giá sau chuyến đi sẽ hiển thị tại đây.</p>
+              </div>
+            )}
+            {!reviewModal.loading && reviewModal.items.length > 0 && (
+              <div className="review-modal-list">
+                {reviewModal.items.map((item) => {
+                  const rating = Number(pick(item, ['rating', 'Rating'], 0));
+                  const reviewId = pick(item, ['reviewID', 'ReviewID']);
+                  return (
+                    <article className="review-modal-item" key={reviewId}>
+                      <div>
+                        <strong>{pick(item, ['userName', 'UserName'], 'Khách hàng')}</strong>
+                        <span>{formatReviewDate(pick(item, ['createdAt', 'CreatedAt']))}</span>
+                      </div>
+                      <b>{'★'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}</b>
+                      <p>{pick(item, ['comment', 'Comment'], '') || 'Khách hàng không nhập bình luận.'}</p>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </UserLayout>
   );
 }

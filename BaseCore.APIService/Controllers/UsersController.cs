@@ -12,6 +12,13 @@ namespace BaseCore.APIService.Controllers
     [Authorize(Roles = "Admin")]
     public class UsersController : ControllerBase
     {
+        private static readonly HashSet<string> ValidRoles = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Admin",
+            "Customer",
+            "Operator"
+        };
+
         private readonly MySqlDbContext _context;
 
         public UsersController(MySqlDbContext context)
@@ -53,11 +60,12 @@ namespace BaseCore.APIService.Controllers
 
             if (!string.IsNullOrWhiteSpace(role))
             {
-                if (!DomainCodes.IsValidRole(role))
-                    return BadRequest(new { message = "Role chi duoc la Admin, Customer hoac Operator" });
-
-                var roleCode = DomainCodes.ToRoleCode(role);
-                query = query.Where(x => x.Role == roleCode);
+                var keyword = role.Trim();
+                // query = query.Where(x => x.Role != null && x.Role == keyword);
+                if (byte.TryParse(role.Trim(), out var roleValue))
+                {
+                    query = query.Where(x => x.Role == roleValue);
+                }
             }
 
             var totalCount = await query.CountAsync();
@@ -71,7 +79,7 @@ namespace BaseCore.APIService.Controllers
                     x.FullName,
                     x.Email,
                     x.Phone,
-                    Role = DomainCodes.ToRoleName(x.Role),
+                    x.Role,
                     x.CreatedAt
                 })
                 .ToListAsync();
@@ -98,7 +106,7 @@ namespace BaseCore.APIService.Controllers
                     x.FullName,
                     x.Email,
                     x.Phone,
-                    Role = DomainCodes.ToRoleName(x.Role),
+                    x.Role,
                     x.CreatedAt
                 })
                 .FirstOrDefaultAsync();
@@ -119,8 +127,8 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = "Email, phone và password là bắt buộc" });
             }
 
-            var role = DomainCodes.ToRoleCode(request.Role);
-            if (!DomainCodes.IsValidRole(request.Role))
+            var role = NormalizeRole(request.Role);
+            if (role == null)
                 return BadRequest(new { message = "Role chỉ được là Admin, Customer hoặc Operator" });
 
             var email = request.Email.Trim();
@@ -137,7 +145,7 @@ namespace BaseCore.APIService.Controllers
                 FullName = string.IsNullOrWhiteSpace(request.FullName) ? email : request.FullName.Trim(),
                 Email = email,
                 Phone = phone,
-                Role = role,
+                Role = RoleConstant.Customer,
                 PasswordHash = TokenHelper.CreatePasswordHash(request.Password),
                 CreatedAt = DateTime.Now
             };
@@ -151,7 +159,7 @@ namespace BaseCore.APIService.Controllers
                 user.FullName,
                 user.Email,
                 user.Phone,
-                Role = DomainCodes.ToRoleName(user.Role),
+                user.Role,
                 user.CreatedAt
             });
         }
@@ -186,14 +194,18 @@ namespace BaseCore.APIService.Controllers
 
             if (!string.IsNullOrWhiteSpace(request.Role))
             {
-                if (!DomainCodes.IsValidRole(request.Role))
+                var role = NormalizeRole(request.Role);
+                if (role == null)
                     return BadRequest(new { message = "Role chỉ được là Admin, Customer hoặc Operator" });
 
-                user.Role = DomainCodes.ToRoleCode(request.Role);
+                user.Role = role.Value;
             }
 
             if (!string.IsNullOrWhiteSpace(request.Password))
                 user.PasswordHash = TokenHelper.CreatePasswordHash(request.Password);
+
+            if (request.OperatorID.HasValue)
+                user.OperatorID = request.OperatorID.Value;
 
             await _context.SaveChangesAsync();
 
@@ -203,7 +215,7 @@ namespace BaseCore.APIService.Controllers
                 user.FullName,
                 user.Email,
                 user.Phone,
-                Role = DomainCodes.ToRoleName(user.Role),
+                user.Role,
                 user.CreatedAt
             });
         }
@@ -221,6 +233,24 @@ namespace BaseCore.APIService.Controllers
             return Ok();
         }
 
+        // private static string? NormalizeRole(string? role)
+        // {
+        //     var value = string.IsNullOrWhiteSpace(role) ? "Customer" : role.Trim();
+        //     return ValidRoles.Contains(value) ? ValidRoles.First(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)) : null;
+        // }
+        private static byte? NormalizeRole(string? role)
+        {
+            if (string.IsNullOrWhiteSpace(role)) return RoleConstant.Customer;
+            
+            return role.Trim().ToLower() switch
+            {
+                "admin"    => RoleConstant.Admin,
+                "operator" => RoleConstant.Operator,
+                "customer" => RoleConstant.Customer,
+                "user"     => RoleConstant.Driver,
+                _          => null
+            };
+        }
     }
 
     public class AdminCreateUserRequest
@@ -239,5 +269,6 @@ namespace BaseCore.APIService.Controllers
         public string? Phone { get; set; }
         public string? Password { get; set; }
         public string? Role { get; set; }
+        public int? OperatorID { get; set; }
     }
 }

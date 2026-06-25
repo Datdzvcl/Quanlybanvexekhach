@@ -17,22 +17,23 @@ namespace BaseCore.APIService.Controllers
         {
             _context = context;
         }
-
+        private async Task<int?> GetCurrentOperatorId()
+        {
+            if (!User.IsInRole("Operator")) return null;
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdClaim, out var userId)) return null;
+            var user = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserID == userId);
+            return user?.OperatorID;
+        }
         [HttpGet]
-        [Authorize(Roles = "Admin,Operator")]
+        [Authorize(Roles = "Operator")]
         public async Task<IActionResult> GetAll()
         {
-            var currentUserId = GetCurrentUserId();
-            var isAdmin = User.IsInRole("Admin");
-            var query = _context.Promotions
+            var currentOperatorId = await GetCurrentOperatorId();
+            var items = await _context.Promotions
                 .AsNoTracking()
-                .Include(x => x.User)
-                .AsQueryable();
-
-            if (!isAdmin)
-                query = query.Where(x => x.UserID == currentUserId);
-
-            var items = await query
+                .Where(x => x.OperatorID == currentOperatorId)
                 .OrderByDescending(x => x.PromotionID)
                 .Select(x => new
                 {
@@ -45,13 +46,11 @@ namespace BaseCore.APIService.Controllers
                     x.MaxDiscount,
                     x.UsageLimit,
                     x.UsedCount,
-                    RemainingUses = x.UsageLimit.HasValue ? x.UsageLimit.Value - x.UsedCount : (int?)null,
                     x.StartDate,
                     x.EndDate,
                     x.IsActive,
                     x.IsPublic,
-                    x.UserID,
-                    ownerName = x.User != null ? x.User.FullName : null
+                    x.UserID
                 })
                 .ToListAsync();
 
@@ -59,7 +58,6 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpGet("public")]
-        [AllowAnonymous]
         public async Task<IActionResult> GetPublic()
         {
             var now = DateTime.Now;
@@ -93,15 +91,10 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "Admin,Operator")]
+        [Authorize(Roles = "Operator")]
         public async Task<IActionResult> GetById(int id)
         {
-            var currentUserId = GetCurrentUserId();
-            var isAdmin = User.IsInRole("Admin");
-            var promotion = await _context.Promotions
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.PromotionID == id && (isAdmin || x.UserID == currentUserId));
-
+            var promotion = await _context.Promotions.AsNoTracking().FirstOrDefaultAsync(x => x.PromotionID == id);
             return promotion == null ? NotFound() : Ok(promotion);
         }
 
@@ -111,21 +104,15 @@ namespace BaseCore.APIService.Controllers
         {
             var code = NormalizeCode(request.Code);
             if (string.IsNullOrWhiteSpace(code))
-                return BadRequest(new { message = "Mã giảm giá là bắt buộc." });
+                return BadRequest(new { message = "Ma giam gia la bat buoc" });
 
             if (await _context.Promotions.AnyAsync(x => x.Code == code))
-                return Conflict(new { message = "Mã giảm giá đã tồn tại." });
+                return Conflict(new { message = "Ma giam gia da ton tai" });
 
-            var validationError = ValidatePromotionRequest(request);
-            if (validationError != null)
-                return BadRequest(new { message = validationError });
-
-            var promotion = new Promotion
-            {
-                UserID = GetCurrentUserId()
-            };
-
+            var promotion = new Promotion();
+            promotion.OperatorID = await GetCurrentOperatorId();
             ApplyRequest(promotion, request, code);
+
             _context.Promotions.Add(promotion);
             await _context.SaveChangesAsync();
 
@@ -136,24 +123,20 @@ namespace BaseCore.APIService.Controllers
         [Authorize(Roles = "Operator")]
         public async Task<IActionResult> Update(int id, [FromBody] PromotionRequest request)
         {
-            var currentUserId = GetCurrentUserId();
             var promotion = await _context.Promotions.FindAsync(id);
             if (promotion == null)
                 return NotFound();
-
-            if (promotion.UserID != currentUserId)
+            var currentOperatorId = await GetCurrentOperatorId();
+            if (promotion.OperatorID != currentOperatorId)
                 return Forbid();
 
             var code = NormalizeCode(request.Code);
             if (string.IsNullOrWhiteSpace(code))
-                return BadRequest(new { message = "Mã giảm giá là bắt buộc." });
+                return BadRequest(new { message = "Ma giam gia la bat buoc" });
 
-            if (await _context.Promotions.AnyAsync(x => x.PromotionID != id && x.Code == code))
-                return Conflict(new { message = "Mã giảm giá đã tồn tại." });
-
-            var validationError = ValidatePromotionRequest(request);
-            if (validationError != null)
-                return BadRequest(new { message = validationError });
+            var exists = await _context.Promotions.AnyAsync(x => x.PromotionID != id && x.Code == code);
+            if (exists)
+                return Conflict(new { message = "Ma giam gia da ton tai" });
 
             ApplyRequest(promotion, request, code);
             await _context.SaveChangesAsync();
@@ -165,12 +148,11 @@ namespace BaseCore.APIService.Controllers
         [Authorize(Roles = "Operator")]
         public async Task<IActionResult> Disable(int id)
         {
-            var currentUserId = GetCurrentUserId();
             var promotion = await _context.Promotions.FindAsync(id);
             if (promotion == null)
                 return NotFound();
-
-            if (promotion.UserID != currentUserId)
+            var currentOperatorId = await GetCurrentOperatorId();
+            if (promotion.OperatorID != currentOperatorId)
                 return Forbid();
 
             promotion.IsActive = false;
@@ -179,13 +161,13 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpPost("validate")]
-        [AllowAnonymous]
         public async Task<IActionResult> Validate([FromBody] PromotionValidateRequest request)
         {
             var result = await ValidatePromotionAsync(
                 request.Code,
                 request.OrderValue,
-                GetCurrentUserId());
+                GetCurrentUserId(),
+                incrementUsage: false);
 
             return Ok(result);
         }
@@ -197,24 +179,24 @@ namespace BaseCore.APIService.Controllers
             DateTime now)
         {
             if (!promotion.IsActive)
-                return PromotionValidationResult.Invalid("Mã giảm giá đang tắt.", orderValue);
+                return PromotionValidationResult.Invalid("Ma giam gia dang tat");
 
             if (now < promotion.StartDate)
-                return PromotionValidationResult.Invalid("Mã giảm giá chưa đến ngày sử dụng.", orderValue);
+                return PromotionValidationResult.Invalid("Ma giam gia chua den ngay su dung");
 
             if (now > promotion.EndDate)
-                return PromotionValidationResult.Invalid("Mã giảm giá đã hết hạn.", orderValue);
+                return PromotionValidationResult.Invalid("Ma giam gia da het han");
 
             if (promotion.MinOrderValue.HasValue && orderValue < promotion.MinOrderValue.Value)
-                return PromotionValidationResult.Invalid($"Đơn hàng tối thiểu {promotion.MinOrderValue.Value:n0} VND.", orderValue);
+                return PromotionValidationResult.Invalid($"Don hang toi thieu {promotion.MinOrderValue.Value:n0} VND");
 
             if (promotion.UsageLimit.HasValue && promotion.UsedCount >= promotion.UsageLimit.Value)
-                return PromotionValidationResult.Invalid("Mã giảm giá đã hết lượt sử dụng.", orderValue);
+                return PromotionValidationResult.Invalid("Ma giam gia da het luot su dung");
 
             if (!promotion.IsPublic)
             {
                 if (!currentUserId.HasValue || promotion.UserID != currentUserId.Value)
-                    return PromotionValidationResult.Invalid("Mã giảm giá không áp dụng cho tài khoản này.", orderValue);
+                    return PromotionValidationResult.Invalid("Ma giam gia khong ap dung cho tai khoan nay");
             }
 
             var discountAmount = CalculateDiscountAmount(promotion, orderValue);
@@ -223,49 +205,46 @@ namespace BaseCore.APIService.Controllers
                 Valid = discountAmount > 0,
                 PromotionId = promotion.PromotionID,
                 DiscountAmount = discountAmount,
-                FinalAmount = Math.Max(0, orderValue - discountAmount),
-                Message = discountAmount > 0 ? "Áp dụng mã thành công." : "Mã giảm giá không tạo ra mức giảm hợp lệ."
+                FinalAmount = orderValue - discountAmount,
+                Message = discountAmount > 0 ? "Ap dung ma thanh cong" : "Ma giam gia khong tao ra giam gia"
             };
         }
 
         private async Task<PromotionValidationResult> ValidatePromotionAsync(
             string? code,
             decimal orderValue,
-            int? currentUserId)
+            int? currentUserId,
+            bool incrementUsage)
         {
             var normalizedCode = NormalizeCode(code);
             if (string.IsNullOrWhiteSpace(normalizedCode))
-                return PromotionValidationResult.Invalid("Vui lòng nhập mã giảm giá.", orderValue);
+                return PromotionValidationResult.Invalid("Vui long nhap ma giam gia", orderValue);
 
             if (orderValue <= 0)
-                return PromotionValidationResult.Invalid("Giá trị đơn hàng không hợp lệ.", orderValue);
+                return PromotionValidationResult.Invalid("Gia tri don hang khong hop le", orderValue);
 
             var promotion = await _context.Promotions.FirstOrDefaultAsync(x => x.Code == normalizedCode);
             if (promotion == null)
-                return PromotionValidationResult.Invalid("Mã giảm giá không tồn tại.", orderValue);
+                return PromotionValidationResult.Invalid("Ma giam gia khong ton tai", orderValue);
 
-            return ValidatePromotionEntity(promotion, orderValue, currentUserId, DateTime.Now);
-        }
+            var result = ValidatePromotionEntity(promotion, orderValue, currentUserId, DateTime.Now);
+            if (result.Valid && incrementUsage)
+                promotion.UsedCount += 1;
 
-        private static string? ValidatePromotionRequest(PromotionRequest request)
-        {
-            if (request.DiscountValue <= 0)
-                return "Giá trị giảm phải lớn hơn 0.";
-
-            if (request.DiscountType == 1 && request.DiscountValue > 100)
-                return "Giảm theo phần trăm không được vượt quá 100.";
-
-            if (request.EndDate < request.StartDate)
-                return "Ngày kết thúc phải sau ngày bắt đầu.";
-
-            return null;
+            return result;
         }
 
         private static decimal CalculateDiscountAmount(Promotion promotion, decimal orderValue)
         {
-            decimal discountAmount = promotion.DiscountType == 1
-                ? orderValue * promotion.DiscountValue / 100m
-                : promotion.DiscountValue;
+            decimal discountAmount;
+            if (promotion.DiscountType == 1)
+            {
+                discountAmount = orderValue * promotion.DiscountValue / 100m;
+            }
+            else
+            {
+                discountAmount = promotion.DiscountValue;
+            }
 
             if (promotion.MaxDiscount.HasValue)
                 discountAmount = Math.Min(discountAmount, promotion.MaxDiscount.Value);
@@ -286,8 +265,7 @@ namespace BaseCore.APIService.Controllers
             promotion.EndDate = request.EndDate;
             promotion.IsActive = request.IsActive;
             promotion.IsPublic = request.IsPublic;
-            if (promotion.PromotionID == 0)
-                promotion.UsedCount = 0;
+            promotion.UserID = request.IsPublic ? null : request.UserID; // khách hàng cụ thể (private promo)
         }
 
         private int? GetCurrentUserId()
@@ -320,11 +298,13 @@ namespace BaseCore.APIService.Controllers
         public DateTime EndDate { get; set; }
         public bool IsActive { get; set; } = true;
         public bool IsPublic { get; set; } = true;
+        public int? UserID { get; set; }
     }
 
     public class PromotionValidateRequest
     {
         public string? Code { get; set; }
+        public int? UserId { get; set; }
         public decimal OrderValue { get; set; }
     }
 

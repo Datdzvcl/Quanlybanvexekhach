@@ -1,12 +1,18 @@
-import { apiClient as httpClient } from './httpClient';
+import { apiClient } from './httpClient';
 
 export const notificationApi = {
-  getMyNotifications: (page = 1, pageSize = 20) =>
-    httpClient.get(`/api/notifications/my?page=${page}&pageSize=${pageSize}`).then((r) => r.data),
+  async my(take = 10) {
+    const response = await apiClient.get('/api/notifications/my', { params: { take } });
+    return response.data;
+  },
 
-  markRead: (id) =>
-    httpClient.put(`/api/notifications/${id}/read`).then((r) => r.data),
+  async markRead(id) {
+    const response = await apiClient.put(`/api/notifications/${id}/read`);
+    return response.data;
+  },
 
-  markAllRead: () =>
-    httpClient.put('/api/notifications/read-all').then((r) => r.data),
+  async markAllRead() {
+    const response = await apiClient.put('/api/notifications/read-all');
+    return response.data;
+  },
 };

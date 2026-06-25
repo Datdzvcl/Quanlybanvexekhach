@@ -1,10 +1,9 @@
-// import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { formatVND, labelBookingStatus, labelPaymentMethod, pick } from '../api';
 import { bookingApi } from '../services/bookingApi';
 import { useAuth } from '../contexts/AuthContext';
-import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 const LAST_SEARCH_KEY = 'lastTripSearchQuery';
@@ -27,6 +26,26 @@ function getQrText(booking) {
   return qrCodes[0] || ticketSeats[0]?.qrCode || ticketSeats[0]?.QRCode || `BOOKING:${booking?.bookingID || booking?.BookingID}`;
 }
 
+function getSuccessMode(bookings) {
+  const methods = bookings.map((booking) =>
+    String(pick(booking, ['paymentMethod', 'PaymentMethod'], '')).toLowerCase()
+  );
+  const hasCash = methods.some((method) => method === 'cash' || method.includes('tiền mặt') || method.includes('tien mat'));
+  const hasOnline = methods.some((method) =>
+    method === 'banktransfer' ||
+    method === 'ewallet' ||
+    method === 'vnpay' ||
+    method.includes('chuyển khoản') ||
+    method.includes('chuyen khoan') ||
+    method.includes('ví điện tử') ||
+    method.includes('vi dien tu')
+  );
+
+  if (hasCash && !hasOnline) return 'cash';
+  if (hasOnline && !hasCash) return 'online';
+  return 'mixed';
+}
+
 function readSuccessBookingIds(currentId) {
   try {
     const ids = JSON.parse(localStorage.getItem(SUCCESS_BOOKINGS_KEY) || '[]')
@@ -43,34 +62,6 @@ function readSuccessBookingIds(currentId) {
   return [String(currentId)];
 }
 
-// function PseudoQrCode({ value }) {
-//   const cells = useMemo(() => {
-//     let seed = 0;
-//     const source = String(value || 'booking');
-//     for (let i = 0; i < source.length; i += 1) {
-//       seed = (seed * 31 + source.charCodeAt(i)) >>> 0;
-//     }
-
-//     return Array.from({ length: 121 }, (_, index) => {
-//       const row = Math.floor(index / 11);
-//       const col = index % 11;
-//       const finder =
-//         (row < 3 && col < 3) ||
-//         (row < 3 && col > 7) ||
-//         (row > 7 && col < 3);
-//       seed = (seed * 1664525 + 1013904223) >>> 0;
-//       return finder || seed % 3 === 0;
-//     });
-//   }, [value]);
-
-//   return (
-//     <div className="pseudo-qr" aria-label="Mã QR">
-//       {cells.map((filled, index) => (
-//         <span key={index} className={filled ? 'filled' : ''} />
-//       ))}
-//     </div>
-//   );
-// }
 
 function SuccessTicketBlock({ booking, title }) {
   const trip = booking.trip || booking.Trip || {};
@@ -149,18 +140,36 @@ export default function BookingSuccess() {
   const continueSearchQuery = localStorage.getItem(LAST_SEARCH_KEY) || '';
   const continueSearchUrl = continueSearchQuery ? `/search-results?${continueSearchQuery}` : '/search-results';
   const isRoundTrip = bookings.length > 1;
+  const successMode = getSuccessMode(bookings);
+  const heroLabel = successMode === 'cash'
+    ? 'Đặt chỗ thành công'
+    : successMode === 'online'
+      ? 'Thanh toán thành công'
+      : 'Đặt vé thành công';
+  const heroTitle = successMode === 'cash'
+    ? 'Đặt chỗ đang chờ xác nhận'
+    : successMode === 'online'
+      ? 'Thanh toán đã ghi nhận'
+      : 'Đơn đặt vé đã được tạo';
+  const heroMessage = successMode === 'cash'
+    ? 'Đơn đã được tạo và đang chờ nhân viên/admin xác nhận sau khi thu tiền mặt.'
+    : successMode === 'online'
+      ? 'Thanh toán đã được ghi nhận, vé sẽ chuyển sang đã xác nhận sau khi admin duyệt đơn.'
+      : 'Đơn đã được tạo thành công và đang chờ admin xác nhận.';
 
   return (
     <UserLayout>
       <section className="success-hero">
         <div className="container success-hero-inner">
           <i className="fa-solid fa-circle-check" />
-          <span>Thanh toán thành công</span>
-          <h1>Đặt vé hoàn tất</h1>
+          <span>{heroLabel}</span>
+          <h1>{heroTitle}</h1>
           <p>
             {isRoundTrip
               ? `Các mã đơn #${bookingIds.join(', #')} đã được tạo thành công.`
               : `Mã đơn #${bookingIds[0]} đã được tạo thành công.`}
+            {' '}
+            {heroMessage}
           </p>
         </div>
       </section>
@@ -191,7 +200,7 @@ export default function BookingSuccess() {
           )}
         </main>
 
-        {/* <aside className="success-qr-card">
+        <aside className="success-qr-card">
           <h2>Mã QR vé</h2>
           {bookings.map((booking, index) => {
             const qrText = getQrText(booking);
@@ -199,7 +208,14 @@ export default function BookingSuccess() {
             return (
               <div className="success-qr-item" key={bookingId || index}>
                 {isRoundTrip && <strong>{index === 0 ? 'Lượt đi' : 'Lượt về'}</strong>}
-                <PseudoQrCode value={qrText} />
+                <div className="success-qr-wrap">
+                  <QRCodeSVG
+                    value={qrText}
+                    size={160}
+                    bgColor="#ffffff"
+                    fgColor="#0f172a"
+                  />
+                </div>
                 <p>{qrText}</p>
               </div>
             );
@@ -210,39 +226,7 @@ export default function BookingSuccess() {
             <Link className="btn btn-outline" to={continueSearchUrl}>Tiếp tục đặt vé</Link>
             {isAuthenticated && <Link className="btn btn-outline" to="/my-tickets">Xem vé của tôi</Link>}
           </div>
-        </aside> */}
-        <aside className="success-qr-card">
-        <h2>Mã QR vé</h2>
-        {bookings.map((booking, index) => {
-          const qrText = getQrText(booking);
-          const bookingId = pick(booking, ['bookingID', 'bookingId', 'BookingID', 'id']);
-          return (
-            <div className="success-qr-item" key={bookingId || index}>
-              {isRoundTrip && <strong>{index === 0 ? 'Lượt đi' : 'Lượt về'}</strong>}
-              <div className="qr-wrapper">
-                <QRCodeSVG
-                  value={qrText}
-                  size={180}
-                  bgColor="#ffffff"
-                  fgColor="#1a1a2e"
-                  level="M"
-                  includeMargin={true}
-                />
-              </div>
-              <p className="qr-code-text">{qrText}</p>
-              <p className="qr-hint">
-                <i className="fa-solid fa-circle-info" /> Xuất trình mã này khi lên xe
-              </p>
-            </div>
-          );
-        })}
-
-        <div className="success-actions">
-          <Link className="btn btn-primary" to="/">Quay lại trang chủ</Link>
-          <Link className="btn btn-outline" to={continueSearchUrl}>Tiếp tục đặt vé</Link>
-          {isAuthenticated && <Link className="btn btn-outline" to="/my-tickets">Xem vé của tôi</Link>}
-        </div>
-      </aside>
+        </aside>
       </section>
     </UserLayout>
   );

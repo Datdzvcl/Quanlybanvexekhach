@@ -6,7 +6,7 @@ using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
 using BaseCore.APIService.Services;
 using System.Text;
-
+using BaseCore.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
@@ -14,6 +14,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -23,9 +24,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "BaseCore API Service",
+        Title = "VeXeAZ API Service",
         Version = "v1",
-        Description = "Business Logic Microservice - Products, Categories, Orders (Bài 10, 11)"
+        Description = "VeXeAZ Bus Ticket Booking System - Trips, Bookings, Tickets, Buses, Operators, Users"
     });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -71,16 +72,18 @@ builder.Services.AddDbContext<MySqlDbContext>(options =>
 });
 
 
-// Repository Registration - Trip, Categories, Orders
+// Repository Registration - Trips, Bookings, Tickets, Buses, Operators
 builder.Services.AddScoped<ITripRepositoryEF, TripRepositoryEF>();
 builder.Services.AddScoped<IOperatorRepositoryEF, OperatorRepositoryEF>();
 builder.Services.AddScoped<IBookingRepositoryEF, BookingRepositoryEF>();
 builder.Services.AddScoped<ITicketSeatRepositoryEF, TicketSeatRepositoryEF>();
 builder.Services.AddScoped<IBusRepositoryEF, BusRepositoryEF>();
-
+builder.Services.AddScoped<BaseCore.Services.BookingService>();
 // Background job: tự động xóa booking Pending quá 10 phút
 builder.Services.AddHostedService<ExpiredBookingCleanupService>();
-
+builder.Services.AddHostedService<ExpiredSeatHoldCleanupService>();
+builder.Services.AddHostedService<TripCompletionService>();
+builder.Services.AddHostedService<TripMonitorService>();
 // JWT Authentication
 var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");
 builder.Services.AddAuthentication(x =>
@@ -125,6 +128,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-Console.WriteLine("BaseCore API Service running on port 5001");
-Console.WriteLine("Endpoints: /api/products, /api/categories, /api/orders");
+Console.WriteLine("VeXeAZ API Service running on port 5001");
+Console.WriteLine("Endpoints: /api/trips, /api/bookings, /api/seats, /api/buses, /api/operators, /api/admin");
 app.Run();
