@@ -161,7 +161,7 @@ export default function BookingSuccess() {
   const heroMessage = successMode === 'cash'
     ? 'Đơn đã được tạo và đang chờ nhân viên/admin xác nhận sau khi thu tiền mặt.'
     : successMode === 'online'
-      ? 'Thanh toán đã được ghi nhận, vé sẽ chuyển sang đã xác nhận sau khi admin duyệt đơn.'
+      ? 'Thanh toán đã được ghi nhận'
       : 'Đơn đã được tạo thành công và đang chờ admin xác nhận.';
 
   return (

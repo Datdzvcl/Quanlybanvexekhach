@@ -64,9 +64,9 @@ namespace BaseCore.APIService.Controllers
                 .Include(x => x.Trip).ThenInclude(x => x.Bus).ThenInclude(x => x.Operator)
                 .Include(x => x.TicketSeats)
                 .AsQueryable();
-             var operatorIdClaim = await GetCurrentOperatorId();
+            var operatorIdClaim = await GetCurrentOperatorId();
             if (operatorIdClaim.HasValue)
-                query = query.Where(x => x.Trip != null && x.Trip.Bus != null 
+                query = query.Where(x => x.Trip != null && x.Trip.Bus != null
                     && x.Trip.Bus.OperatorID == operatorIdClaim.Value);
             if (bookingId.HasValue)
                 query = query.Where(x => x.BookingID == bookingId.Value);
@@ -491,7 +491,7 @@ namespace BaseCore.APIService.Controllers
                     DropoffStopID = request.DropoffStopId
                 };
 
-                
+
                 _context.Bookings.Add(booking);
 
                 foreach (var seatLabel in seatLabels)
@@ -569,22 +569,23 @@ namespace BaseCore.APIService.Controllers
             //     return Conflict(new { message = "Không thể tạo booking vì trạng thái ghế vừa thay đổi. Vui lòng chọn lại." });
             // }
             catch (DbUpdateException ex)
-        {
-            await transaction.RollbackAsync();
-            
-            var innerMsg = ex.InnerException?.Message ?? "no inner";
-            var innerInnerMsg = ex.InnerException?.InnerException?.Message ?? "no inner inner";
-            Console.WriteLine($"=== DbUpdateException ===");
-            Console.WriteLine($"Message: {ex.Message}");
-            Console.WriteLine($"Inner: {innerMsg}");
-            Console.WriteLine($"InnerInner: {innerInnerMsg}");
-            
-            return Conflict(new { 
-                message = "Không thể tạo booking vì trạng thái ghế vừa thay đổi. Vui lòng chọn lại.",
-                debug = innerMsg
-            });
+            {
+                await transaction.RollbackAsync();
+
+                var innerMsg = ex.InnerException?.Message ?? "no inner";
+                var innerInnerMsg = ex.InnerException?.InnerException?.Message ?? "no inner inner";
+                Console.WriteLine($"=== DbUpdateException ===");
+                Console.WriteLine($"Message: {ex.Message}");
+                Console.WriteLine($"Inner: {innerMsg}");
+                Console.WriteLine($"InnerInner: {innerInnerMsg}");
+
+                return Conflict(new
+                {
+                    message = "Không thể tạo booking vì trạng thái ghế vừa thay đổi. Vui lòng chọn lại.",
+                    debug = innerMsg
+                });
+            }
         }
-}
 
         // [HttpPut("{id}/payment-status")]
         // [Authorize(Roles = "Admin")]
@@ -660,7 +661,7 @@ namespace BaseCore.APIService.Controllers
                 OldStatus = oldStatus,
                 NewStatus = status,
                 ChangedAt = now,
-                Note      = "Admin cập nhật trạng thái"
+                Note = "Admin cập nhật trạng thái"
             });
 
             await _context.SaveChangesAsync();
@@ -676,12 +677,12 @@ namespace BaseCore.APIService.Controllers
             if (booking == null)
                 return NotFound(new { message = "Khong tim thay booking" });
 
-            var currentStatus = booking.BookingStatus ;
+            var currentStatus = booking.BookingStatus;
             if (currentStatus != BookingStatusConstant.Pending)
                 return BadRequest(new { message = "Chi co the xac nhan don co BookingStatus = PendingConfirm" });
 
-            booking.BookingStatus  = BookingStatusConstant.Confirmed;
-            booking.PaymentStatus  = PaymentStatusConstant.Paid;
+            booking.BookingStatus = BookingStatusConstant.Confirmed;
+            booking.PaymentStatus = PaymentStatusConstant.Paid;
             NotificationsController.AddNotification(
                 _context,
                 booking.UserID,
@@ -847,7 +848,7 @@ namespace BaseCore.APIService.Controllers
             // Đã thanh toán → chờ admin hoàn tiền; chưa thanh toán → hủy thẳng
             bool wasPaid = booking.PaymentStatus == PaymentStatusConstant.Paid;
             booking.BookingStatus = BookingStatusConstant.Cancelled;
-            booking.CancelledAt   = now;
+            booking.CancelledAt = now;
             if (wasPaid)
                 booking.PaymentStatus = PaymentStatusConstant.PendingRefund;
 
@@ -893,12 +894,12 @@ namespace BaseCore.APIService.Controllers
 
             return Ok(new
             {
-                bookingID     = booking.BookingID,
+                bookingID = booking.BookingID,
                 bookingStatus = booking.BookingStatus,
                 paymentStatus = booking.PaymentStatus,
                 booking.CancelledAt,
                 seatsRestored = booking.TotalSeats,
-                message       = wasPaid ? "Đã duyệt hủy, đang chờ Admin hoàn tiền" : "Đã hủy vé (không phát sinh hoàn tiền)"
+                message = wasPaid ? "Đã duyệt hủy, đang chờ Admin hoàn tiền" : "Đã hủy vé (không phát sinh hoàn tiền)"
             });
         }
 
@@ -918,13 +919,13 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = "Chỉ được duyệt hoàn tiền đơn đang ở trạng thái Chờ hoàn tiền" });
 
             var now = DateTime.Now;
-            var refundRate   = CalculateRefundRate(booking.Trip?.DepartureTime, now);
+            var refundRate = CalculateRefundRate(booking.Trip?.DepartureTime, now);
             var refundAmount = request?.RefundAmount
                 ?? Math.Round(booking.TotalPrice * refundRate, 0);
 
             booking.BookingStatus = BookingStatusConstant.Refunded;
             booking.PaymentStatus = PaymentStatusConstant.Refunded;
-            booking.RefundAmount  = refundAmount;
+            booking.RefundAmount = refundAmount;
 
             NotificationsController.AddNotification(
                 _context, booking.UserID,
@@ -937,11 +938,11 @@ namespace BaseCore.APIService.Controllers
 
             return Ok(new
             {
-                bookingID     = booking.BookingID,
+                bookingID = booking.BookingID,
                 bookingStatus = booking.BookingStatus,
                 paymentStatus = booking.PaymentStatus,
                 booking.RefundAmount,
-                message       = "Đã duyệt hoàn tiền"
+                message = "Đã duyệt hoàn tiền"
             });
         }
         [HttpPut("{id}/reject-cancel")]
@@ -1067,7 +1068,7 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = "Yeu cau huy ve da bi tu choi truoc do" });
 
             booking.BookingStatus = BookingStatusConstant.CancelRequested;
-            booking.CancelReason  = NormalizeOptionalText(request?.CancelReason);
+            booking.CancelReason = NormalizeOptionalText(request?.CancelReason);
 
             // Thông báo khách
             NotificationsController.AddNotification(
@@ -1176,7 +1177,7 @@ namespace BaseCore.APIService.Controllers
             return trip.DepartureTime <= now ||
        trip.Status == TripStatusConstant.Completed;
         }
-
+        //chính sách hoàn tiền
         private static decimal CalculateRefundRate(DateTime? departureTime, DateTime now)
         {
             if (!departureTime.HasValue)
@@ -1199,207 +1200,207 @@ namespace BaseCore.APIService.Controllers
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
-    //     [HttpGet("suggest")]
-    //     [Authorize(Roles = "Admin,Operator")]
-    //     public async Task<IActionResult> Suggest([FromQuery] string q, [FromQuery] int take = 8)
-    //     {
-    //         if (string.IsNullOrWhiteSpace(q))
-    //             return Ok(new List<object>());
-        
-    //         take = Math.Clamp(take, 1, 20);
-    //         q = q.Trim();
-        
-    //         // Lấy operatorId nếu là Operator
-    //         var operatorId = await GetCurrentOperatorId();
-        
-    //         // Query base — include Trip > Bus để filter operator
-    //         var query = _context.Bookings
-    //             .AsNoTracking()
-    //             .Include(x => x.Trip)
-    //                 .ThenInclude(x => x.Bus)
-    //             .AsQueryable();
-        
-    //         // Operator chỉ thấy booking thuộc nhà xe mình
-    //         if (operatorId.HasValue)
-    //             query = query.Where(x => x.Trip.Bus.OperatorID == operatorId.Value);
-        
-    //         // Tìm theo mã đơn (số) hoặc tên khách hàng
-    //         // bool isNumeric = int.TryParse(q, out var bookingIdSearch);
-        
-    //         // query = isNumeric
-    //         //     ? query.Where(x => x.BookingID == bookingIdSearch
-    //         //                     || x.CustomerName.Contains(q))
-    //         //     : query.Where(x => x.CustomerName.Contains(q)
-    //         //                     || x.CustomerPhone.Contains(q));
-    //         int.TryParse(q, out var bookingIdSearch);
+        //     [HttpGet("suggest")]
+        //     [Authorize(Roles = "Admin,Operator")]
+        //     public async Task<IActionResult> Suggest([FromQuery] string q, [FromQuery] int take = 8)
+        //     {
+        //         if (string.IsNullOrWhiteSpace(q))
+        //             return Ok(new List<object>());
 
-    //             query = query.Where(x =>
-    //                 (bookingIdSearch > 0 && x.BookingID == bookingIdSearch) ||
-    //                 x.CustomerName.Contains(q) ||
-    //                 x.CustomerPhone.Contains(q)
-    //             );
-        
-    //         var results = await query
-    //             .OrderByDescending(x => x.BookingDate)
-    //             .Take(take)
-    //             .Select(x => new
-    //             {
-    //                 x.BookingID,
-    //                 x.CustomerName,
-    //                 x.CustomerPhone,
-    //                 x.TotalPrice,
-    //                 x.BookingStatus,
-    //                 Route = x.Trip != null
-    //                     ? $"{x.Trip.DepartureLocation} → {x.Trip.ArrivalLocation}"
-    //                     : "Chưa rõ",
-    //             })
-    //             .ToListAsync();
-        
-    //         return Ok(results);
-    //     }
-    // }
-    [HttpGet("suggest")]
-[Authorize(Roles = "Admin,Operator")]
-public async Task<IActionResult> Suggest([FromQuery] string q, [FromQuery] int take = 8)
-    {
-        if (string.IsNullOrWhiteSpace(q))
-            return Ok(new List<object>());
+        //         take = Math.Clamp(take, 1, 20);
+        //         q = q.Trim();
 
-        take = Math.Clamp(take, 1, 20);
-        q = q.Trim();
+        //         // Lấy operatorId nếu là Operator
+        //         var operatorId = await GetCurrentOperatorId();
 
-        var operatorId = await GetCurrentOperatorId();
+        //         // Query base — include Trip > Bus để filter operator
+        //         var query = _context.Bookings
+        //             .AsNoTracking()
+        //             .Include(x => x.Trip)
+        //                 .ThenInclude(x => x.Bus)
+        //             .AsQueryable();
 
-        // Query base
-        var baseQuery = _context.Bookings
-            .AsNoTracking()
-            .Include(x => x.Trip).ThenInclude(x => x.Bus)
-            .AsQueryable();
+        //         // Operator chỉ thấy booking thuộc nhà xe mình
+        //         if (operatorId.HasValue)
+        //             query = query.Where(x => x.Trip.Bus.OperatorID == operatorId.Value);
 
-        if (operatorId.HasValue)
-            baseQuery = baseQuery.Where(x => x.Trip.Bus.OperatorID == operatorId.Value);
+        //         // Tìm theo mã đơn (số) hoặc tên khách hàng
+        //         // bool isNumeric = int.TryParse(q, out var bookingIdSearch);
 
-        // Parse mã đơn
-        int.TryParse(q, out var bookingIdSearch);
+        //         // query = isNumeric
+        //         //     ? query.Where(x => x.BookingID == bookingIdSearch
+        //         //                     || x.CustomerName.Contains(q))
+        //         //     : query.Where(x => x.CustomerName.Contains(q)
+        //         //                     || x.CustomerPhone.Contains(q));
+        //         int.TryParse(q, out var bookingIdSearch);
 
-        // Lọc sơ bộ ở DB: SĐT hoặc mã đơn (nhanh, dùng index)
-        // Tên có dấu không filter được ở DB → load 300 bản ghi gần nhất về memory
-        var candidates = await baseQuery
-            .Where(x =>
-                (bookingIdSearch > 0 && x.BookingID == bookingIdSearch) ||
-                (x.CustomerPhone != null && x.CustomerPhone.Contains(q))
-            )
-            .OrderByDescending(x => x.BookingDate)
-            .Take(50)
-            .Select(x => new
-            {
-                x.BookingID,
-                x.CustomerName,
-                x.CustomerPhone,
-                x.TotalPrice,
-                x.BookingStatus,
-                x.BookingDate,
-                Route = x.Trip != null
-                    ? $"{x.Trip.DepartureLocation} → {x.Trip.ArrivalLocation}"
-                    : "Chưa rõ",
-            })
-            .ToListAsync();
+        //             query = query.Where(x =>
+        //                 (bookingIdSearch > 0 && x.BookingID == bookingIdSearch) ||
+        //                 x.CustomerName.Contains(q) ||
+        //                 x.CustomerPhone.Contains(q)
+        //             );
 
-        // Load thêm batch để tìm theo tên (cần bỏ dấu ở memory)
-        var nameBatch = await baseQuery
-            .OrderByDescending(x => x.BookingDate)
-            .Take(300)
-            .Select(x => new
-            {
-                x.BookingID,
-                x.CustomerName,
-                x.CustomerPhone,
-                x.TotalPrice,
-                x.BookingStatus,
-                x.BookingDate,
-                Route = x.Trip != null
-                    ? $"{x.Trip.DepartureLocation} → {x.Trip.ArrivalLocation}"
-                    : "Chưa rõ",
-            })
-            .ToListAsync();
+        //         var results = await query
+        //             .OrderByDescending(x => x.BookingDate)
+        //             .Take(take)
+        //             .Select(x => new
+        //             {
+        //                 x.BookingID,
+        //                 x.CustomerName,
+        //                 x.CustomerPhone,
+        //                 x.TotalPrice,
+        //                 x.BookingStatus,
+        //                 Route = x.Trip != null
+        //                     ? $"{x.Trip.DepartureLocation} → {x.Trip.ArrivalLocation}"
+        //                     : "Chưa rõ",
+        //             })
+        //             .ToListAsync();
 
-        // Filter tên không dấu ở memory
-        var qNorm = RemoveDiacritics(q);
-        var byName = nameBatch
-            .Where(x => RemoveDiacritics(x.CustomerName ?? "").Contains(qNorm))
-            .ToList();
-
-        // Gộp + dedup + lấy top
-        var results = candidates
-            .Concat(byName)
-            .DistinctBy(x => x.BookingID)
-            .OrderByDescending(x => x.BookingDate)
-            .Take(take)
-            .Select(x => new
-            {
-                x.BookingID,
-                x.CustomerName,
-                x.CustomerPhone,
-                x.TotalPrice,
-                x.BookingStatus,
-                x.Route,
-            })
-            .ToList();
-
-        return Ok(results);
-    }
-    
-    // Hàm bỏ dấu tiếng Việt — thêm vào cuối class BookingsController
-    private static string RemoveDiacritics(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return "";
-        var normalized = text.Normalize(System.Text.NormalizationForm.FormD);
-        var sb = new System.Text.StringBuilder();
-        foreach (var c in normalized)
+        //         return Ok(results);
+        //     }
+        // }
+        [HttpGet("suggest")]
+        [Authorize(Roles = "Admin,Operator")]
+        public async Task<IActionResult> Suggest([FromQuery] string q, [FromQuery] int take = 8)
         {
-            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-                != System.Globalization.UnicodeCategory.NonSpacingMark)
-                sb.Append(c);
+            if (string.IsNullOrWhiteSpace(q))
+                return Ok(new List<object>());
+
+            take = Math.Clamp(take, 1, 20);
+            q = q.Trim();
+
+            var operatorId = await GetCurrentOperatorId();
+
+            // Query base
+            var baseQuery = _context.Bookings
+                .AsNoTracking()
+                .Include(x => x.Trip).ThenInclude(x => x.Bus)
+                .AsQueryable();
+
+            if (operatorId.HasValue)
+                baseQuery = baseQuery.Where(x => x.Trip.Bus.OperatorID == operatorId.Value);
+
+            // Parse mã đơn
+            int.TryParse(q, out var bookingIdSearch);
+
+            // Lọc sơ bộ ở DB: SĐT hoặc mã đơn (nhanh, dùng index)
+            // Tên có dấu không filter được ở DB → load 300 bản ghi gần nhất về memory
+            var candidates = await baseQuery
+                .Where(x =>
+                    (bookingIdSearch > 0 && x.BookingID == bookingIdSearch) ||
+                    (x.CustomerPhone != null && x.CustomerPhone.Contains(q))
+                )
+                .OrderByDescending(x => x.BookingDate)
+                .Take(50)
+                .Select(x => new
+                {
+                    x.BookingID,
+                    x.CustomerName,
+                    x.CustomerPhone,
+                    x.TotalPrice,
+                    x.BookingStatus,
+                    x.BookingDate,
+                    Route = x.Trip != null
+                        ? $"{x.Trip.DepartureLocation} → {x.Trip.ArrivalLocation}"
+                        : "Chưa rõ",
+                })
+                .ToListAsync();
+
+            // Load thêm batch để tìm theo tên (cần bỏ dấu ở memory)
+            var nameBatch = await baseQuery
+                .OrderByDescending(x => x.BookingDate)
+                .Take(300)
+                .Select(x => new
+                {
+                    x.BookingID,
+                    x.CustomerName,
+                    x.CustomerPhone,
+                    x.TotalPrice,
+                    x.BookingStatus,
+                    x.BookingDate,
+                    Route = x.Trip != null
+                        ? $"{x.Trip.DepartureLocation} → {x.Trip.ArrivalLocation}"
+                        : "Chưa rõ",
+                })
+                .ToListAsync();
+
+            // Filter tên không dấu ở memory
+            var qNorm = RemoveDiacritics(q);
+            var byName = nameBatch
+                .Where(x => RemoveDiacritics(x.CustomerName ?? "").Contains(qNorm))
+                .ToList();
+
+            // Gộp + dedup + lấy top
+            var results = candidates
+                .Concat(byName)
+                .DistinctBy(x => x.BookingID)
+                .OrderByDescending(x => x.BookingDate)
+                .Take(take)
+                .Select(x => new
+                {
+                    x.BookingID,
+                    x.CustomerName,
+                    x.CustomerPhone,
+                    x.TotalPrice,
+                    x.BookingStatus,
+                    x.Route,
+                })
+                .ToList();
+
+            return Ok(results);
         }
-        return sb.ToString()
-                .Normalize(System.Text.NormalizationForm.FormC)
-                .ToLower();
-    }
-    public class CreateBookingRequest
-    {
-        public int TripId { get; set; }
-        public string? SessionId { get; set; }
-        public string? CustomerName { get; set; }
-        public string? CustomerPhone { get; set; }
-        public string? CustomerEmail { get; set; }
-        public List<string>? SeatLabels { get; set; }
-        public int? PickupStopId { get; set; }
-        public int? DropoffStopId { get; set; }
-        public string? PaymentMethod { get; set; }
-        public string? PromotionCode { get; set; }
-    }
 
-    public class RequestCancelBookingRequest
-    {
-        public string? CancelReason { get; set; }
-    }
+        // Hàm bỏ dấu tiếng Việt — thêm vào cuối class BookingsController
+        private static string RemoveDiacritics(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+            var normalized = text.Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder();
+            foreach (var c in normalized)
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                    != System.Globalization.UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            }
+            return sb.ToString()
+                    .Normalize(System.Text.NormalizationForm.FormC)
+                    .ToLower();
+        }
+        public class CreateBookingRequest
+        {
+            public int TripId { get; set; }
+            public string? SessionId { get; set; }
+            public string? CustomerName { get; set; }
+            public string? CustomerPhone { get; set; }
+            public string? CustomerEmail { get; set; }
+            public List<string>? SeatLabels { get; set; }
+            public int? PickupStopId { get; set; }
+            public int? DropoffStopId { get; set; }
+            public string? PaymentMethod { get; set; }
+            public string? PromotionCode { get; set; }
+        }
 
-    public class ApproveCancelBookingRequest
-    {
-        public decimal? RefundAmount { get; set; }
-    }
+        public class RequestCancelBookingRequest
+        {
+            public string? CancelReason { get; set; }
+        }
 
-    public class RejectCancelBookingRequest
-    {
-        public string? BookingStatus { get; set; }
-        public string? RejectReason { get; set; }
-    }
+        public class ApproveCancelBookingRequest
+        {
+            public decimal? RefundAmount { get; set; }
+        }
 
-    public class TicketSeatInfoResponse
-    {
-        public int TicketSeatID { get; set; }
-        public string? SeatLabel { get; set; }
-        public string? QRCode { get; set; }
+        public class RejectCancelBookingRequest
+        {
+            public string? BookingStatus { get; set; }
+            public string? RejectReason { get; set; }
+        }
+
+        public class TicketSeatInfoResponse
+        {
+            public int TicketSeatID { get; set; }
+            public string? SeatLabel { get; set; }
+            public string? QRCode { get; set; }
         }
     }
 }
