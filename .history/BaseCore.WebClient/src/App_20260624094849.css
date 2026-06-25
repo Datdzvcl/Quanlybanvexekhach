@@ -3485,26 +3485,6 @@ a:hover,
   font-weight: 800;
 }
 
-/* --- Back button dùng chung cho các trang booking --- */
-.booking-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255,255,255,0.15);
-  border: 1.5px solid rgba(255,255,255,0.35);
-  color: #fff;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-bottom: 12px;
-  transition: background 0.18s;
-}
-.booking-back-btn:hover {
-  background: rgba(255,255,255,0.25);
-}
-
 /* --- Seat selection phase 17 --- */
 .seat-page-hero {
   background: linear-gradient(135deg, #0f4fb8, #2563eb);

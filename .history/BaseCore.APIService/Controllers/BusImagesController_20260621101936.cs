@@ -92,16 +92,13 @@ namespace BaseCore.APIService.Controllers
             if (bus == null) return NotFound(new { message = "Xe không tồn tại" });
             if (bus.OperatorID != operatorId.Value) return Forbid();
 
-            // Xóa avatar cũ TRƯỚC khi insert mới để tránh duplicate key
+            // Nếu đặt làm avatar, xóa avatar cũ
             if (image.IsAvatar)
             {
                 var oldAvatar = await _context.BusImages
                     .FirstOrDefaultAsync(x => x.BusID == image.BusID && x.IsAvatar);
                 if (oldAvatar != null)
-                {
                     oldAvatar.IsAvatar = false;
-                    await _context.SaveChangesAsync();
-                }
             }
 
             image.UploadedAt = DateTime.Now;
@@ -137,16 +134,13 @@ namespace BaseCore.APIService.Controllers
             if (existing == null) return NotFound();
             if (existing.Bus?.OperatorID != operatorId.Value) return Forbid();
 
-            // Xóa avatar cũ TRƯỚC khi update để tránh duplicate key
+            // Nếu đặt làm avatar, xóa avatar cũ
             if (image.IsAvatar && !existing.IsAvatar)
             {
                 var oldAvatar = await _context.BusImages
                     .FirstOrDefaultAsync(x => x.BusID == existing.BusID && x.IsAvatar && x.ImageID != id);
                 if (oldAvatar != null)
-                {
                     oldAvatar.IsAvatar = false;
-                    await _context.SaveChangesAsync();
-                }
             }
 
             existing.ImageURL = image.ImageURL;
@@ -172,14 +166,11 @@ namespace BaseCore.APIService.Controllers
             if (image == null) return NotFound();
             if (image.Bus?.OperatorID != operatorId.Value) return Forbid();
 
-            // Xóa avatar cũ TRƯỚC khi set mới để tránh duplicate key
+            // Xóa avatar cũ
             var oldAvatar = await _context.BusImages
                 .FirstOrDefaultAsync(x => x.BusID == image.BusID && x.IsAvatar && x.ImageID != id);
             if (oldAvatar != null)
-            {
                 oldAvatar.IsAvatar = false;
-                await _context.SaveChangesAsync();
-            }
 
             image.IsAvatar = true;
             await _context.SaveChangesAsync();

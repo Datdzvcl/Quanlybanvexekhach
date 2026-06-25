@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import UserLayout from '../layouts/UserLayout';
 import { formatVND, labelSeatStatus, pick } from '../api';
@@ -9,8 +9,6 @@ import BookingSteps from '../components/BookingSteps';
 const SESSION_STORAGE_KEY = 'seatSessionId';
 const HOLD_STORAGE_KEY = 'currentSeatHold';
 const ROUND_TRIP_KEY = 'roundTripBooking';
-const COOLDOWN_STORAGE_KEY = 'seatCooldown';
-const COOLDOWN_MINUTES = 5;
 
 function ensureSessionId() {
   const existing = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -82,65 +80,6 @@ export default function SeatSelection() {
   const [loading, setLoading] = useState(true);
   const [busySeat, setBusySeat] = useState('');
   const [error, setError] = useState('');
-  const [showExitModal, setShowExitModal] = useState(false);
-  const [releasing, setReleasing] = useState(false);
-  const [cooldownUntil, setCooldownUntil] = useState(() => {
-    try {
-      const raw = localStorage.getItem(COOLDOWN_STORAGE_KEY);
-      if (!raw) return null;
-      const data = JSON.parse(raw);
-      return new Date(data.until).getTime() > Date.now() ? data.until : null;
-    } catch { return null; }
-  });
-
-  const pendingNavRef = useRef(null);
-  const cancelingRef = useRef(false);
-  const hasSeats = selectedSeats.length > 0;
-
-  // Chặn nút Back trình duyệt — chỉ chạy khi hasSeats thay đổi (0↔>0)
-  useEffect(() => {
-    if (!hasSeats) return;
-    window.history.pushState(null, '', window.location.href);
-    const handler = () => {
-      if (cancelingRef.current) { cancelingRef.current = false; return; }
-      pendingNavRef.current = () => navigate(-1);
-      setShowExitModal(true);
-    };
-    window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
-  }, [hasSeats, navigate]);
-
-  // Chặn đóng tab / F5
-  useEffect(() => {
-    const handler = (e) => {
-      if (hasSeats) { e.preventDefault(); e.returnValue = ''; }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [hasSeats]);
-
-  const handleConfirmExit = async () => {
-    setReleasing(true);
-    try {
-      if (selectedSeats.length > 0)
-        await seatApi.release({ tripId, seatLabels: selectedSeats, sessionId });
-      localStorage.removeItem(HOLD_STORAGE_KEY);
-      window.dispatchEvent(new Event('holdSeatUpdated'));
-    } catch { /* ignore */ } finally {
-      setReleasing(false);
-      setShowExitModal(false);
-      pendingNavRef.current?.();
-      pendingNavRef.current = null;
-    }
-  };
-
-  const handleCancelExit = () => {
-    setShowExitModal(false);
-    pendingNavRef.current = null;
-    // Đẩy lại guard entry để back tiếp theo vẫn bị chặn
-    cancelingRef.current = true;
-    window.history.go(1);
-  };
 
   const loadSeats = useCallback(async () => {
     const response = await seatApi.getByTrip(tripId, { sessionId });
@@ -211,13 +150,9 @@ export default function SeatSelection() {
     if (expiresMs > now) return;
 
     localStorage.removeItem(HOLD_STORAGE_KEY);
-    window.dispatchEvent(new Event('holdSeatUpdated'));
     setHoldExpiresAt(null);
     setSelectedSeats([]);
-    // Lưu cooldown 5 phút
-    const until = new Date(Date.now() + COOLDOWN_MINUTES * 60 * 1000).toISOString();
-    localStorage.setItem(COOLDOWN_STORAGE_KEY, JSON.stringify({ until }));
-    setCooldownUntil(until);
+    alert('Đã hết thời gian giữ ghế. Vui lòng chọn lại.');
     loadSeats().catch(() => {});
   }, [holdExpiresAt, loadSeats, now]);
 
@@ -290,7 +225,6 @@ export default function SeatSelection() {
           seatLabels: nextSeats,
           holdExpiresAt: expiresAt,
         }));
-        window.dispatchEvent(new Event('holdSeatUpdated'));
       }
       await loadSeats();
     } catch (err) {
@@ -324,7 +258,6 @@ export default function SeatSelection() {
           seatLabels: nextSeats,
         }));
       }
-      window.dispatchEvent(new Event('holdSeatUpdated'));
       await loadSeats();
     } catch (err) {
       alert(err.message || 'Không thể nhả ghế này.');
@@ -382,15 +315,6 @@ export default function SeatSelection() {
     navigate('/booking/pickup-dropoff');
   };
 
-  // Tự xóa cooldown khi hết hạn
-  useEffect(() => {
-    if (!cooldownUntil) return;
-    const ms = new Date(cooldownUntil).getTime() - Date.now();
-    if (ms <= 0) { setCooldownUntil(null); localStorage.removeItem(COOLDOWN_STORAGE_KEY); return; }
-    const t = setTimeout(() => { setCooldownUntil(null); localStorage.removeItem(COOLDOWN_STORAGE_KEY); }, ms);
-    return () => clearTimeout(t);
-  }, [cooldownUntil]);
-
   if (loading) {
     return (
       <UserLayout>
@@ -410,58 +334,10 @@ export default function SeatSelection() {
     );
   }
 
-  if (cooldownUntil && new Date(cooldownUntil).getTime() > Date.now()) {
-    const remainSec = Math.max(0, Math.ceil((new Date(cooldownUntil).getTime() - now) / 1000));
-    const mm = String(Math.floor(remainSec / 60)).padStart(2, '0');
-    const ss = String(remainSec % 60).padStart(2, '0');
-    return (
-      <UserLayout>
-        <section className="seat-page-hero">
-          <div className="container">
-            <span>Chọn ghế</span>
-            <h1>{trip.departureLocation} → {trip.arrivalLocation}</h1>
-            <BookingSteps step={1} />
-          </div>
-        </section>
-        <div className="container" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ marginBottom: 8 }}>Tạm thời không thể chọn ghế</h2>
-          <p style={{ color: '#64748b', marginBottom: 24 }}>
-            Bạn đã để hết thời gian giữ ghế mà không hoàn tất đặt vé.<br />
-            Vui lòng đợi trước khi thử lại.
-          </p>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 10,
-            background: '#fef2f2', border: '1.5px solid #fecaca',
-            borderRadius: 12, padding: '16px 32px',
-          }}>
-            <i className="fa-solid fa-clock" style={{ color: '#ef4444', fontSize: 20 }} />
-            <span style={{ fontSize: 28, fontWeight: 700, color: '#ef4444', letterSpacing: 2 }}>
-              {mm}:{ss}
-            </span>
-          </div>
-          <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
-            Chức năng sẽ tự động mở lại sau {mm}:{ss}
-          </p>
-        </div>
-      </UserLayout>
-    );
-  }
-
   return (
     <UserLayout>
       <section className="seat-page-hero">
         <div className="container">
-          <button type="button" className="booking-back-btn" onClick={() => {
-            if (selectedSeats.length > 0) {
-              pendingNavRef.current = () => navigate(-1);
-              setShowExitModal(true);
-            } else {
-              navigate(-1);
-            }
-          }}>
-            <i className="fa-solid fa-arrow-left" /> Quay lại
-          </button>
           <span>Chọn ghế</span>
           <h1>{trip.departureLocation} → {trip.arrivalLocation}</h1>
           <p>{trip.operatorName} · {trip.busType} · {formatDateTime(trip.departureTime)}</p>
@@ -592,38 +468,6 @@ export default function SeatSelection() {
           </button>
         </aside>
       </section>
-
-      {showExitModal && (
-        <div className="modal-overlay" onClick={handleCancelExit}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 8 }}>⚠️</div>
-            <h3 style={{ textAlign: 'center', marginBottom: 8 }}>Bạn muốn thoát?</h3>
-            <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 20 }}>
-              Nếu thoát, các ghế bạn đang giữ ({selectedSeats.join(', ')}) sẽ được giải phóng cho người khác.
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                className="btn btn-outline"
-                style={{ flex: 1 }}
-                onClick={handleCancelExit}
-                disabled={releasing}
-              >
-                Ở lại
-              </button>
-              <button
-                className="btn btn-danger"
-                style={{ flex: 1 }}
-                onClick={handleConfirmExit}
-                disabled={releasing}
-              >
-                {releasing
-                  ? <><i className="fa-solid fa-spinner fa-spin" /> Đang giải phóng...</>
-                  : 'Thoát & giải phóng ghế'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </UserLayout>
   );
 }
