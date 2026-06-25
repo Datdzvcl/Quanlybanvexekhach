@@ -783,6 +783,66 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <section id="refund" className="container home-section">
+        <div className="home-section-head">
+          <span>Chính sách</span>
+          <h2>Chính sách hoàn &amp; hủy vé</h2>
+        </div>
+        <div className="refund-policy">
+          <div className="refund-policy-block">
+            <h3><i className="fa-solid fa-user" /> Khách hàng tự hủy vé</h3>
+            <p>Khi bạn muốn hủy vé, hãy gửi yêu cầu qua mục <strong>Vé của tôi</strong>. Nhà xe sẽ xem xét và xử lý trong thời gian sớm nhất. Số tiền hoàn phụ thuộc vào thời điểm hủy so với giờ khởi hành:</p>
+            <table className="refund-table">
+              <thead>
+                <tr>
+                  <th>Thời gian trước khởi hành</th>
+                  <th>Tỉ lệ hoàn tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Trước hơn 24 giờ</td>
+                  <td className="refund-rate high">Hoàn 90%</td>
+                </tr>
+                <tr>
+                  <td>Từ 6 đến 24 giờ</td>
+                  <td className="refund-rate mid">Hoàn 70%</td>
+                </tr>
+                <tr>
+                  <td>Dưới 6 giờ</td>
+                  <td className="refund-rate low">Hoàn 50%</td>
+                </tr>
+                <tr>
+                  <td>Sau giờ khởi hành</td>
+                  <td className="refund-rate none">Không hoàn</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="refund-note"><i className="fa-solid fa-circle-info" /><span>Số tiền hoàn được tính trên tổng giá vé sau khi đã áp dụng khuyến mãi.</span></p>
+          </div>
+
+          <div className="refund-policy-block highlight">
+            <h3><i className="fa-solid fa-bus" /> Nhà xe hủy chuyến</h3>
+            <p>Trong trường hợp nhà xe chủ động hủy chuyến, <strong>VéXeAZ đảm bảo hoàn trả 100%</strong> số tiền bạn đã thanh toán — không trừ bất kỳ khoản phí nào.</p>
+            <ul className="refund-guarantee-list">
+              <li><i className="fa-solid fa-check" /> Hoàn 100% giá vé</li>
+              <li><i className="fa-solid fa-check" /> Không mất phí xử lý</li>
+              <li><i className="fa-solid fa-check" /> Thông báo ngay qua hệ thống</li>
+            </ul>
+          </div>
+
+          <div className="refund-policy-block">
+            <h3><i className="fa-solid fa-rotate-left" /> Quy trình hoàn tiền</h3>
+            <ol className="refund-steps">
+              <li>Gửi yêu cầu hủy vé trong mục <strong>Vé của tôi</strong>.</li>
+              <li>Nhà xe xem xét và phê duyệt yêu cầu.</li>
+              <li>Tiền được admin hoàn về phương thức thanh toán ban đầu trong vòng <strong>3–7 ngày làm việc</strong>.</li>
+            </ol>
+            <p className="refund-note"><i className="fa-solid fa-circle-info" /><span>Mọi thắc mắc về hoàn tiền, vui lòng liên hệ hotline <strong>1900 1234</strong> hoặc email <strong>support@vexeaz.vn</strong>.</span></p>
+          </div>
+        </div>
+      </section>
     </UserLayout>
   );
 }

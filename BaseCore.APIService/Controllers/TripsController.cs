@@ -1389,20 +1389,24 @@ namespace BaseCore.APIService.Controllers
                             x.PaymentStatus  != PaymentStatusConstant.Refunded)
                 .ToListAsync();
 
+            var now = DateTime.Now;
             var cancelReason = $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) bị hủy bởi nhà xe.";
-            int pendingRefundCount = 0;
+            int refundedCount = 0;
             foreach (var booking in bookings)
             {
                 booking.CancelReason = cancelReason;
+                booking.CancelledAt  = now;
                 if (booking.PaymentStatus == PaymentStatusConstant.Paid)
                 {
-                    booking.BookingStatus = BookingStatusConstant.PendingRefund;
-                    booking.PaymentStatus = PaymentStatusConstant.PendingRefund;
-                    pendingRefundCount++;
+                    // Nhà xe hủy chuyến → hoàn 100% tự động theo chính sách
+                    booking.BookingStatus = BookingStatusConstant.Refunded;
+                    booking.PaymentStatus = PaymentStatusConstant.Refunded;
+                    booking.RefundAmount  = booking.TotalPrice;
+                    refundedCount++;
                     NotificationsController.AddNotification(
                         _context, booking.UserID,
-                        "Chuyến xe bị hủy — chờ hoàn tiền",
-                        $"{cancelReason} Yêu cầu hoàn tiền đang chờ Admin xử lý.",
+                        "Chuyến xe bị hủy — hoàn tiền 100%",
+                        $"{cancelReason} Số tiền {booking.TotalPrice:N0} đ sẽ được hoàn lại cho bạn.",
                         4, $"/my-tickets/{booking.BookingID}");
                 }
                 else
@@ -1424,28 +1428,13 @@ namespace BaseCore.APIService.Controllers
                     $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) đã bị hủy bởi nhà xe.",
                     4, "/driver");
 
-            // Thông báo admin nếu có vé cần hoàn tiền
-            if (pendingRefundCount > 0)
-            {
-                var adminUsers = await _context.Users
-                    .Where(u => u.Role == RoleConstant.Admin)
-                    .Select(u => new { u.UserID })
-                    .ToListAsync();
-                foreach (var admin in adminUsers)
-                    NotificationsController.AddNotification(
-                        _context, admin.UserID,
-                        "Cần duyệt hoàn tiền",
-                        $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) bị hủy. {pendingRefundCount} vé cần Admin duyệt hoàn tiền.",
-                        3, "/admin/bookings");
-            }
-
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                message = $"Đã hủy chuyến xe. {pendingRefundCount} vé chờ Admin duyệt hoàn tiền, {bookings.Count - pendingRefundCount} vé hủy không cần hoàn tiền.",
+                message = $"Đã hủy chuyến xe. {refundedCount} vé đã hoàn tiền 100%, {bookings.Count - refundedCount} vé hủy không cần hoàn tiền.",
                 cancelledBookings = bookings.Count,
-                pendingRefundCount
+                refundedCount
             });
         }
 
