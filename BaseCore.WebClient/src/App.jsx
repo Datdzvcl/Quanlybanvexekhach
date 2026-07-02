@@ -28,6 +28,7 @@ import DriverRoute from './routes/DriverRoute';
 import DriverPage from './pages/DriverPage';
 import OrderHistory from './pages/OrderHistory';
 import OperatorProfile from './pages/OperatorProfile';
+import RefundPolicy from './pages/RefundPolicy';
 
 // Component hiển thị thông báo giữ chỗ toàn cục
 function HoldSeatNotification() {
@@ -190,6 +191,7 @@ export default function App() {
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/order-history" element={<DriverGuard><OrderHistory /></DriverGuard>} />
         <Route path="/nha-xe/:id" element={<DriverGuard><OperatorProfile /></DriverGuard>} />
+        <Route path="/chinh-sach-hoan-huy" element={<RefundPolicy />} />
         <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/operator/*" element={<OperatorRoute><AdminPage /></OperatorRoute>} />
         <Route path="/driver" element={<DriverRoute><DriverPage /></DriverRoute>} />

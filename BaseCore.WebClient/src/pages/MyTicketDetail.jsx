@@ -62,16 +62,65 @@ function qrValue(booking) {
   level="M"
   includeMargin={true}
 /> */}
-function CancelModal({ onConfirm, onClose, loading }) {
+function getRefundInfo(departureTime, totalPrice) {
+  if (!departureTime || !totalPrice) return null;
+  const hours = (new Date(departureTime) - new Date()) / 3600000;
+  let rate, label;
+  if (hours > 24)       { rate = 0.9; label = 'Trước 24 giờ → hoàn 90%'; }
+  else if (hours >= 6)  { rate = 0.7; label = 'Còn 6–24 giờ → hoàn 70%'; }
+  else if (hours > 0)   { rate = 0.5; label = 'Còn dưới 6 giờ → hoàn 50%'; }
+  else                  { rate = 0;   label = 'Xe đã khởi hành → không hoàn'; }
+  return { rate, label, amount: Math.round(totalPrice * rate) };
+}
+
+const REFUND_POLICY = [
+  { condition: 'Trước khởi hành > 24 giờ', rate: '90%' },
+  { condition: 'Trước khởi hành 6 – 24 giờ', rate: '70%' },
+  { condition: 'Trước khởi hành < 6 giờ', rate: '50%' },
+  { condition: 'Sau khi xe đã khởi hành', rate: '0%' },
+];
+
+function CancelModal({ onConfirm, onClose, loading, departureTime, totalPrice }) {
   const [reason, setReason] = useState('Khách yêu cầu hủy vé');
+  const refund = getRefundInfo(departureTime, totalPrice);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-box cancel-modal-box" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <i className="fa-solid fa-triangle-exclamation" style={{ color: '#ef4444' }} />
           <h3>Yêu cầu hủy vé</h3>
         </div>
         <p className="modal-desc">Vui lòng nhập lý do hủy. Yêu cầu sẽ được gửi đến nhà xe để xem xét.</p>
+
+        <div className="refund-policy-box">
+          <div className="refund-policy-title">
+            <i className="fa-solid fa-circle-info" />
+            Chính sách hoàn tiền
+          </div>
+          <table className="refund-policy-table">
+            <thead>
+              <tr><th>Thời điểm hủy</th><th>Tỷ lệ hoàn</th></tr>
+            </thead>
+            <tbody>
+              {REFUND_POLICY.map((row) => (
+                <tr key={row.condition} className={refund?.label?.startsWith(row.condition.split('→')[0]?.trim()?.split(' ')[0]) ? 'refund-row-active' : ''}>
+                  <td>{row.condition}</td>
+                  <td><strong>{row.rate}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {refund && (
+            <div className="refund-estimate">
+              <span>{refund.label}</span>
+              {refund.rate > 0
+                ? <strong>Ước tính hoàn: {new Intl.NumberFormat('vi-VN').format(refund.amount)} đ</strong>
+                : <strong style={{ color: '#ef4444' }}>Không được hoàn tiền</strong>}
+            </div>
+          )}
+        </div>
+
         <textarea
           className="modal-textarea"
           value={reason}
@@ -508,6 +557,8 @@ const code = qrValue(booking);
           onConfirm={requestCancel}
           onClose={() => setShowCancelModal(false)}
           loading={actionLoading}
+          departureTime={pick(trip, ['departureTime', 'DepartureTime'], pick(booking, ['departureTime', 'DepartureTime']))}
+          totalPrice={pick(booking, ['totalPrice', 'TotalPrice'], 0)}
         />
       )}
     </UserLayout>

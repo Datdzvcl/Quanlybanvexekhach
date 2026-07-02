@@ -951,6 +951,64 @@ a {
   margin-top: 18px;
 }
 
+/* ── Refund policy inside cancel modal ──────────────── */
+.cancel-modal-box {
+  max-width: 520px;
+}
+.refund-policy-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.refund-policy-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 10px;
+}
+.refund-policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.refund-policy-table th {
+  text-align: left;
+  padding: 4px 8px;
+  color: #64748b;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+.refund-policy-table td {
+  padding: 5px 8px;
+  color: #374151;
+  border-bottom: 1px solid #f1f5f9;
+}
+.refund-policy-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.refund-policy-table td strong {
+  color: #16a34a;
+}
+.refund-estimate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 0.85rem;
+  color: #475569;
+}
+.refund-estimate strong {
+  color: #16a34a;
+  font-size: 0.9rem;
+}
+
 .payment-page {
   padding: 60px 20px;
   display: flex;
@@ -10287,4 +10345,392 @@ p.eyebrow {
 @media (max-width: 480px) {
   .shb-banner { bottom: 16px; right: 12px; left: 12px; max-width: none; border-radius: 14px; }
   .shb-cta { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════
+   Refund Policy Page  (/chinh-sach-hoan-huy)
+   ══════════════════════════════════════════════════════ */
+
+/* Hero */
+.rp-hero {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  color: #fff;
+  padding: 72px 20px 56px;
+  text-align: center;
+}
+.rp-hero-inner { max-width: 720px; margin: 0 auto; }
+.rp-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 999px;
+  padding: 5px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 18px;
+}
+.rp-hero h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 0 0 14px;
+  line-height: 1.2;
+}
+.rp-hero p {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.88);
+  line-height: 1.7;
+  margin: 0 0 8px;
+}
+.rp-hero-updated {
+  font-size: 0.8rem !important;
+  color: rgba(255,255,255,0.6) !important;
+  margin-top: 10px !important;
+}
+
+/* Body wrapper */
+.rp-body {
+  padding: 56px 20px 80px;
+  max-width: 900px;
+}
+
+/* Section */
+.rp-section {
+  margin-bottom: 56px;
+}
+.rp-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 20px;
+}
+.rp-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.rp-section-desc {
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin: 0 0 18px;
+}
+
+/* Conditions */
+.rp-conditions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.rp-condition-card {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+.rp-condition-card i {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.rp-condition-ok {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+.rp-condition-ok i { color: #16a34a; }
+.rp-condition-no {
+  background: #fff1f2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+.rp-condition-no i { color: #dc2626; }
+.rp-condition-card strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+.rp-condition-card ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  line-height: 1.8;
+}
+
+/* Refund table */
+.rp-table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.rp-table thead {
+  background: #f8fafc;
+}
+.rp-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 700;
+  color: #374151;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+.rp-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #374151;
+  vertical-align: middle;
+}
+.rp-table tbody tr:last-child td { border-bottom: none; }
+.rp-table tbody tr:hover { background: #f8fafc; }
+.rp-table-example { color: #6b7280; font-size: 0.82rem; }
+
+/* Rate badges */
+.rp-rate-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.rp-rate-high  { background: #dcfce7; color: #15803d; }
+.rp-rate-medium{ background: #fef9c3; color: #92400e; }
+.rp-rate-low   { background: #ffedd5; color: #c2410c; }
+.rp-rate-none  { background: #fee2e2; color: #b91c1c; }
+
+/* Note box */
+.rp-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 16px;
+  font-size: 0.88rem;
+  color: #1e40af;
+  line-height: 1.6;
+}
+.rp-note i { margin-top: 2px; flex-shrink: 0; }
+
+/* Steps */
+.rp-steps { display: flex; flex-direction: column; gap: 0; }
+.rp-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  position: relative;
+}
+.rp-step:not(:last-child) { padding-bottom: 28px; }
+.rp-step-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 4px #eff6ff;
+}
+.rp-step-line {
+  position: absolute;
+  left: 22px;
+  top: 44px;
+  bottom: 0;
+  width: 2px;
+  background: #bfdbfe;
+}
+.rp-step:last-child .rp-step-line { display: none; }
+.rp-step-content {
+  padding-top: 10px;
+  padding-bottom: 4px;
+}
+.rp-step-content strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+.rp-step-content p {
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Payment time grid */
+.rp-payment-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.rp-payment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+.rp-payment-method {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #1e293b;
+}
+.rp-payment-time {
+  font-size: 0.82rem;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* No-refund list */
+.rp-norefund-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rp-norefund-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff7f7;
+  border: 1px solid #fee2e2;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.5;
+}
+.rp-norefund-list li i {
+  color: #dc2626;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* Special cases */
+.rp-special-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.rp-special-card {
+  display: flex;
+  gap: 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 20px;
+}
+.rp-special-card > i {
+  font-size: 1.6rem;
+  color: #0284c7;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.rp-special-card strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0c4a6e;
+  margin-bottom: 6px;
+}
+.rp-special-card p {
+  font-size: 0.88rem;
+  color: #0369a1;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Contact section */
+.rp-contact-section { }
+.rp-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.rp-contact-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.rp-contact-card:hover {
+  border-color: #2563eb;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.1);
+}
+.rp-contact-card > i {
+  font-size: 1.4rem;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+.rp-contact-card strong {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.rp-contact-card span {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+.rp-cta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .rp-hero h1 { font-size: 1.6rem; }
+  .rp-conditions-grid,
+  .rp-special-grid,
+  .rp-payment-grid { grid-template-columns: 1fr; }
+  .rp-contact-grid { grid-template-columns: 1fr; }
+  .rp-table th, .rp-table td { padding: 10px 12px; }
+  .rp-table-example { display: none; }
+}
+@media (max-width: 480px) {
+  .rp-hero { padding: 48px 16px 36px; }
+  .rp-hero h1 { font-size: 1.35rem; }
+  .rp-body { padding: 32px 16px 60px; }
+  .rp-section-title { font-size: 1.05rem; }
 }

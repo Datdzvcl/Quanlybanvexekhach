@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Footer() {
   return (
     <footer className="user-footer" id="contact">
@@ -38,7 +40,7 @@ export default function Footer() {
           <h3>Chính sách</h3>
           <a href="/#terms">Điều khoản sử dụng</a>
           <a href="/#policy">Chính sách bảo mật</a>
-          <a href="/#refund">Chính sách hoàn hủy</a>
+          <Link to="/chinh-sach-hoan-huy">Chính sách hoàn hủy</Link>
           <a href="/#booking-guide">Hướng dẫn đặt vé</a>
         </div>
       </div>
