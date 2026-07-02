@@ -802,6 +802,8 @@ export default function AdminDashboard({
     };
   }, [range.fromDate, range.toDate, isOperator]);
 
+  const COMMISSION_RATE = 5; // % hoa hồng admin
+
   const summary = dashboard.summary || stats || {};
 
   // helpers
@@ -919,6 +921,34 @@ export default function AdminDashboard({
           ))}
         </section>
       </div>
+
+      {/* ── Hoa hồng Admin (chỉ hiện với Admin, không hiện Operator) ── */}
+      {!isOperator && (() => {
+        const revenueInRange = pv(["revenueInRange", "RevenueInRange"]);
+        const totalRevenue   = pv(["totalRevenue", "TotalRevenue", "revenue", "Revenue"]);
+        const commissionInRange = revenueInRange * COMMISSION_RATE / 100;
+        const commissionTotal   = totalRevenue   * COMMISSION_RATE / 100;
+        return (
+          <div style={{ marginBottom: 8 }}>
+            <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+              Hoa hồng nền tảng ({COMMISSION_RATE}% / vé)
+            </p>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
+              {[
+                { label: `Hoa hồng ${periodLabels[period] ?? period}`, value: formatVND(commissionInRange), icon: "fa-hand-holding-dollar", color: "#7c3aed" },
+                { label: "Hoa hồng all-time",                          value: formatVND(commissionTotal),   icon: "fa-sack-dollar",         color: "#a855f7" },
+                { label: "Tỉ lệ hoa hồng",                            value: `${COMMISSION_RATE}%`,        icon: "fa-percent",             color: "#6d28d9" },
+                { label: "Doanh thu nhà xe giữ lại",                   value: formatVND(revenueInRange - commissionInRange), icon: "fa-building", color: "#475569" },
+              ].map(({ label, value, icon, color }) => (
+                <div key={label} className="stat-card" style={{ borderLeft: `4px solid ${color}` }}>
+                  <div><p>{label}</p><h2 style={{ fontSize: "1.35rem" }}>{value}</h2></div>
+                  <i className={`fa-solid ${icon}`} style={{ color }} />
+                </div>
+              ))}
+            </section>
+          </div>
+        );
+      })()}
 
       {/* ── Nhóm 3: Tổng quan đội xe ── */}
       <div style={{ marginBottom: 20 }}>

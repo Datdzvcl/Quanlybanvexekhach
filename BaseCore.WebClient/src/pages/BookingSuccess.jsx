@@ -104,8 +104,15 @@ export default function BookingSuccess() {
       setError('');
       try {
         const bookingIds = readSuccessBookingIds(id);
-        const loadedBookings = await Promise.all(bookingIds.map((bookingId) => bookingApi.getById(bookingId)));
-        setBookings(loadedBookings);
+        const results = await Promise.allSettled(bookingIds.map((bookingId) => bookingApi.getById(bookingId)));
+        const loadedBookings = results
+          .filter((r) => r.status === 'fulfilled' && r.value)
+          .map((r) => r.value);
+        if (loadedBookings.length === 0) {
+          setError('Không tìm thấy thông tin đơn đặt vé.');
+        } else {
+          setBookings(loadedBookings);
+        }
       } catch (err) {
         setError(err.message || 'Không thể tải chi tiết đơn.');
       } finally {
@@ -154,7 +161,7 @@ export default function BookingSuccess() {
   const heroMessage = successMode === 'cash'
     ? 'Đơn đã được tạo và đang chờ nhân viên/admin xác nhận sau khi thu tiền mặt.'
     : successMode === 'online'
-      ? 'Thanh toán đã được ghi nhận, vé sẽ chuyển sang đã xác nhận sau khi admin duyệt đơn.'
+      ? 'Thanh toán đã được ghi nhận'
       : 'Đơn đã được tạo thành công và đang chờ admin xác nhận.';
 
   return (

@@ -739,6 +739,9 @@ namespace BaseCore.Repository.Migrations
                     b.Property<bool>("IsResolved")
                         .HasColumnType("bit");
 
+                    b.Property<string>("ImageUrls")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ReportedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")

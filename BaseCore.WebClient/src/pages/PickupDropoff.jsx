@@ -285,6 +285,9 @@ export default function PickupDropoff() {
     <UserLayout>
       <section className="pickup-page-hero">
         <div className="container">
+          <button type="button" className="booking-back-btn" onClick={() => navigate(tripId ? `/trips/${tripId}/seats` : '/search-results')}>
+            <i className="fa-solid fa-arrow-left" /> Quay lại
+          </button>
           <span>Thông tin hành trình</span>
           <h1>Chọn điểm đón và điểm trả</h1>
           <p>Hoàn tất điểm lên xe và xuống xe trước khi nhập thông tin liên hệ.</p>

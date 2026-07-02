@@ -437,6 +437,8 @@ function AdminContent({
 // }
 if (isOperator && active === 'operators')
     return <OperatorInfoManager />;
+  if (active === 'incidents')
+    return <IncidentsManager isAdmin={!isOperator} />;
   if (isOperator && active === 'users')
     return <div className="admin-card">Bạn không có quyền truy cập trang này.</div>;
  
@@ -450,7 +452,7 @@ if (isOperator && active === 'operators')
   if (active === 'buses')
     return <BusesManager buses={buses} operators={operators} onRefresh={onRefresh} isOperator={isOperator} refreshKey={refreshKey} />;
   if (active === 'users')
-    return <UsersManager users={users} onRefresh={onRefresh} />;
+    return <UsersManager users={users} operators={operators} onRefresh={onRefresh} />;
   if (active === 'stations') return <StationsManager />;
   if (active === 'settings') return <AdminSettings />;
   return <OperatorsManager operators={operators} onRefresh={onRefresh} />;
@@ -862,7 +864,7 @@ function InvoicesManager({ bookings, trips, onRefresh }) {
 }
 
 // ==================== USERS ====================
-function UsersManager({ onRefresh }) {
+function UsersManager({ onRefresh, operators = [] }) {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({
     totalCount: 0,
@@ -895,6 +897,9 @@ function UsersManager({ onRefresh }) {
   const [promoteTarget, setPromoteTarget] = useState(null); // user đang được cấp NX
   const [promoteForm, setPromoteForm] = useState({ name: '', phone: '', email: '', description: '' });
   const [promoteLoading, setPromoteLoading] = useState(false);
+  const [driverTarget, setDriverTarget] = useState(null); // user đang được cấp TX
+  const [driverOperatorId, setDriverOperatorId] = useState('');
+  const [driverLoading, setDriverLoading] = useState(false);
 
   // const loadUsers = async () => {
   //   setLoading(true);
@@ -1070,6 +1075,34 @@ useEffect(() => {
     }
   };
 
+  const confirmPromoteDriver = async () => {
+    if (!driverTarget) return;
+    if (!driverOperatorId) {
+      setNotice({ type: 'error', text: 'Vui lòng chọn nhà xe cho tài xế.' });
+      return;
+    }
+    setDriverLoading(true);
+    setNotice(null);
+    try {
+      const userId = pick(driverTarget, ['userID', 'UserID']);
+      await userApi.update(userId, {
+        fullName: pick(driverTarget, ['fullName', 'FullName'], ''),
+        email:    pick(driverTarget, ['email', 'Email'], ''),
+        phone:    pick(driverTarget, ['phone', 'Phone'], ''),
+        role: 3,
+        operatorID: Number(driverOperatorId),
+      });
+      setNotice({ type: 'success', text: 'Đã cấp quyền tài xế và liên kết nhà xe thành công.' });
+      setDriverTarget(null);
+      setDriverOperatorId('');
+      await loadUsers();
+    } catch (e) {
+      setNotice({ type: 'error', text: e.message || 'Không cấp quyền được.' });
+    } finally {
+      setDriverLoading(false);
+    }
+  };
+
   return (
     <section className="admin-card table-card">
       <SectionHeader
@@ -1081,8 +1114,8 @@ useEffect(() => {
 
       {/* Modal Cấp quyền Nhà xe */}
       {promoteTarget && (
-        <div className="modal-overlay" onClick={() => !promoteLoading && setPromoteTarget(null)}>
-          <div className="modal-box" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: 460 }}>
             <div className="modal-head">
               <i className="fa-solid fa-building" style={{ color: '#2563eb', fontSize: '1.4rem' }} />
               <h3>Cấp quyền Nhà xe</h3>
@@ -1123,6 +1156,42 @@ useEffect(() => {
               </button>
               <button type="button" className="btn btn-primary" onClick={confirmPromote} disabled={promoteLoading}>
                 {promoteLoading ? 'Đang xử lý...' : 'Xác nhận cấp NX'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cấp quyền Tài xế */}
+      {driverTarget && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <i className="fa-solid fa-id-card" style={{ color: '#7c3aed' }} />
+              <h3>Cấp quyền Tài xế</h3>
+            </div>
+            <p style={{ color: '#475569', margin: '8px 0 16px' }}>
+              Cấp quyền tài xế cho <b>{pick(driverTarget, ['fullName', 'FullName'])}</b> và liên kết với nhà xe.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={{ fontWeight: 500, fontSize: '0.92rem' }}>Chọn nhà xe <span style={{ color: '#ef4444' }}>*</span></label>
+              <select
+                value={driverOperatorId}
+                onChange={(e) => setDriverOperatorId(e.target.value)}
+                style={{ padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.92rem' }}
+              >
+                <option value="">— Chọn nhà xe —</option>
+                {operators.map(op => {
+                  const opId = pick(op, ['operatorID', 'OperatorID']);
+                  const opName = pick(op, ['name', 'Name'], `Nhà xe #${opId}`);
+                  return <option key={opId} value={opId}>{opName}</option>;
+                })}
+              </select>
+            </div>
+            <div className="modal-actions" style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-outline" onClick={() => setDriverTarget(null)} disabled={driverLoading}>Hủy</button>
+              <button type="button" className="btn btn-primary" onClick={confirmPromoteDriver} disabled={driverLoading || !driverOperatorId}>
+                {driverLoading ? 'Đang xử lý...' : 'Xác nhận cấp TX'}
               </button>
             </div>
           </div>
@@ -1232,6 +1301,7 @@ useEffect(() => {
     <option value="0">Khách hàng</option>
     <option value="1">Nhà xe</option>
     <option value="2">Quản trị viên</option>
+    <option value="3">Tài xế</option>
   </select>
 </div>
       {loading && <div className="admin-loading">Đang tải dữ liệu...</div>}
@@ -1273,14 +1343,24 @@ useEffect(() => {
                   <td>{formatDateTime(pick(item, ["createdAt", "CreatedAt"]))}</td>
                   <td className="admin-actions">
                     {Number(role) === 0 && (
-                      <button
-                        className="btn btn-outline"
-                        style={{ color: '#16a34a', borderColor: '#16a34a', fontSize: 12 }}
-                        onClick={() => openPromote(item)}
-                        title="Cấp quyền Nhà xe"
-                      >
-                        <i className="fa-solid fa-building" style={{ marginRight: 4 }} />Cấp NX
-                      </button>
+                      <>
+                        <button
+                          className="btn btn-outline"
+                          style={{ color: '#16a34a', borderColor: '#16a34a', fontSize: 12 }}
+                          onClick={() => openPromote(item)}
+                          title="Cấp quyền Nhà xe"
+                        >
+                          <i className="fa-solid fa-building" style={{ marginRight: 4 }} />Cấp NX
+                        </button>
+                        <button
+                          className="btn btn-outline"
+                          style={{ color: '#7c3aed', borderColor: '#7c3aed', fontSize: 12 }}
+                          onClick={() => { setDriverTarget(item); setDriverOperatorId(''); }}
+                          title="Cấp quyền Tài xế"
+                        >
+                          <i className="fa-solid fa-id-card" style={{ marginRight: 4 }} />Cấp TX
+                        </button>
+                      </>
                     )}
                     <button className="btn btn-outline" onClick={() => editItem(item)}>Sửa</button>
                     <button className="btn btn-danger" onClick={() => removeItem(id)}>Xóa</button>
@@ -2196,25 +2276,7 @@ export function AdminTripDetail({ tripId }) {
   const [activeBookingTab, setActiveBookingTab] = useState("all");
   const [loading, setLoading] = useState(true);
   const [bookingsLoading, setBookingsLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(null);
-  const [bookingNotice, setBookingNotice] = useState(null);
   const [error, setError] = useState("");
-
-  const handleConfirmCash = async (bookingId) => {
-    if (!confirm(`Xác nhận đã thu tiền mặt và xác nhận đơn #${bookingId}?`)) return;
-    setActionLoading(bookingId);
-    setBookingNotice(null);
-    try {
-      await bookingApi.confirm(bookingId);
-      setBookingNotice({ type: 'success', text: `Đã xác nhận đơn #${bookingId}.` });
-      const data = await tripApi.getBookings(tripId, {});
-      setBookings(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setBookingNotice({ type: 'error', text: e.message || 'Xác nhận thất bại.' });
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   // ── Quản lý điểm dừng/đón/trả ─────────────────────────────────
   const EMPTY_STOP = { stopName: "", stopAddress: "", stopType: 1, arrivalOffset: "" };
@@ -2623,10 +2685,6 @@ export function AdminTripDetail({ tripId }) {
           <span className="admin-muted">{displayedBookings.length}/{bookings.length} đơn</span>
         </div>
 
-        {bookingNotice && (
-          <AdminNotice type={bookingNotice.type}>{bookingNotice.text}</AdminNotice>
-        )}
-
         <div className="admin-filter-pills">
           {filterButtons.map((item) => (
             <button
@@ -2659,60 +2717,90 @@ export function AdminTripDetail({ tripId }) {
             </thead>
             <tbody>
               {displayedBookings.map((item) => {
-                const bookingId = pick(item, ["bookingID", "BookingID", "bookingId", "id"]);
-                const bs = Number(pick(item, ["bookingStatus", "BookingStatus"], 0));
-                const ps = Number(pick(item, ["paymentStatus", "PaymentStatus"], 0));
-                const pm = String(pick(item, ["paymentMethod", "PaymentMethod"], "")).toLowerCase();
-                const isCash = pm === "cash";
-                const isProcessing = actionLoading === bookingId;
-
-                const paymentBadge = (() => {
-                  if (ps === 1) return <span className="badge" style={{ background: '#dcfce7', color: '#166534', fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>✓ Đã thanh toán</span>;
-                  if (ps === 2) return <span className="badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>⏳ Chờ hoàn tiền</span>;
-                  if (ps === 3) return <span className="badge" style={{ background: '#ede9fe', color: '#6b21a8', fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>Đã hoàn tiền</span>;
-                  if (isCash)   return <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>💵 Chờ thu tiền</span>;
-                  return <span className="badge" style={{ background: '#fef9c3', color: '#854d0e', fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>Chờ thanh toán</span>;
-                })();
-
-                const bookingStatusBadge = (() => {
-                  const map = {
-                    0: { label: 'Chờ xác nhận', bg: '#fef9c3', color: '#854d0e' },
-                    1: { label: '✓ Đã xác nhận', bg: '#dcfce7', color: '#166534' },
-                    2: { label: 'Đã hủy',        bg: '#fee2e2', color: '#991b1b' },
-                    3: { label: '✓ Hoàn thành',  bg: '#dbeafe', color: '#1e40af' },
-                    4: { label: 'Đã hoàn tiền',  bg: '#ede9fe', color: '#6b21a8' },
-                    5: { label: 'Yêu cầu hủy',  bg: '#fce7f3', color: '#9d174d' },
-                    6: { label: 'Từ chối hủy',  bg: '#f3f4f6', color: '#374151' },
-                    7: { label: 'Chờ hoàn tiền',bg: '#fff7ed', color: '#9a3412' },
-                  };
-                  const cfg = map[bs] ?? { label: 'Chưa rõ', bg: '#f3f4f6', color: '#6b7280' };
-                  return <span className="badge" style={{ background: cfg.bg, color: cfg.color, fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>{cfg.label}</span>;
-                })();
-
+                const bookingId = pick(item, [
+                  "bookingID",
+                  "BookingID",
+                  "bookingId",
+                  "id",
+                ]);
                 return (
-                  <tr key={bookingId} style={{ opacity: isProcessing ? 0.6 : 1 }}>
+                  <tr key={bookingId}>
                     <td>{bookingId}</td>
-                    <td><b>{pick(item, ["customerName", "CustomerName"], "Chưa rõ")}</b></td>
-                    <td>{pick(item, ["customerPhone", "CustomerPhone"], "Chưa rõ")}</td>
-                    <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
-                    <td>{formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}</td>
-                    <td>{paymentBadge}</td>
-                    <td>{bookingStatusBadge}</td>
-                    <td className="admin-actions">
-                      {isCash && bs === 0 && (
-                        <button
-                          className="btn btn-primary"
-                          type="button"
-                          disabled={isProcessing}
-                          onClick={() => handleConfirmCash(bookingId)}
-                        >
-                          💵 Thu tiền & Xác nhận
-                        </button>
+                    <td>
+                      <b>
+                        {pick(
+                          item,
+                          ["customerName", "CustomerName"],
+                          "Chưa rõ",
+                        )}
+                      </b>
+                    </td>
+                    <td>
+                      {pick(
+                        item,
+                        ["customerPhone", "CustomerPhone"],
+                        "Chưa rõ",
                       )}
+                    </td>
+                    <td>{pick(item, ["totalSeats", "TotalSeats"], 0)}</td>
+                    <td>
+                      {formatVND(pick(item, ["totalPrice", "TotalPrice"], 0))}
+                    </td>
+                    {/* <td>
+                      <span className="badge">
+                        {labelPaymentStatus(
+                          pick(
+                            item,
+                            ["paymentStatus", "PaymentStatus"],
+                            "Pending",
+                          ),
+                        )}
+                      </span>
+                    </td> */}
+                    {/* <td>
+                    <span className="badge">
+                      {Number(
+                        pick(item, ["bookingStatus", "BookingStatus"], 0)
+                      ) === 1
+                        ? "Đã thanh toán"
+                        : "Chưa thanh toán"}
+                    </span>
+                  </td> */}
+                  <td>
+                    {(() => {
+                      const bs = Number(pick(item, ["bookingStatus", "BookingStatus"], 0));
+                      const map = {
+                        0: { label: 'Chưa thanh toán', bg: '#fef9c3', color: '#854d0e' },
+                        1: { label: '✓ Đã xác nhận',  bg: '#dcfce7', color: '#166534' },
+                        2: { label: 'Đã hủy',         bg: '#fee2e2', color: '#991b1b' },
+                        3: { label: '✓ Hoàn thành',   bg: '#dbeafe', color: '#1e40af' },
+                        4: { label: 'Đã hoàn tiền',   bg: '#ede9fe', color: '#6b21a8' },
+                        5: { label: 'Yêu cầu hủy',   bg: '#fce7f3', color: '#9d174d' },
+                        6: { label: 'Từ chối hủy',   bg: '#f3f4f6', color: '#374151' },
+                      };
+                      const cfg = map[bs] ?? { label: 'Chưa rõ', bg: '#f3f4f6', color: '#6b7280' };
+                      return (
+                        <span className="badge" style={{ background: cfg.bg, color: cfg.color, fontWeight: 600, borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>
+                          {cfg.label}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                    <td>
+                      <span className="badge">
+                        {labelBookingStatus(
+                          pick(
+                            item,
+                            ["bookingStatus", "BookingStatus"],
+                            "PendingConfirm",
+                          ),
+                        )}
+                      </span>
+                    </td>
+                    <td className="admin-actions">
                       <button
                         className="btn btn-outline"
                         type="button"
-                        disabled={isProcessing}
                         onClick={() => navigate(`${basePath}/bookings/${bookingId}`)}
                       >
                         Xem chi tiết
@@ -9600,6 +9688,251 @@ function SeatLayoutEditor({ layout, capacity, onApply, onClose }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function OperatorInfoManager() {
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  useEffect(() => {
+    operatorApi.getMe().then(data => {
+      setForm({
+        name:         pick(data, ['name', 'Name'], ''),
+        description:  pick(data, ['description', 'Description'], ''),
+        contactPhone: pick(data, ['contactPhone', 'ContactPhone'], ''),
+        email:        pick(data, ['email', 'Email'], ''),
+        logoUrl:      pick(data, ['logoUrl', 'LogoUrl'], ''),
+      });
+    }).catch(() => setNotice({ type: 'error', text: 'Không tải được thông tin nhà xe.' }));
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setNotice(null);
+    try {
+      await operatorApi.updateMe(form);
+      setNotice({ type: 'success', text: 'Cập nhật thông tin nhà xe thành công.' });
+    } catch (err) {
+      setNotice({ type: 'error', text: err?.response?.data?.message || err.message || 'Lỗi khi lưu.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!form) return <div className="admin-card">Đang tải...</div>;
+
+  return (
+    <div className="admin-card" style={{ maxWidth: 600 }}>
+      <h3 style={{ marginBottom: 16 }}>Thông tin nhà xe</h3>
+      {notice && <div className={`admin-notice ${notice.type}`} style={{ marginBottom: 12 }}>{notice.text}</div>}
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <label>
+          <span style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Tên nhà xe</span>
+          <input className="admin-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+        </label>
+        <label>
+          <span style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Số điện thoại</span>
+          <input className="admin-input" value={form.contactPhone} onChange={e => setForm({ ...form, contactPhone: e.target.value })} />
+        </label>
+        <label>
+          <span style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Email</span>
+          <input className="admin-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+        </label>
+        <label>
+          <span style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Mô tả</span>
+          <textarea className="admin-input" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ resize: 'vertical' }} />
+        </label>
+        <label>
+          <span style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Logo URL (ảnh đại diện)</span>
+          <input className="admin-input" value={form.logoUrl} onChange={e => setForm({ ...form, logoUrl: e.target.value })} placeholder="https://..." />
+          {form.logoUrl && (
+            <img src={form.logoUrl} alt="logo preview" onError={e => e.target.style.display = 'none'}
+              style={{ marginTop: 8, width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', display: 'block' }} />
+          )}
+        </label>
+        <div>
+          <button className="btn btn-primary" type="submit" disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const INCIDENT_TYPE_LABEL = {
+  accident:  'Tai nạn',
+  breakdown: 'Hỏng xe',
+  delay:     'Trễ giờ',
+  other:     'Khác',
+};
+
+function IncidentsManager({ isAdmin = false }) {
+  const [items, setItems]     = useState([]);
+  const [total, setTotal]     = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all'); // all | pending | resolved
+  const [page, setPage]       = useState(1);
+  const pageSize = 15;
+
+  const baseUrl    = isAdmin ? '/api/admin/incidents'          : '/api/operators/me/incidents';
+  const resolveUrl = (id) => isAdmin ? `/api/admin/incidents/${id}/resolve` : `/api/operators/me/incidents/${id}/resolve`;
+
+  const load = async (pg = page, st = statusFilter) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: pg, pageSize });
+      if (st !== 'all') params.append('status', st);
+      const res = await apiClient.get(`${baseUrl}?${params}`);
+      const data = res.data;
+      setItems(Array.isArray(data.items) ? data.items : []);
+      setTotal(data.total ?? 0);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(1, statusFilter); setPage(1); }, [statusFilter]);
+
+  const resolve = async (id) => {
+    try {
+      await apiClient.put(resolveUrl(id));
+      load(page, statusFilter);
+    } catch (e) {
+      alert(e.message || 'Không đánh dấu được.');
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  return (
+    <div className="admin-card table-card">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <h3 style={{ margin: 0 }}>Sự cố chuyến xe</h3>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[['all', 'Tất cả'], ['pending', 'Chờ xử lý'], ['resolved', 'Đã xử lý']].map(([val, label]) => (
+            <button key={val}
+              className={`btn ${statusFilter === val ? 'btn-primary' : 'btn-outline'}`}
+              style={{ fontSize: 13, padding: '5px 14px' }}
+              onClick={() => setStatusFilter(val)}>
+              {label}
+            </button>
+          ))}
+          <button className="btn btn-outline" onClick={() => load(page, statusFilter)} title="Tải lại">
+            <i className="fa-solid fa-rotate" />
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8' }}>Đang tải...</div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8' }}>Không có sự cố nào.</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Chuyến xe</th>
+                {isAdmin && <th>Nhà xe</th>}
+                <th>Tài xế</th>
+                <th>Loại</th>
+                <th>Mức độ</th>
+                <th>Mô tả</th>
+                <th>Ảnh</th>
+                <th>Thời gian</th>
+                <th>Trạng thái</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => {
+                const images = (() => {
+                  try { return item.imageUrls ? JSON.parse(item.imageUrls) : []; }
+                  catch { return []; }
+                })();
+                const API_BASE = 'http://localhost:5001';
+                return (
+                  <tr key={item.incidentID} style={!item.isResolved ? { background: '#fffbeb' } : {}}>
+                    <td>#{item.incidentID}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <div>{item.departureLocation} → {item.arrivalLocation}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        {item.departureTime ? new Date(item.departureTime).toLocaleString('vi-VN') : '--'}
+                      </div>
+                    </td>
+                    {isAdmin && <td style={{ fontSize: 13 }}>{item.operatorName || '--'}</td>}
+                    <td>{item.driverName || '--'}</td>
+                    <td>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontSize: 12,
+                        background: item.incidentType === 'accident' ? '#fef2f2' : item.incidentType === 'breakdown' ? '#fff7ed' : '#f0f9ff',
+                        color:      item.incidentType === 'accident' ? '#dc2626'  : item.incidentType === 'breakdown' ? '#c2410c'  : '#2563eb',
+                      }}>
+                        {INCIDENT_TYPE_LABEL[item.incidentType] || item.incidentType}
+                      </span>
+                    </td>
+                    <td>
+                      {item.severity === 'high'   && <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 12 }}>🔴 Cao</span>}
+                      {item.severity === 'medium' && <span style={{ color: '#d97706', fontWeight: 600, fontSize: 12 }}>🟡 TB</span>}
+                      {item.severity === 'low'    && <span style={{ color: '#16a34a', fontWeight: 600, fontSize: 12 }}>🟢 Thấp</span>}
+                      {!item.severity && <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>}
+                    </td>
+                    <td style={{ maxWidth: 240 }}>{item.description}</td>
+                    <td>
+                      {images.length > 0 ? (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {images.map((url, i) => (
+                            <a key={i} href={`${API_BASE}${url}`} target="_blank" rel="noopener noreferrer">
+                              <img src={`${API_BASE}${url}`} alt=""
+                                style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
+                            </a>
+                          ))}
+                        </div>
+                      ) : <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                      {new Date(item.reportedAt).toLocaleString('vi-VN')}
+                    </td>
+                    <td>
+                      {item.isResolved
+                        ? <span style={{ color: '#16a34a', fontWeight: 600, fontSize: 13 }}>✓ Đã xử lý</span>
+                        : <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: 13 }}>⏳ Chờ xử lý</span>}
+                    </td>
+                    <td>
+                      {!item.isResolved && (
+                        <button className="btn btn-outline" style={{ fontSize: 12, color: '#16a34a', borderColor: '#16a34a' }}
+                          onClick={() => resolve(item.incidentID)}>
+                          Đã xử lý
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 16 }}>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+            <button key={p} className={`btn ${p === page ? 'btn-primary' : 'btn-outline'}`}
+              style={{ minWidth: 34, padding: '4px 8px', fontSize: 13 }}
+              onClick={() => { setPage(p); load(p, statusFilter); }}>
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

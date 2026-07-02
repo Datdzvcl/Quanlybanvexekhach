@@ -648,5 +648,65 @@ namespace BaseCore.APIService.Controllers
                     : new List<string>()
             });
         }
+
+        // GET /api/admin/incidents — Admin xem tất cả sự cố
+        [HttpGet("incidents")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllIncidents(
+            [FromQuery] string? status,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            page     = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = _context.TripIncidents
+                .AsNoTracking()
+                .Include(i => i.Trip).ThenInclude(t => t!.Bus).ThenInclude(b => b!.Operator)
+                .Include(i => i.Driver)
+                .AsQueryable();
+
+            if (status == "pending")
+                query = query.Where(i => !i.IsResolved);
+            else if (status == "resolved")
+                query = query.Where(i => i.IsResolved);
+
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(i => i.ReportedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(i => new
+                {
+                    i.IncidentID,
+                    i.TripID,
+                    departureLocation = i.Trip != null ? i.Trip.DepartureLocation : null,
+                    arrivalLocation   = i.Trip != null ? i.Trip.ArrivalLocation   : null,
+                    departureTime     = i.Trip != null ? i.Trip.DepartureTime      : (DateTime?)null,
+                    operatorName      = i.Trip != null && i.Trip.Bus != null && i.Trip.Bus.Operator != null ? i.Trip.Bus.Operator.Name : null,
+                    driverName        = i.Driver != null ? i.Driver.FullName : null,
+                    i.IncidentType,
+                    i.Description,
+                    i.ReportedAt,
+                    i.IsResolved,
+                    i.ImageUrls,
+                    i.Severity
+                })
+                .ToListAsync();
+
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        // PUT /api/admin/incidents/{id}/resolve — Admin đánh dấu đã xử lý
+        [HttpPut("incidents/{id:int}/resolve")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResolveIncident(int id)
+        {
+            var incident = await _context.TripIncidents.FindAsync(id);
+            if (incident == null) return NotFound();
+            incident.IsResolved = true;
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Đã đánh dấu sự cố là đã xử lý." });
+        }
     }
 }

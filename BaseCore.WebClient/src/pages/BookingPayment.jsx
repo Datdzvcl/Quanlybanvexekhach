@@ -645,6 +645,11 @@ export default function BookingPayment() {
     <UserLayout>
       <section className="payment-flow-hero">
         <div className="container">
+          {viewStep === "select" && (
+            <button type="button" className="booking-back-btn" onClick={() => navigate('/booking/contact')}>
+              <i className="fa-solid fa-arrow-left" /> Quay lại
+            </button>
+          )}
           <span>Thanh toán</span>
           <h1>
             {viewStep === "select"

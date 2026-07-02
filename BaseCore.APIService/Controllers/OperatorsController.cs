@@ -492,6 +492,82 @@ namespace BaseCore.APIService.Controllers
             return Ok(drivers);
         }
 
+        // Danh sách sự cố chuyến xe thuộc nhà xe
+        [HttpGet("me/incidents")]
+        [Authorize(Roles = "Operator")]
+        public async Task<IActionResult> GetMyIncidents(
+            [FromQuery] string? status,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var operatorId = await GetCurrentOperatorId();
+            if (operatorId == null)
+                return BadRequest(new { message = "Tài khoản chưa liên kết với nhà xe" });
+
+            page     = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = _context.TripIncidents
+                .AsNoTracking()
+                .Include(i => i.Trip).ThenInclude(t => t!.Bus)
+                .Include(i => i.Driver)
+                .Where(i => i.Trip != null && i.Trip.Bus != null && i.Trip.Bus.OperatorID == operatorId);
+
+            if (status == "pending")
+                query = query.Where(i => !i.IsResolved);
+            else if (status == "resolved")
+                query = query.Where(i => i.IsResolved);
+
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(i => i.ReportedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(i => new
+                {
+                    i.IncidentID,
+                    i.TripID,
+                    departureLocation = i.Trip != null ? i.Trip.DepartureLocation : null,
+                    arrivalLocation   = i.Trip != null ? i.Trip.ArrivalLocation   : null,
+                    departureTime     = i.Trip != null ? i.Trip.DepartureTime      : (DateTime?)null,
+                    driverName        = i.Driver != null ? i.Driver.FullName : null,
+                    i.IncidentType,
+                    i.Description,
+                    i.ReportedAt,
+                    i.IsResolved,
+                    i.ImageUrls,
+                    i.Severity
+                })
+                .ToListAsync();
+
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        // Đánh dấu sự cố đã xử lý
+        [HttpPut("me/incidents/{incidentId:int}/resolve")]
+        [Authorize(Roles = "Operator")]
+        public async Task<IActionResult> ResolveIncident(int incidentId)
+        {
+            var operatorId = await GetCurrentOperatorId();
+            if (operatorId == null)
+                return BadRequest(new { message = "Tài khoản chưa liên kết với nhà xe" });
+
+            var incident = await _context.TripIncidents
+                .Include(i => i.Trip).ThenInclude(t => t!.Bus)
+                .FirstOrDefaultAsync(i => i.IncidentID == incidentId
+                                       && i.Trip != null
+                                       && i.Trip.Bus != null
+                                       && i.Trip.Bus.OperatorID == operatorId);
+
+            if (incident == null)
+                return NotFound(new { message = "Không tìm thấy sự cố" });
+
+            incident.IsResolved = true;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã đánh dấu xử lý", incidentID = incident.IncidentID });
+        }
+
         // Gán / bỏ tài xế cho chuyến xe
         [HttpPut("me/trips/{tripId:int}/assign-driver")]
         [Authorize(Roles = "Operator")]

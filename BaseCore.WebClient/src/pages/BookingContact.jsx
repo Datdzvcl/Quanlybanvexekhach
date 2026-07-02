@@ -156,6 +156,9 @@ export default function BookingContact() {
     <UserLayout>
       <section className="contact-page-hero">
         <div className="container">
+          <button type="button" className="booking-back-btn" onClick={() => navigate('/booking/pickup-dropoff')}>
+            <i className="fa-solid fa-arrow-left" /> Quay lại
+          </button>
           <span>Thông tin liên hệ</span>
           <h1>Nhập thông tin người đi</h1>
           <p>Thông tin này sẽ được dùng để xác nhận vé và gửi chi tiết đặt chỗ.</p>

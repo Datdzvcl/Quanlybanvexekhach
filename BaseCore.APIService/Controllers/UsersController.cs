@@ -127,9 +127,12 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = "Email, phone và password là bắt buộc" });
             }
 
-            var role = NormalizeRole(request.Role);
+            // var role = NormalizeRole(request.Role);
+            // if (role == null)
+            //     return BadRequest(new { message = "Role chỉ được là Admin, Customer hoặc Operator" });
+            var role = NormalizeRole(request.Role.Value);
             if (role == null)
-                return BadRequest(new { message = "Role chỉ được là Admin, Customer hoặc Operator" });
+                return BadRequest(new { message = "Role không hợp lệ" });
 
             var email = request.Email.Trim();
             var phone = request.Phone.Trim();
@@ -192,9 +195,9 @@ namespace BaseCore.APIService.Controllers
             if (!string.IsNullOrWhiteSpace(request.FullName))
                 user.FullName = request.FullName.Trim();
 
-            if (!string.IsNullOrWhiteSpace(request.Role))
-            {
-                var role = NormalizeRole(request.Role);
+            if (request.Role.HasValue)
+{
+            var role = NormalizeRole(request.Role.Value);
                 if (role == null)
                     return BadRequest(new { message = "Role chỉ được là Admin, Customer hoặc Operator" });
 
@@ -238,37 +241,47 @@ namespace BaseCore.APIService.Controllers
         //     var value = string.IsNullOrWhiteSpace(role) ? "Customer" : role.Trim();
         //     return ValidRoles.Contains(value) ? ValidRoles.First(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)) : null;
         // }
-        private static byte? NormalizeRole(string? role)
-        {
-            if (string.IsNullOrWhiteSpace(role)) return RoleConstant.Customer;
+        // private static byte? NormalizeRole(string? role)
+        // {
+        //     if (string.IsNullOrWhiteSpace(role)) return RoleConstant.Customer;
             
-            return role.Trim().ToLower() switch
-            {
-                "admin"    => RoleConstant.Admin,
-                "operator" => RoleConstant.Operator,
-                "customer" => RoleConstant.Customer,
-                "user"     => RoleConstant.Driver,
-                _          => null
+        //     return role.Trim().ToLower() switch
+        //     {
+        //         "admin"    => RoleConstant.Admin,
+        //         "operator" => RoleConstant.Operator,
+        //         "customer" => RoleConstant.Customer,
+        //         "user"     => RoleConstant.Driver,
+        //         _          => null
+        //     };
+        // }
+        private static byte? NormalizeRole(byte role)
+        {
+            byte[] validRoles = {
+                RoleConstant.Admin,
+                RoleConstant.Operator,
+                RoleConstant.Customer,
+                RoleConstant.Driver
             };
+            return validRoles.Contains(role) ? role : null;
         }
     }
 
     public class AdminCreateUserRequest
-    {
-        public string? FullName { get; set; }
-        public string? Email { get; set; }
-        public string? Phone { get; set; }
-        public string? Password { get; set; }
-        public string? Role { get; set; }
-    }
+{
+    public string? FullName { get; set; }
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
+    public string? Password { get; set; }
+    public byte? Role { get; set; }  // ← đổi string? thành byte?
+}
 
-    public class AdminUpdateUserRequest
-    {
-        public string? FullName { get; set; }
-        public string? Email { get; set; }
-        public string? Phone { get; set; }
-        public string? Password { get; set; }
-        public string? Role { get; set; }
-        public int? OperatorID { get; set; }
-    }
+public class AdminUpdateUserRequest
+{
+    public string? FullName { get; set; }
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
+    public string? Password { get; set; }
+    public byte? Role { get; set; }  // ← đã đúng rồi
+    public int? OperatorID { get; set; }
+}
 }

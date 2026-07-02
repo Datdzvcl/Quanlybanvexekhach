@@ -289,9 +289,9 @@ namespace BaseCore.APIService.Controllers
             var method  = NormalizePaymentMethod(request.PaymentMethod ?? booking.PaymentMethod);
             var status  = IsPendingMethod(method) ? BookingStatusConstant.Pending : BookingStatusConstant.Confirmed;
 
-            booking.PaymentMethod  = method;
-            booking.BookingStatus  = status;
-            booking.PaymentStatus  = IsPendingMethod(method) ? PaymentStatusConstant.Pending : PaymentStatusConstant.Paid;
+            booking.PaymentMethod = method;
+            booking.BookingStatus = status;
+            booking.PaymentStatus = IsPendingMethod(method) ? PaymentStatusConstant.Pending : PaymentStatusConstant.Paid;
 
             _context.BookingStatusHistory.Add(new BookingStatusHistory
             {
@@ -309,8 +309,7 @@ namespace BaseCore.APIService.Controllers
                 status == BookingStatusConstant.Confirmed
                     ? $"Đơn #{booking.BookingID} đã thanh toán thành công."
                     : $"Đơn #{booking.BookingID} đang chờ thanh toán.",
-                status == BookingStatusConstant.Confirmed ? (byte)1 : (byte)3,
-                $"/my-tickets/{booking.BookingID}");
+                status == BookingStatusConstant.Confirmed ? (byte)1 : (byte)3);
 
             await _context.SaveChangesAsync();
 
@@ -353,8 +352,7 @@ namespace BaseCore.APIService.Controllers
                 booking.UserID,
                 "Thanh toán đã được xác nhận",
                 $"Admin đã xác nhận thanh toán cho đơn #{booking.BookingID}.",
-                1,
-                $"/my-tickets/{booking.BookingID}");
+                1);
 
             await _context.SaveChangesAsync();
 

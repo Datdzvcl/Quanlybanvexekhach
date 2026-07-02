@@ -14,6 +14,7 @@ import BookingPayment from './pages/BookingPayment';
 import BookingSuccess from './pages/BookingSuccess';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Payment from './pages/Payment';
 import AdminPage from './pages/AdminPage';
 import Profile from './pages/Profile';
@@ -28,7 +29,6 @@ import DriverRoute from './routes/DriverRoute';
 import DriverPage from './pages/DriverPage';
 import OrderHistory from './pages/OrderHistory';
 import OperatorProfile from './pages/OperatorProfile';
-import RefundPolicy from './pages/RefundPolicy';
 
 // Component hiển thị thông báo giữ chỗ toàn cục
 function HoldSeatNotification() {
@@ -185,13 +185,13 @@ export default function App() {
         <Route path="/payment" element={<DriverGuard><Payment /></DriverGuard>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<DriverGuard><Register /></DriverGuard>} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/my-tickets" element={<DriverGuard><ProtectedRoute><MyTickets /></ProtectedRoute></DriverGuard>} />
         <Route path="/my-tickets/:id" element={<DriverGuard><ProtectedRoute><MyTicketDetail /></ProtectedRoute></DriverGuard>} />
         <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/order-history" element={<DriverGuard><OrderHistory /></DriverGuard>} />
         <Route path="/nha-xe/:id" element={<DriverGuard><OperatorProfile /></DriverGuard>} />
-        <Route path="/chinh-sach-hoan-huy" element={<RefundPolicy />} />
         <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/operator/*" element={<OperatorRoute><AdminPage /></OperatorRoute>} />
         <Route path="/driver" element={<DriverRoute><DriverPage /></DriverRoute>} />

@@ -206,9 +206,11 @@ const ADMIN_TABS = [
   ['settings',   'Cài đặt',    'fa-gear'],
 ];
 
-const OPERATOR_TABS = ADMIN_TABS.filter(
-  ([key]) => key !== 'operators' && key !== 'users'
-);
+const OPERATOR_TABS = [
+  ...ADMIN_TABS.filter(([key]) => key !== 'operators' && key !== 'users'),
+  ['incidents', 'Sự cố', 'fa-triangle-exclamation'],
+  ['operators', 'Thông tin nhà xe', 'fa-building'],
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AdminPage() {
@@ -231,6 +233,7 @@ export default function AdminPage() {
     settings:   `${basePath}/settings`,
     operators:  `/admin/operators`,
     users:      `/admin/users`,
+    incidents:  `${basePath}/incidents`,
   };
 
   const pathToTab = Object.entries(adminPaths).reduce((acc, [tab, path]) => {

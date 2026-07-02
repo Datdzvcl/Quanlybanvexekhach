@@ -1095,8 +1095,6 @@ namespace BaseCore.APIService.Controllers
                     customerPhone = x.CustomerPhone,
                     totalSeats    = x.TotalSeats,
                     totalPrice    = x.TotalPrice,
-                    paymentMethod = x.PaymentMethod,
-                    paymentStatus = x.PaymentStatus,
                     bookingStatus = x.BookingStatus,
                     bookingDate   = x.BookingDate
                 })
@@ -1303,7 +1301,12 @@ namespace BaseCore.APIService.Controllers
             if (currentTrip.Bus?.OperatorID != currentOperatorId.Value)
                 return Forbid(); // chuyến không thuộc nhà xe này
 
-            var validationResult = await ValidateTripRequest(trip);
+            // Chỉ chạy conflict check khi lịch/xe/tài xế thực sự thay đổi
+            bool scheduleChanged = currentTrip.BusID         != trip.BusID
+                                || currentTrip.DepartureTime != trip.DepartureTime
+                                || currentTrip.ArrivalTime   != trip.ArrivalTime
+                                || currentTrip.DriverID      != trip.DriverID;
+            var validationResult = await ValidateTripRequest(trip, skipScheduleCheck: !scheduleChanged);
             if (validationResult != null) return validationResult;
 
             _context.Entry(trip).State = EntityState.Modified;
@@ -1386,26 +1389,33 @@ namespace BaseCore.APIService.Controllers
                             x.PaymentStatus  != PaymentStatusConstant.Refunded)
                 .ToListAsync();
 
-            int pendingRefundCount = 0;
+            var now = DateTime.Now;
+            var cancelReason = $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) bị hủy bởi nhà xe.";
+            int refundedCount = 0;
             foreach (var booking in bookings)
             {
-                booking.BookingStatus = BookingStatusConstant.Cancelled;
+                booking.CancelReason = cancelReason;
+                booking.CancelledAt  = now;
                 if (booking.PaymentStatus == PaymentStatusConstant.Paid)
                 {
-                    booking.PaymentStatus = PaymentStatusConstant.PendingRefund;
-                    pendingRefundCount++;
+                    // Nhà xe hủy chuyến → hoàn 100% tự động theo chính sách
+                    booking.BookingStatus = BookingStatusConstant.Refunded;
+                    booking.PaymentStatus = PaymentStatusConstant.Refunded;
+                    booking.RefundAmount  = booking.TotalPrice;
+                    refundedCount++;
                     NotificationsController.AddNotification(
                         _context, booking.UserID,
-                        "Chuyến xe bị hủy — chờ hoàn tiền",
-                        $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) đã bị hủy. Yêu cầu hoàn tiền đang chờ Admin xử lý.",
+                        "Chuyến xe bị hủy — hoàn tiền 100%",
+                        $"{cancelReason} Số tiền {booking.TotalPrice:N0} đ sẽ được hoàn lại cho bạn.",
                         4, $"/my-tickets/{booking.BookingID}");
                 }
                 else
                 {
+                    booking.BookingStatus = BookingStatusConstant.Cancelled;
                     NotificationsController.AddNotification(
                         _context, booking.UserID,
                         "Chuyến xe bị hủy",
-                        $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) đã bị hủy.",
+                        cancelReason,
                         4, $"/my-tickets/{booking.BookingID}");
                 }
             }
@@ -1418,28 +1428,13 @@ namespace BaseCore.APIService.Controllers
                     $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) đã bị hủy bởi nhà xe.",
                     4, "/driver");
 
-            // Thông báo admin nếu có vé cần hoàn tiền
-            if (pendingRefundCount > 0)
-            {
-                var adminUsers = await _context.Users
-                    .Where(u => u.Role == RoleConstant.Admin)
-                    .Select(u => new { u.UserID })
-                    .ToListAsync();
-                foreach (var admin in adminUsers)
-                    NotificationsController.AddNotification(
-                        _context, admin.UserID,
-                        "Cần duyệt hoàn tiền",
-                        $"Chuyến {trip.DepartureLocation} → {trip.ArrivalLocation} ({trip.DepartureTime:HH:mm dd/MM/yyyy}) bị hủy. {pendingRefundCount} vé cần Admin duyệt hoàn tiền.",
-                        3, "/admin/bookings");
-            }
-
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                message = $"Đã hủy chuyến xe. {pendingRefundCount} vé chờ Admin duyệt hoàn tiền, {bookings.Count - pendingRefundCount} vé hủy không cần hoàn tiền.",
+                message = $"Đã hủy chuyến xe. {refundedCount} vé đã hoàn tiền 100%, {bookings.Count - refundedCount} vé hủy không cần hoàn tiền.",
                 cancelledBookings = bookings.Count,
-                pendingRefundCount
+                refundedCount
             });
         }
 
@@ -1907,7 +1902,7 @@ namespace BaseCore.APIService.Controllers
         private static readonly TimeSpan BusRestBuffer    = TimeSpan.FromHours(12);
         private static readonly TimeSpan DriverRestBuffer = TimeSpan.FromHours(12);
 
-        private async Task<IActionResult?> ValidateTripRequest(Trip trip)
+        private async Task<IActionResult?> ValidateTripRequest(Trip trip, bool skipScheduleCheck = false)
         {
             var bus = await _context.Buses
                 .AsNoTracking()
@@ -1932,8 +1927,10 @@ namespace BaseCore.APIService.Controllers
             if (trip.TripID == 0 && trip.DepartureTime < DateTime.Now)
                 return BadRequest(new { message = "Không thể thêm chuyến với giờ khởi hành đã qua" });
 
-            // Kiểm tra trùng giờ xe (kèm 1 giờ nghỉ giữa các chuyến)
-            // Đổi chiều: trip.DepartureTime < x.ArrivalTime + buffer → trip.DepartureTime - buffer < x.ArrivalTime
+            if (skipScheduleCheck)
+                return null;
+
+            // Kiểm tra trùng giờ xe (kèm 12 giờ nghỉ giữa các chuyến)
             var busWindowStart = trip.DepartureTime.Subtract(BusRestBuffer);
             var busWindowEnd   = trip.ArrivalTime.Add(BusRestBuffer);
             var busConflict = await _context.Trips
@@ -1946,7 +1943,7 @@ namespace BaseCore.APIService.Controllers
             if (busConflict)
                 return BadRequest(new { message = "Xe này đã có chuyến khác trùng hoặc quá gần — cần ít nhất 12 giờ nghỉ giữa các chuyến." });
 
-            // Kiểm tra trùng lịch tài xế (kèm 4 giờ nghỉ ngơi)
+            // Kiểm tra trùng lịch tài xế (kèm 12 giờ nghỉ ngơi)
             if (trip.DriverID.HasValue)
             {
                 var driverWindowStart = trip.DepartureTime.Subtract(DriverRestBuffer);

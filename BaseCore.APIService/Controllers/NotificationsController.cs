@@ -45,8 +45,7 @@ namespace BaseCore.APIService.Controllers
                     x.Message,
                     x.Type,
                     x.IsRead,
-                    x.CreatedAt,
-                    x.Link
+                    x.CreatedAt
                 })
                 .ToListAsync();
 

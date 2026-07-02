@@ -897,12 +897,10 @@ a {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.6);
   display: grid;
   place-items: center;
   z-index: 1000;
-  animation: fadeInDown 0.15s ease;
 }
 .modal-box {
   background: #fff;
@@ -949,64 +947,6 @@ a {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
-}
-
-/* ── Refund policy inside cancel modal ──────────────── */
-.cancel-modal-box {
-  max-width: 520px;
-}
-.refund-policy-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-.refund-policy-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #1e40af;
-  margin-bottom: 10px;
-}
-.refund-policy-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-.refund-policy-table th {
-  text-align: left;
-  padding: 4px 8px;
-  color: #64748b;
-  font-weight: 600;
-  border-bottom: 1px solid #e2e8f0;
-}
-.refund-policy-table td {
-  padding: 5px 8px;
-  color: #374151;
-  border-bottom: 1px solid #f1f5f9;
-}
-.refund-policy-table tbody tr:last-child td {
-  border-bottom: none;
-}
-.refund-policy-table td strong {
-  color: #16a34a;
-}
-.refund-estimate {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #cbd5e1;
-  font-size: 0.85rem;
-  color: #475569;
-}
-.refund-estimate strong {
-  color: #16a34a;
-  font-size: 0.9rem;
 }
 
 .payment-page {
@@ -3545,6 +3485,26 @@ a:hover,
   font-weight: 800;
 }
 
+/* --- Back button dùng chung cho các trang booking --- */
+.booking-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: background 0.18s;
+}
+.booking-back-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+
 /* --- Seat selection phase 17 --- */
 .seat-page-hero {
   background: linear-gradient(135deg, #0f4fb8, #2563eb);
@@ -5333,6 +5293,16 @@ a:hover,
   color: #be123c;
 }
 
+.ticket-status.status-pending-refund {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.ticket-status.status-refunded {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .ticket-detail-hero {
   background: linear-gradient(135deg, #0f4fb8, #2563eb);
   color: #fff;
@@ -6666,26 +6636,6 @@ a:hover,
 .home-location-picker input::placeholder {
   color: #94a3b8;
   font-weight: 700;
-}
-
-.home-location-clear {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: #e2e8f0;
-  color: #64748b;
-  font-size: 0.72rem;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.home-location-clear:hover {
-  background: #cbd5e1;
-  color: #1e293b;
 }
 
 .home-date-field {
@@ -8661,14 +8611,14 @@ p.eyebrow {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(15,23,42,0.65);
-  backdrop-filter: blur(6px);
+  background: rgba(15,23,42,0.82);
+  animation: none;
 }
 
 .modal-box {
   background: #fff;
   border-radius: 24px;
-  box-shadow: 0 32px 80px rgba(15,23,42,0.28);
+  box-shadow: 0 4px 20px rgba(15,23,42,0.18);
   border: 1.5px solid #e8eef7;
   width: 100%;
   overflow: hidden;
@@ -9159,1578 +9109,103 @@ p.eyebrow {
   .booking-step-line { top: 17px; left: calc(50% + 17px); right: calc(-50% + 17px); }
 }
 
-/* ══════════════════════════════════════════════════════════
-   TRIP DETAIL PANEL  (Thông tin chi tiết)
-   ══════════════════════════════════════════════════════════ */
-
-/* Allow the expanded card to wrap its children */
-.trip-result-card--expanded {
-  flex-wrap: wrap !important;
-  row-gap: 0 !important;
-}
-
-/* "Thông tin chi tiết" toggle button */
-.trip-detail-toggle-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 10px;
-  background: #fff;
-  color: #475569;
-  font-size: 0.83rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-}
-.trip-detail-toggle-btn:hover {
-  border-color: #2563eb;
-  color: #2563eb;
-  background: #eff6ff;
-}
-.trip-detail-toggle-btn.active {
-  border-color: #2563eb;
-  color: #2563eb;
-  background: #eff6ff;
-}
-
-/* Full-width panel below the card's top row */
-.trip-detail-panel {
-  flex: 0 0 100%;
-  width: 100%;
-  border-top: 1.5px solid #f1f5f9;
-  margin-top: 16px;
-  padding-top: 4px;
-}
-
-/* ── Tab bar ── */
-.trip-detail-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1.5px solid #e8edf4;
-  margin-bottom: 0;
-}
-.trip-detail-tab-btn {
-  padding: 10px 18px;
-  border: none;
-  background: none;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  border-bottom: 2.5px solid transparent;
-  margin-bottom: -1.5px;
-  transition: color 0.15s, border-color 0.15s;
-  white-space: nowrap;
-}
-.trip-detail-tab-btn:hover { color: #2563eb; }
-.trip-detail-tab-btn.active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
-}
-
-/* ── Content area ── */
-.trip-detail-content {
-  padding: 18px 0 6px;
-  min-height: 80px;
-}
-
-/* Loading / empty states */
-.td-loading {
-  color: #94a3b8;
-  font-size: 0.88rem;
-  padding: 18px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.td-empty {
-  color: #94a3b8;
-  font-size: 0.88rem;
-  padding: 18px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ── Đón / Trả ── */
-.td-pickup-grid {
+/* ── Chính sách hoàn hủy ─────────────────────────────── */
+.refund-policy {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 32px;
-}
-.td-stops-head {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #1e3a5f;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.td-stops-head .fa-circle-dot { color: #2563eb; }
-.td-stops-head .fa-location-dot { color: #f59e0b; }
-.td-stop-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.td-stop-item i {
-  font-size: 0.52rem;
-  margin-top: 6px;
-  flex-shrink: 0;
-}
-.td-dot-blue  { color: #2563eb; }
-.td-dot-orange { color: #f59e0b; }
-.td-stop-item strong {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-.td-stop-item small {
-  display: block;
-  font-size: 0.78rem;
-  color: #64748b;
-  margin-top: 1px;
-}
-.td-stop-item span {
-  display: block;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-.td-no-stops {
-  font-size: 0.85rem;
-  color: #94a3b8;
-}
-
-/* ── Giảm giá ── */
-.td-discount-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.td-promo-card {
-  border: 1.5px solid #dbeafe;
-  border-radius: 12px;
-  padding: 12px 16px;
-  background: #f8faff;
-}
-.td-promo-code {
-  font-size: 0.98rem;
-  font-weight: 800;
-  color: #1d4ed8;
-  letter-spacing: 0.04em;
-  margin-bottom: 3px;
-}
-.td-promo-discount {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #f59e0b;
-}
-.td-promo-desc {
-  font-size: 0.82rem;
-  color: #475569;
-  margin-top: 3px;
-}
-.td-promo-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-top: 6px;
-}
-.td-promo-meta span {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-/* ── Đánh giá ── */
-.td-review-section { display: flex; flex-direction: column; gap: 14px; }
-.td-review-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.td-avg-rating {
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: #f59e0b;
-  line-height: 1;
-}
-.td-star-icon { color: #f59e0b; font-size: 1rem; }
-.td-review-count { font-size: 0.85rem; color: #64748b; font-weight: 600; }
-.td-review-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 320px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.td-review-item {
-  border: 1.5px solid #f1f5f9;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: #fafbfc;
-}
-.td-review-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 4px;
-}
-.td-review-top strong {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-.td-review-top span {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  white-space: nowrap;
-}
-.td-review-stars {
-  color: #f59e0b;
-  font-size: 0.88rem;
-  letter-spacing: 1px;
-  margin-bottom: 5px;
-}
-.td-review-item p {
-  font-size: 0.85rem;
-  color: #475569;
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* ── Chính sách ── */
-.td-policy { max-width: 680px; }
-.td-policy h4 {
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: #1e293b;
-  margin: 0 0 8px;
-}
-.td-policy h4:not(:first-child) { margin-top: 14px; }
-.td-policy ul {
-  margin: 0 0 4px;
-  padding-left: 18px;
-}
-.td-policy ul li {
-  font-size: 0.85rem;
-  color: #475569;
-  margin-bottom: 4px;
-  line-height: 1.5;
-}
-.td-policy ul li:nth-child(2),
-.td-policy ul li:nth-child(3) { color: #dc2626; }
-.td-policy p {
-  font-size: 0.85rem;
-  color: #475569;
-  margin: 3px 0;
-}
-
-/* ── Hình ảnh ── */
-.td-images-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-.td-img-thumb {
-  border: none;
-  border-radius: 10px;
-  overflow: hidden;
-  padding: 0;
-  cursor: pointer;
-  aspect-ratio: 4 / 3;
-  background: #f1f5f9;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.td-img-thumb:hover {
-  transform: scale(1.03);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-}
-.td-img-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* ── Lightbox ── */
-.td-lightbox-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-  animation: tdFadeIn 0.18s ease;
-}
-@keyframes tdFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-.td-lightbox-img {
-  max-width: min(900px, 92vw);
-  max-height: 88vh;
-  border-radius: 16px;
-  object-fit: contain;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
-  animation: tdSlideIn 0.18s ease;
-}
-@keyframes tdSlideIn {
-  from { transform: scale(0.94); opacity: 0; }
-  to   { transform: scale(1);    opacity: 1; }
-}
-.td-lightbox-close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255,255,255,0.15);
-  color: #fff;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  transition: background 0.15s;
-}
-.td-lightbox-close:hover { background: rgba(255,255,255,0.3); }
-
-/* ── Responsive ── */
-@media (max-width: 900px) {
-  .td-pickup-grid { grid-template-columns: 1fr; gap: 16px; }
-  .td-images-grid { grid-template-columns: repeat(3, 1fr); }
-  .trip-detail-tab-btn { padding: 9px 12px; font-size: 0.82rem; }
-}
-@media (max-width: 600px) {
-  .td-images-grid { grid-template-columns: repeat(2, 1fr); }
-  .trip-detail-tabs { overflow-x: auto; }
-  .trip-detail-tab-btn { white-space: nowrap; padding: 9px 10px; font-size: 0.8rem; }
-}
-
-/* ==========================================================================
-   VE-XE-AZ HOME PAGE PREMIUM UPGRADES
-   ========================================================================== */
-
-/* 1. Nâng cấp Hero Section */
-.home-hero {
-  background: linear-gradient(135deg, #091e3a 0%, #174782 50%, #2563eb 100%) !important;
-}
-.home-hero-shade {
-  background: radial-gradient(circle at 80% 20%, rgba(37, 99, 235, 0.25) 0%, rgba(9, 30, 58, 0.8) 100%) !important;
-}
-.home-hero-copy h1 {
-  background: linear-gradient(to right, #ffffff, #93c5fd);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-/* Giao diện kính mờ và viền phát sáng cao cấp cho khung tìm kiếm */
-.modern-home-search {
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 0 30px 70px rgba(6, 32, 77, 0.35) !important;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.modern-home-search:hover {
-  box-shadow: 0 35px 80px rgba(6, 32, 77, 0.45) !important;
-}
-/* Định dạng lại input và label bên trong */
-.home-location-picker, .home-date-field, .home-return-button {
-  background: #fff !important;
-  border: 1px solid #e2e8f0 !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
-}
-.home-location-picker:hover, .home-date-field:hover, .home-return-button:hover {
-  border-color: #2563eb !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
-}
-.home-location-picker.open, .home-date-field:focus-within {
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
-}
-
-/* 2. Thống kê thành tựu - trust-stats-section */
-.trust-stats-section {
-  background: #f8fafc;
-  padding: 40px 0;
-  border-bottom: 1px solid #e2e8f0;
-}
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-}
-.stat-card {
-  background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
-}
-.stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-}
-.stat-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: rgba(37, 99, 235, 0.08);
-  color: #2563eb;
-  display: grid;
-  place-items: center;
-  font-size: 1.5rem;
-  flex-shrink: 0;
-  transition: background 0.3s ease, color 0.3s ease;
-}
-.stat-card:hover .stat-icon-wrapper {
-  background: #2563eb;
-  color: #fff;
-}
-.stat-info h3 {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 2px 0;
-  line-height: 1.2;
-}
-.stat-info h4 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #334155;
-  margin: 0 0 6px 0;
-}
-.stat-info p {
-  font-size: 0.82rem;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* 3. Đối tác nhà xe - partners-section */
-.partners-section {
-  background: #fff;
-}
-.text-center {
-  text-align: center;
-}
-.section-subtitle {
-  max-width: 650px;
-  margin: 10px auto 0;
-  color: #64748b;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-.partners-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
   margin-top: 32px;
 }
-.partner-card {
-  position: relative;
+.refund-policy-block {
   background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   padding: 28px 24px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.02);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
-}
-.partner-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 40px rgba(15, 79, 184, 0.12);
-  border-color: #dbeafe;
-}
-.partner-badge {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 12px;
-  border: 1px solid #dbeafe;
-}
-.partner-avatar-wrapper {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 1.8rem;
-  font-weight: 900;
-  margin-bottom: 18px;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-}
-.partner-card:hover .partner-avatar-wrapper {
-  transform: scale(1.08);
-}
-.partner-content h3 {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 10px 0;
-  line-height: 1.4;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.partner-rating {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.partner-rating .stars {
-  background: #fef3c7;
-  color: #d97706;
-  font-size: 0.8rem;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.partner-rating .reviews {
-  font-size: 0.78rem;
-  color: #64748b;
-}
-.partner-routes {
-  font-size: 0.82rem;
-  color: #475569;
-  margin: 0;
-  line-height: 1.5;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 12px;
-  width: 100%;
-}
-.partner-routes i {
-  color: #64748b;
-  margin-right: 2px;
-}
-
-/* 4. Khách hàng nhận xét - testimonials-section */
-.testimonials-section {
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-}
-.testimonials-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  margin-top: 36px;
-}
-.testimonial-card {
-  background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 20px;
-  padding: 32px 28px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.02);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
-}
-.testimonial-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
-}
-.testimonial-stars {
-  color: #f59e0b;
-  font-size: 0.9rem;
-  margin-bottom: 16px;
-}
-.testimonial-text {
-  font-size: 0.92rem;
-  line-height: 1.6;
-  color: #334155;
-  margin: 0 0 24px 0;
-  font-style: italic;
-  position: relative;
-}
-.quote-icon {
-  font-size: 1.4rem;
-  color: #e2e8f0;
-  margin-right: 6px;
-  vertical-align: text-top;
-}
-.testimonial-author {
-  display: flex;
-  align-items: center;
   gap: 14px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 16px;
 }
-.author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #fff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-}
-.author-info h4 {
-  font-size: 0.92rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 3px 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.author-info .verified-badge {
-  background: #dcfce7;
-  color: #15803d;
-  font-size: 0.65rem;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-.author-info span {
-  font-size: 0.76rem;
-  color: #64748b;
-}
-
-/* 5. Cải tiến thẻ Khuyến mãi hiện có cho đẹp hơn */
-.promotion-showcase-card {
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 10px 30px rgba(15, 79, 184, 0.05) !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  overflow: hidden;
-}
-.promotion-showcase-card:hover {
-  transform: translateY(-5px) scale(1.01) !important;
-  box-shadow: 0 20px 40px rgba(15, 79, 184, 0.12) !important;
-  border-color: #bfdbfe !important;
-}
-.promotion-showcase-card.selected {
-  border-color: #2563eb !important;
-  background: #f8fbff !important;
-  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.12) !important;
-}
-.promotion-showcase-select {
-  padding: 24px 20px !important;
-}
-.promotion-copy-button {
-  background: #2563eb !important;
-  font-weight: 700 !important;
-  transition: background 0.2s ease !important;
-}
-.promotion-copy-button:hover {
-  background: #1d4ed8 !important;
-}
-
-/* ==========================================================================
-   RESPONSIVE DESIGN FOR NEW SECTIONS
-   ========================================================================== */
-@media (max-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-  .partners-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-  .testimonials-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .partners-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .stat-card {
-    padding: 16px;
-  }
-  .partner-card {
-    padding: 20px;
-  }
-  .testimonial-card {
-    padding: 24px;
-  }
-}
-
-/* Thẻ nhà xe click được */
-.clickable-partner-card {
-  cursor: pointer;
-}
-.clickable-partner-card:hover {
-  border-color: #2563eb !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   FORGOT PASSWORD MODAL
-   ══════════════════════════════════════════════════════════ */
-
-/* Overlay */
-.fp-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  animation: fpFadeIn 0.18s ease;
-}
-@keyframes fpFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* Modal card */
-.fp-modal {
-  background: #fff;
-  border-radius: 22px;
-  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.28);
-  width: 100%;
-  max-width: 440px;
-  overflow: hidden;
-  animation: fpSlideUp 0.2s ease;
-}
-@keyframes fpSlideUp {
-  from { transform: translateY(18px) scale(0.97); opacity: 0; }
-  to   { transform: translateY(0)    scale(1);    opacity: 1; }
-}
-
-/* Modal header */
-.fp-modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 24px 24px 16px;
-  border-bottom: 1.5px solid #f1f5f9;
-}
-.fp-modal-head h2 {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #1e293b;
-  margin: 0 0 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.fp-modal-head p {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  margin: 0;
-  font-weight: 600;
-}
-.fp-close-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: none;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 1rem;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
-}
-.fp-close-btn:hover { background: #fee2e2; color: #dc2626; }
-
-/* Step indicator */
-.fp-steps {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  padding: 16px 24px 0;
-}
-.fp-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  position: relative;
-}
-.fp-step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 15px;
-  left: calc(50% + 15px);
-  right: calc(-50% + 15px);
-  height: 2px;
-  background: #e2e8f0;
-  z-index: 0;
-}
-.fp-step.done::after { background: #22c55e; }
-.fp-step-dot {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  background: #f1f5f9;
-  color: #94a3b8;
-  border: 2px solid #e2e8f0;
-  position: relative;
-  z-index: 1;
-  transition: all 0.2s;
-}
-.fp-step.current .fp-step-dot {
-  background: #2563eb;
-  color: #fff;
+.refund-policy-block.highlight {
   border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37,99,235,0.15);
+  background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
 }
-.fp-step.done .fp-step-dot {
-  background: #22c55e;
-  color: #fff;
-  border-color: #22c55e;
-}
-.fp-step span {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #94a3b8;
-  margin-top: 5px;
-  white-space: nowrap;
-}
-.fp-step.current span { color: #2563eb; }
-.fp-step.done span   { color: #16a34a; }
-
-/* Error */
-.fp-error {
-  margin: 12px 24px 0;
-  padding: 10px 14px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  color: #b91c1c;
-  font-size: 0.84rem;
+.refund-policy-block h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
   display: flex;
   align-items: center;
-  gap: 7px;
-}
-
-/* Body */
-.fp-body {
-  padding: 20px 24px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.fp-desc {
-  font-size: 0.87rem;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.55;
-}
-
-/* Email hint (step 2) */
-.fp-email-hint {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  font-size: 0.85rem;
-  color: #166534;
-}
-.fp-email-hint i { color: #16a34a; margin-top: 2px; flex-shrink: 0; }
-.fp-email-hint strong { color: #15803d; }
-.fp-email-hint em { font-style: normal; text-decoration: underline; }
-
-/* OTP input */
-.fp-otp-input {
-  font-size: 1.6rem !important;
-  font-weight: 900 !important;
-  letter-spacing: 16px !important;
-  text-align: center !important;
-  font-family: monospace !important;
-  color: #1d4ed8 !important;
-  padding: 14px 8px !important;
-}
-
-/* Buttons */
-.fp-btn {
-  width: 100%;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 8px;
 }
-.fp-actions {
-  display: flex;
-  gap: 10px;
-}
-.fp-back-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s;
-  flex-shrink: 0;
-}
-.fp-back-btn:hover { border-color: #2563eb; color: #2563eb; }
-
-/* Success state */
-.fp-success {
-  align-items: center;
-  text-align: center;
-  padding-top: 28px;
-  padding-bottom: 32px;
-}
-.fp-success-icon {
-  font-size: 3.2rem;
-  color: #22c55e;
-  margin-bottom: 8px;
-  animation: fpPop 0.35s cubic-bezier(.36,.07,.19,.97);
-}
-@keyframes fpPop {
-  0%   { transform: scale(0.4); opacity: 0; }
-  60%  { transform: scale(1.15); }
-  100% { transform: scale(1);   opacity: 1; }
-}
-.fp-success p {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-.fp-success-sub {
-  color: #64748b !important;
-  font-size: 0.85rem !important;
-  font-weight: 400 !important;
-  margin-top: 4px !important;
-}
-
-/* "Quên mật khẩu?" label row (login form) */
-.fp-label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.fp-label-row label { margin-bottom: 0; }
-.fp-link-btn {
-  border: none;
-  background: none;
+.refund-policy-block h3 i {
   color: #2563eb;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  transition: color 0.15s;
-}
-.fp-link-btn:hover { color: #1d4ed8; }
-
-@media (max-width: 480px) {
-  .fp-modal { border-radius: 18px; }
-  .fp-steps { gap: 0; }
-  .fp-step span { font-size: 0.62rem; }
-  .fp-otp-input { font-size: 1.3rem !important; letter-spacing: 10px !important; }
-}
-
-/* ── SeatHoldBanner ─────────────────────────────────────────────────────── */
-.shb-banner {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: #1e3a8a;
-  color: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(15,59,115,0.28);
-  cursor: pointer;
-  max-width: 340px;
-  animation: shb-slide-in 0.3s cubic-bezier(.22,.68,0,1.2);
-  transition: transform 0.15s, box-shadow 0.15s;
-  user-select: none;
-}
-.shb-banner:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(15,59,115,0.36); }
-
-.shb-banner.shb-urgent {
-  background: #b91c1c;
-  animation: shb-slide-in 0.3s cubic-bezier(.22,.68,0,1.2), shb-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes shb-slide-in {
-  from { opacity: 0; transform: translateY(28px) scale(0.94); }
-  to   { opacity: 1; transform: translateY(0)   scale(1); }
-}
-@keyframes shb-pulse {
-  0%, 100% { box-shadow: 0 8px 32px rgba(185,28,28,0.28); }
-  50%       { box-shadow: 0 8px 40px rgba(185,28,28,0.55); }
-}
-
-.shb-icon-wrap {
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  display: grid;
-  place-items: center;
-  font-size: 1.15rem;
-}
-
-.shb-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.shb-body strong {
-  font-size: 0.88rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.shb-body span { font-size: 0.78rem; opacity: 0.88; }
-
-.shb-timer {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.5px;
-}
-.shb-timer--urgent { color: #fca5a5; }
-
-.shb-cta {
-  flex: 0 0 auto;
-  font-size: 0.8rem;
-  font-weight: 700;
-  opacity: 0.9;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.shb-close-btn {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.18);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: background 0.15s;
-}
-.shb-close-btn:hover { background: rgba(255,255,255,0.32); }
-
-/* Confirm dialog */
-.shb-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  background: rgba(0,0,0,0.45);
-  display: grid;
-  place-items: center;
-  animation: shb-fade 0.18s ease;
-}
-@keyframes shb-fade { from { opacity: 0; } to { opacity: 1; } }
-
-.shb-dialog {
-  background: #fff;
-  border-radius: 20px;
-  padding: 32px 28px 24px;
-  max-width: 420px;
-  width: calc(100vw - 40px);
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  animation: shb-pop 0.22s cubic-bezier(.22,.68,0,1.2);
-}
-@keyframes shb-pop {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-.shb-dialog-icon {
-  font-size: 2.4rem;
-  color: #f59e0b;
-  margin-bottom: 12px;
-}
-
-.shb-dialog h3 {
-  margin: 0 0 8px;
-  font-size: 1.2rem;
-  color: #1e293b;
-}
-.shb-dialog p {
-  margin: 0 0 20px;
-  color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.shb-dialog-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.shb-dialog-actions .btn { min-width: 140px; }
-
-@media (max-width: 480px) {
-  .shb-banner { bottom: 16px; right: 12px; left: 12px; max-width: none; border-radius: 14px; }
-  .shb-cta { display: none; }
-}
-
-/* ══════════════════════════════════════════════════════
-   Refund Policy Page  (/chinh-sach-hoan-huy)
-   ══════════════════════════════════════════════════════ */
-
-/* Hero */
-.rp-hero {
-  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
-  color: #fff;
-  padding: 72px 20px 56px;
-  text-align: center;
-}
-.rp-hero-inner { max-width: 720px; margin: 0 auto; }
-.rp-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 999px;
-  padding: 5px 16px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  margin-bottom: 18px;
-}
-.rp-hero h1 {
-  font-size: 2.2rem;
-  font-weight: 800;
-  margin: 0 0 14px;
-  line-height: 1.2;
-}
-.rp-hero p {
   font-size: 1rem;
-  color: rgba(255,255,255,0.88);
-  line-height: 1.7;
-  margin: 0 0 8px;
 }
-.rp-hero-updated {
-  font-size: 0.8rem !important;
-  color: rgba(255,255,255,0.6) !important;
-  margin-top: 10px !important;
-}
-
-/* Body wrapper */
-.rp-body {
-  padding: 56px 20px 80px;
-  max-width: 900px;
-}
-
-/* Section */
-.rp-section {
-  margin-bottom: 56px;
-}
-.rp-section-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 20px;
-}
-.rp-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: #2563eb;
-  color: #fff;
-  border-radius: 50%;
+.refund-policy-block p {
   font-size: 0.9rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.rp-section-desc {
   color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.7;
-  margin: 0 0 18px;
-}
-
-/* Conditions */
-.rp-conditions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.rp-condition-card {
-  display: flex;
-  gap: 14px;
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid;
-}
-.rp-condition-card i {
-  font-size: 1.4rem;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.rp-condition-ok {
-  background: #f0fdf4;
-  border-color: #86efac;
-  color: #15803d;
-}
-.rp-condition-ok i { color: #16a34a; }
-.rp-condition-no {
-  background: #fff1f2;
-  border-color: #fca5a5;
-  color: #b91c1c;
-}
-.rp-condition-no i { color: #dc2626; }
-.rp-condition-card strong {
-  display: block;
-  font-size: 0.95rem;
-  margin-bottom: 8px;
-}
-.rp-condition-card ul {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 0.88rem;
-  line-height: 1.8;
-}
-
-/* Refund table */
-.rp-table-wrap {
-  overflow-x: auto;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-}
-.rp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.rp-table thead {
-  background: #f8fafc;
-}
-.rp-table th {
-  text-align: left;
-  padding: 12px 16px;
-  font-weight: 700;
-  color: #374151;
-  border-bottom: 2px solid #e2e8f0;
-  white-space: nowrap;
-}
-.rp-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #374151;
-  vertical-align: middle;
-}
-.rp-table tbody tr:last-child td { border-bottom: none; }
-.rp-table tbody tr:hover { background: #f8fafc; }
-.rp-table-example { color: #6b7280; font-size: 0.82rem; }
-
-/* Rate badges */
-.rp-rate-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: 0.9rem;
-}
-.rp-rate-high  { background: #dcfce7; color: #15803d; }
-.rp-rate-medium{ background: #fef9c3; color: #92400e; }
-.rp-rate-low   { background: #ffedd5; color: #c2410c; }
-.rp-rate-none  { background: #fee2e2; color: #b91c1c; }
-
-/* Note box */
-.rp-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-top: 16px;
-  font-size: 0.88rem;
-  color: #1e40af;
-  line-height: 1.6;
-}
-.rp-note i { margin-top: 2px; flex-shrink: 0; }
-
-/* Steps */
-.rp-steps { display: flex; flex-direction: column; gap: 0; }
-.rp-step {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  position: relative;
-}
-.rp-step:not(:last-child) { padding-bottom: 28px; }
-.rp-step-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #2563eb;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-  box-shadow: 0 0 0 4px #eff6ff;
-}
-.rp-step-line {
-  position: absolute;
-  left: 22px;
-  top: 44px;
-  bottom: 0;
-  width: 2px;
-  background: #bfdbfe;
-}
-.rp-step:last-child .rp-step-line { display: none; }
-.rp-step-content {
-  padding-top: 10px;
-  padding-bottom: 4px;
-}
-.rp-step-content strong {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-.rp-step-content p {
-  color: #475569;
-  font-size: 0.88rem;
   line-height: 1.65;
   margin: 0;
 }
-
-/* Payment time grid */
-.rp-payment-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.rp-payment-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 16px;
-}
-.rp-payment-method {
-  font-weight: 600;
+.refund-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.88rem;
-  color: #1e293b;
 }
-.rp-payment-time {
-  font-size: 0.82rem;
-  color: #2563eb;
+.refund-table th,
+.refund-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+.refund-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
+}
+.refund-rate { font-weight: 700; }
+.refund-rate.high  { color: #16a34a; }
+.refund-rate.mid   { color: #d97706; }
+.refund-rate.low   { color: #ea580c; }
+.refund-rate.none  { color: #dc2626; }
+.refund-note {
+  font-size: 0.82rem !important;
+  color: #64748b !important;
   display: flex;
-  align-items: center;
-  gap: 5px;
+  align-items: flex-start;
+  gap: 6px;
 }
-
-/* No-refund list */
-.rp-norefund-list {
+.refund-note i { color: #2563eb; margin-top: 2px; flex-shrink: 0; }
+.refund-guarantee-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
-.rp-norefund-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background: #fff7f7;
-  border: 1px solid #fee2e2;
-  border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 0.9rem;
-  color: #374151;
-  line-height: 1.5;
-}
-.rp-norefund-list li i {
-  color: #dc2626;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-/* Special cases */
-.rp-special-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.rp-special-card {
-  display: flex;
-  gap: 14px;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 12px;
-  padding: 20px;
-}
-.rp-special-card > i {
-  font-size: 1.6rem;
-  color: #0284c7;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.rp-special-card strong {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0c4a6e;
-  margin-bottom: 6px;
-}
-.rp-special-card p {
-  font-size: 0.88rem;
-  color: #0369a1;
-  line-height: 1.65;
-  margin: 0;
-}
-
-/* Contact section */
-.rp-contact-section { }
-.rp-contact-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 28px;
-}
-.rp-contact-card {
+.refund-guarantee-list li {
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 18px 20px;
-  text-decoration: none;
-  color: inherit;
-  transition: box-shadow 0.15s, border-color 0.15s;
-}
-.rp-contact-card:hover {
-  border-color: #2563eb;
-  box-shadow: 0 4px 16px rgba(37,99,235,0.1);
-}
-.rp-contact-card > i {
-  font-size: 1.4rem;
-  color: #2563eb;
-  flex-shrink: 0;
-}
-.rp-contact-card strong {
-  display: block;
-  font-size: 0.88rem;
-  font-weight: 700;
+  gap: 8px;
+  font-size: 0.9rem;
   color: #1e293b;
+  font-weight: 500;
 }
-.rp-contact-card span {
-  font-size: 0.82rem;
-  color: #6b7280;
-}
-.rp-cta {
+.refund-guarantee-list li i { color: #16a34a; }
+.refund-steps {
+  padding-left: 20px;
+  margin: 0;
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
 }
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .rp-hero h1 { font-size: 1.6rem; }
-  .rp-conditions-grid,
-  .rp-special-grid,
-  .rp-payment-grid { grid-template-columns: 1fr; }
-  .rp-contact-grid { grid-template-columns: 1fr; }
-  .rp-table th, .rp-table td { padding: 10px 12px; }
-  .rp-table-example { display: none; }
+.refund-steps li {
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.6;
 }
-@media (max-width: 480px) {
-  .rp-hero { padding: 48px 16px 36px; }
-  .rp-hero h1 { font-size: 1.35rem; }
-  .rp-body { padding: 32px 16px 60px; }
-  .rp-section-title { font-size: 1.05rem; }
+.refund-steps li strong { color: #1e293b; }
+@media (max-width: 640px) {
+  .refund-policy { grid-template-columns: 1fr; }
 }

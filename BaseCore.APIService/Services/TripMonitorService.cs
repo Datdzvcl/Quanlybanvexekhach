@@ -138,9 +138,10 @@ namespace BaseCore.APIService.Services
             int pendingRefundCount = 0;
             foreach (var b in bookings)
             {
-                b.BookingStatus = BookingStatusConstant.Cancelled;
+                b.CancelReason = reason;
                 if (b.PaymentStatus == PaymentStatusConstant.Paid)
                 {
+                    b.BookingStatus = BookingStatusConstant.PendingRefund;
                     b.PaymentStatus = PaymentStatusConstant.PendingRefund;
                     pendingRefundCount++;
                     NotificationsController.AddNotification(db, b.UserID,
@@ -150,6 +151,7 @@ namespace BaseCore.APIService.Services
                 }
                 else
                 {
+                    b.BookingStatus = BookingStatusConstant.Cancelled;
                     NotificationsController.AddNotification(db, b.UserID,
                         "Chuyến xe bị hủy tự động",
                         $"Đơn #{b.BookingID}: {reason}",

@@ -215,7 +215,7 @@ namespace BaseCore.APIService.Controllers
 
                     if (currentHold != null)
                     {
-                        currentHold.HoldExpiresAt = holdExpiresAt;
+                        // Giữ nguyên thời gian hold cũ, không reset khi thêm ghế mới
                         currentHold.Status = SeatHoldStatusConstant.Holding;
                         continue;
                     }
@@ -235,10 +235,20 @@ namespace BaseCore.APIService.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                // Trả về thời gian hết hạn sớm nhất trong tất cả ghế đang giữ
+                var allMyHolds = await _context.SeatHolds
+                    .Where(x => x.TripID == request.TripId &&
+                                x.Status == SeatHoldStatusConstant.Holding &&
+                                x.HoldExpiresAt > now &&
+                                requestedSeats.Contains(x.SeatLabel.ToUpper()))
+                    .Select(x => x.HoldExpiresAt)
+                    .ToListAsync();
+                var earliestExpiry = allMyHolds.Count > 0 ? allMyHolds.Min() : holdExpiresAt;
+
                 return Ok(new
                 {
                     heldSeats = requestedSeats,
-                    holdExpiresAt,
+                    holdExpiresAt = earliestExpiry,
                     message = "Giữ ghế thành công"
                 });
             }

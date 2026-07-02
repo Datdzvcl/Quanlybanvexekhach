@@ -15,8 +15,13 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+const BOOKING_STATUS_CLASS = {
+  0: 'pending', 1: 'confirmed', 2: 'cancelled', 3: 'confirmed',
+  4: 'refunded', 5: 'pending', 6: 'cancelled', 7: 'pending-refund',
+};
 function statusClass(status) {
-  return `ticket-status status-${String(status || '').toLowerCase()}`;
+  const name = BOOKING_STATUS_CLASS[Number(status)] || String(status || '').toLowerCase();
+  return `ticket-status status-${name}`;
 }
 
 function CancelModal({ onConfirm, onClose, loading }) {

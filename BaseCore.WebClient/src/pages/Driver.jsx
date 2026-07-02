@@ -37,6 +37,60 @@ function Toast({ msg, type }) {
   );
 }
 
+/* ─── QR Camera Scanner ────────────────────────────────────────────────────── */
+function QrCameraScanner({ onScan, onClose }) {
+  const scannerRef = useRef(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let scanner = null;
+    import('html5-qrcode').then(({ Html5Qrcode }) => {
+      scanner = new Html5Qrcode('qr-camera-reader');
+      scannerRef.current = scanner;
+      scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          onScan(decodedText);
+          scanner.stop().catch(() => {});
+        },
+        () => {}
+      ).catch(() => {
+        setError('Không thể mở camera. Kiểm tra quyền truy cập camera của trình duyệt.');
+      });
+    }).catch(() => {
+      setError('Không tải được thư viện quét QR.');
+    });
+
+    return () => {
+      scannerRef.current?.stop().catch(() => {});
+    };
+  }, []);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+      zIndex: 9999, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', padding: 20,
+    }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 380, width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Quét mã QR hành khách</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b' }}>✕</button>
+        </div>
+        {error ? (
+          <p style={{ color: '#ef4444', textAlign: 'center', padding: 20 }}>{error}</p>
+        ) : (
+          <div id="qr-camera-reader" ref={containerRef} style={{ width: '100%', borderRadius: 8, overflow: 'hidden' }} />
+        )}
+        <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginTop: 12 }}>
+          Hướng camera vào mã QR trên vé của hành khách
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main component ───────────────────────────────────────────────────────── */
 export default function DriverTrips({ active }) {
   const [filter, setFilter]        = useState('today');
@@ -51,8 +105,11 @@ export default function DriverTrips({ active }) {
   const [detailTab, setDetTab]     = useState('passengers'); // passengers | stops | qr | absent | incident
   const [expandedStop, setExpStop] = useState(null);
   const [qrInput, setQr]           = useState('');
+  const [showCamera, setCamera]    = useState(false);
   const [incType, setIncType]      = useState('other');
+  const [incSeverity, setIncSev]   = useState('medium');
   const [incDesc, setIncDesc]      = useState('');
+  const [incImages, setIncImages]  = useState([]); // [{ file, previewUrl, uploaded: null|string }]
   const [showDelayModal, setDelayModal] = useState(false);
   const [newDepTime, setNewDepTime]     = useState('');
   const [toast, setToast]          = useState(null);
@@ -190,11 +247,50 @@ export default function DriverTrips({ active }) {
     e.preventDefault();
     setSub(true);
     try {
-      await apiClient.post(`/api/driver/trips/${selected.tripID}/incident`, { incidentType: incType, description: incDesc.trim() });
+      // Upload ảnh chưa upload
+      const uploadedUrls = [];
+      for (const img of incImages) {
+        if (img.uploaded) {
+          uploadedUrls.push(img.uploaded);
+        } else {
+          const form = new FormData();
+          form.append('file', img.file);
+          const res = await apiClient.post('/api/driver/incidents/upload-image', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          uploadedUrls.push(res.data.url);
+        }
+      }
+      await apiClient.post(`/api/driver/trips/${selected.tripID}/incident`, {
+        incidentType: incType,
+        description: incDesc.trim(),
+        imageUrls: uploadedUrls,
+        severity: incSeverity,
+      });
       notify('Đã gửi báo cáo sự cố');
       setIncDesc('');
+      setIncImages([]);
+      setIncSev('medium');
     } catch (e) { notify(e?.message || 'Lỗi', 'error'); }
     finally { setSub(false); }
+  };
+
+  const handleIncidentImages = (e) => {
+    const files = Array.from(e.target.files || []);
+    const newImgs = files.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      uploaded: null,
+    }));
+    setIncImages(prev => [...prev, ...newImgs].slice(0, 4)); // tối đa 4 ảnh
+    e.target.value = '';
+  };
+
+  const removeIncidentImage = (idx) => {
+    setIncImages(prev => {
+      URL.revokeObjectURL(prev[idx].previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   const absentSeats = passengers
@@ -485,8 +581,8 @@ export default function DriverTrips({ active }) {
                           {passengers.passengers.flatMap(p =>
                             (p.seats || []).map((s, i) => (
                               <tr key={s.ticketSeatID} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '11px 14px', fontWeight: 600, fontSize: 14 }}>{i === 0 ? p.customerName : ''}</td>
-                                <td style={{ padding: '11px 14px', fontSize: 13, color: '#64748b' }}>{i === 0 ? p.customerPhone : ''}</td>
+                                <td style={{ padding: '11px 14px', fontWeight: 600, fontSize: 14 }}>{p.customerName}</td>
+                                <td style={{ padding: '11px 14px', fontSize: 13, color: '#64748b' }}>{p.customerPhone}</td>
                                 <td style={{ padding: '11px 14px' }}>
                                   <span className="badge badge-neutral">{s.seatLabel}</span>
                                 </td>
@@ -755,24 +851,55 @@ export default function DriverTrips({ active }) {
                   <div className="admin-section-head" style={{ marginBottom: 20 }}>
                     <div>
                       <h3>Quét QR xác nhận lên xe</h3>
-                      <p>Quét mã QR trên vé hoặc nhập thủ công mã vé rồi nhấn Enter</p>
+                      <p>Dùng camera hoặc nhập thủ công mã vé</p>
                     </div>
                   </div>
+
+                  {/* Nút mở camera */}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ marginBottom: 16, width: '100%', padding: '12px', fontSize: 15 }}
+                    onClick={() => setCamera(true)}
+                    disabled={selected?.status !== 1}
+                    title={selected?.status !== 1 ? 'Cần bắt đầu chuyến trước' : ''}
+                  >
+                    <i className="fa-solid fa-camera" style={{ marginRight: 8 }} />
+                    Mở camera quét QR
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                    <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>hoặc nhập thủ công</span>
+                    <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                  </div>
+
                   <form onSubmit={e => { e.preventDefault(); if (qrInput.trim()) doCheckIn({ qrCode: qrInput.trim() }); }}
                     style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
                     <input ref={qrRef}
                       style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '2px solid #2563eb', fontSize: 15, outline: 'none' }}
-                      type="text" placeholder="Quét QR hoặc nhập mã vé..." autoFocus
+                      type="text" placeholder="Nhập mã vé..."
                       value={qrInput} onChange={e => setQr(e.target.value)} />
                     <button type="submit" className="btn btn-primary" disabled={!qrInput.trim() || submitting}>
                       <i className="fa-solid fa-qrcode" style={{ marginRight: 6 }} />Xác nhận
                     </button>
                   </form>
+
                   {passengers && (
                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '14px 18px', fontSize: 14 }}>
                       <i className="fa-solid fa-circle-check" style={{ color: '#16a34a', marginRight: 8 }} />
                       <strong>{passengers.checkedInSeats}</strong> / {passengers.totalSeats} hành khách đã được xác nhận lên xe
                     </div>
+                  )}
+
+                  {showCamera && (
+                    <QrCameraScanner
+                      onScan={(code) => {
+                        setCamera(false);
+                        doCheckIn({ qrCode: code });
+                      }}
+                      onClose={() => setCamera(false)}
+                    />
                   )}
                 </div>
               )}
@@ -842,11 +969,20 @@ export default function DriverTrips({ active }) {
                   ) : (
                     <form onSubmit={handleIncident}>
                       <div className="admin-form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                        <div style={{ gridColumn: '1 / -1' }}>
+                        <div>
                           <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Loại sự cố</label>
                           <select value={incType} onChange={e => setIncType(e.target.value)}
                             style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14 }}>
                             {INCIDENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Mức độ nghiêm trọng</label>
+                          <select value={incSeverity} onChange={e => setIncSev(e.target.value)}
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14 }}>
+                            <option value="low">🟢 Thấp</option>
+                            <option value="medium">🟡 Trung bình</option>
+                            <option value="high">🔴 Cao</option>
                           </select>
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
@@ -859,6 +995,33 @@ export default function DriverTrips({ active }) {
                           />
                         </div>
                       </div>
+                      <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+                          Ảnh đính kèm <span style={{ color: '#94a3b8', fontWeight: 400 }}>(tối đa 4 ảnh, mỗi ảnh ≤ 5MB)</span>
+                        </label>
+                        {incImages.length > 0 && (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                            {incImages.map((img, idx) => (
+                              <div key={idx} style={{ position: 'relative', width: 80, height: 80 }}>
+                                <img src={img.previewUrl} alt=""
+                                  style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                                <button type="button"
+                                  onClick={() => removeIncidentImage(idx)}
+                                  style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {incImages.length < 4 && (
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px dashed #94a3b8', cursor: 'pointer', fontSize: 13, color: '#64748b', background: '#f8fafc' }}>
+                            <i className="fa-solid fa-camera" />
+                            Thêm ảnh
+                            <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleIncidentImages} />
+                          </label>
+                        )}
+                      </div>
                       <div style={{ display: 'flex', gap: 10 }}>
                         <button type="submit" className="btn btn-primary"
                           style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)', border: 'none' }}
@@ -866,7 +1029,7 @@ export default function DriverTrips({ active }) {
                           <i className="fa-solid fa-circle-exclamation" style={{ marginRight: 6 }} />
                           {submitting ? 'Đang gửi...' : 'Gửi báo cáo'}
                         </button>
-                        <button type="button" className="btn btn-secondary" onClick={() => setIncDesc('')}>
+                        <button type="button" className="btn btn-secondary" onClick={() => { setIncDesc(''); setIncImages([]); }}>
                           Xóa
                         </button>
                       </div>

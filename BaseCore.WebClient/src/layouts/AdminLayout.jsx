@@ -122,20 +122,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/httpClient';
 
 const ALL_MENU = [
-  { id: 'dashboard',  label: 'Thống kê',            icon: 'fa-chart-line', roles: [1, 2] },
-  { id: 'promotions', label: 'Quản lý mã giảm giá', icon: 'fa-tags',       roles: [1] },
-  { id: 'payments',   label: 'Lịch sử thanh toán',  icon: 'fa-credit-card',roles: [1] },
-  { id: 'reviews',    label: 'Quản lý đánh giá',    icon: 'fa-star',       roles: [1] },
-  { id: 'buses',      label: 'Quản lý xe',           icon: 'fa-bus',        roles: [1] },
-  { id: 'trips',      label: 'Quản lý chuyến xe',   icon: 'fa-route',      roles: [1] },
-  { id: 'operators',  label: 'Quản lý nhà xe',       icon: 'fa-building',   roles: [2] },
-  { id: 'users',      label: 'Quản lý người dùng',  icon: 'fa-users',      roles: [2] },
-  { id: 'orders',     label: 'Quản lý đơn đặt vé',  icon: 'fa-ticket',     roles: [1, 2] },
-  { id: 'stations',   label: 'Danh mục bến xe',      icon: 'fa-map-location-dot', roles: [2] },
-  { id: 'settings',   label: 'Cài đặt',              icon: 'fa-gear',       roles: [1, 2] },
+  { id: 'dashboard',  label: 'Thống kê',            icon: 'fa-chart-line',           roles: [1, 2] },
+  { id: 'promotions', label: 'Quản lý mã giảm giá', icon: 'fa-tags',                 roles: [1] },
+  { id: 'payments',   label: 'Lịch sử thanh toán',  icon: 'fa-credit-card',          roles: [1] },
+  { id: 'reviews',    label: 'Quản lý đánh giá',    icon: 'fa-star',                 roles: [1] },
+  { id: 'buses',      label: 'Quản lý xe',           icon: 'fa-bus',                  roles: [1] },
+  { id: 'trips',      label: 'Quản lý chuyến xe',   icon: 'fa-route',                roles: [1] },
+  { id: 'operators',  label: 'Quản lý nhà xe',       icon: 'fa-building',             roles: [2] },
+  { id: 'users',      label: 'Quản lý người dùng',  icon: 'fa-users',                roles: [2] },
+  { id: 'orders',     label: 'Quản lý đơn đặt vé',  icon: 'fa-ticket',               roles: [1, 2] },
+  { id: 'incidents',  label: 'Sự cố',                icon: 'fa-triangle-exclamation', roles: [1] },
+  // { id: 'stations',   label: 'Danh mục bến xe',      icon: 'fa-map-location-dot',     roles: [2] },
+  { id: 'settings',   label: 'Cài đặt',              icon: 'fa-gear',                 roles: [1, 2] },
   // Driver
   { id: 'my-trips',   label: 'Lịch chạy của tôi',   icon: 'fa-route',                roles: [3] },
-  { id: 'incident',   label: 'Báo cáo sự cố',        icon: 'fa-triangle-exclamation', roles: [3] },
   { id: 'profile',    label: 'Thông tin cá nhân',    icon: 'fa-user',                 roles: [3] },
 ];
 

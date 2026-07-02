@@ -4,8 +4,6 @@ import UserLayout from '../layouts/UserLayout';
 import { API_BASE, formatVND, pick } from '../api';
 import { tripApi } from '../services/tripApi';
 import { reviewApi } from '../services/reviewApi';
-import { promotionApi } from '../services/promotionApi';
-import { busApi } from '../services/busApi';
 
 const PAGE_SIZE = 10;
 const LAST_SEARCH_KEY = 'lastTripSearchQuery';
@@ -38,28 +36,6 @@ const sortOptions = [
   { value: 'departure_asc', label: 'Giờ xuất phát sớm nhất' },
   { value: 'departure_desc', label: 'Giờ xuất phát muộn nhất' },
 ];
-
-const DETAIL_TABS = [
-  { key: 'pickup',   label: 'Đón/trả' },
-  { key: 'discount', label: 'Giảm giá' },
-  { key: 'review',   label: 'Đánh giá' },
-  { key: 'policy',   label: 'Chính sách' },
-  { key: 'images',   label: 'Hình ảnh' },
-];
-
-function normalizeStops(response) {
-  const pickupStops  = response?.pickupStops  || response?.PickupStops  || [];
-  const dropoffStops = response?.dropoffStops || response?.DropoffStops || [];
-  const items        = response?.items        || response?.Items        || [];
-  return {
-    pickupStops: pickupStops.length
-      ? pickupStops
-      : items.filter((s) => { const t = Number(pick(s, ['stopType', 'StopType'])); return t === 1 || t === 3; }),
-    dropoffStops: dropoffStops.length
-      ? dropoffStops
-      : items.filter((s) => { const t = Number(pick(s, ['stopType', 'StopType'])); return t === 2 || t === 3; }),
-  };
-}
 
 function formatDate(value) {
   if (!value) return '--';
@@ -317,11 +293,6 @@ export default function SearchResults() {
     reviewCount: 0,
     error: '',
   });
-  const [expandedTripId, setExpandedTripId] = useState(null);
-  const [activeTab, setActiveTab] = useState('pickup');
-  const [tripDetailData, setTripDetailData] = useState({});
-  const [tripDetailLoading, setTripDetailLoading] = useState({});
-  const [lightboxImage, setLightboxImage] = useState(null);
   const today = useMemo(() => getToday(), []);
   // const [locations, setLocations] = useState([]);
   const [departureOptions, setDepartureOptions] = useState([]);
@@ -577,55 +548,6 @@ useEffect(() => {
 
   const closeReviewModal = () => {
     setReviewModal((current) => ({ ...current, open: false }));
-  };
-
-  const loadTripDetail = async (tripId, tabKey, trip) => {
-    if (tabKey === 'policy') return;
-    const cacheKey = `${tripId}_${tabKey}`;
-    if (tripDetailData[cacheKey] !== undefined) return;
-
-    setTripDetailLoading((prev) => ({ ...prev, [cacheKey]: true }));
-    try {
-      let data;
-      if (tabKey === 'pickup') {
-        const response = await tripApi.getStops(tripId);
-        data = normalizeStops(response);
-      } else if (tabKey === 'review') {
-        const operatorId = pick(trip, ['operatorID', 'operatorId', 'OperatorID']);
-        data = await reviewApi.byOperator(operatorId);
-      } else if (tabKey === 'discount') {
-        const response = await promotionApi.publicList();
-        data = Array.isArray(response) ? response : (response?.items || response?.Items || []);
-      } else if (tabKey === 'images') {
-        const busId = pick(trip, ['busID', 'busId', 'BusID']);
-        if (busId) {
-          const response = await busApi.getImages(busId);
-          data = Array.isArray(response) ? response : (response?.items || response?.Items || []);
-        } else {
-          data = [];
-        }
-      }
-      setTripDetailData((prev) => ({ ...prev, [cacheKey]: data }));
-    } catch {
-      setTripDetailData((prev) => ({ ...prev, [cacheKey]: null }));
-    } finally {
-      setTripDetailLoading((prev) => ({ ...prev, [cacheKey]: false }));
-    }
-  };
-
-  const toggleTripDetail = (tripId, trip) => {
-    if (expandedTripId === tripId) {
-      setExpandedTripId(null);
-    } else {
-      setExpandedTripId(tripId);
-      setActiveTab('pickup');
-      loadTripDetail(tripId, 'pickup', trip);
-    }
-  };
-
-  const switchDetailTab = (tabKey, tripId, trip) => {
-    setActiveTab(tabKey);
-    loadTripDetail(tripId, tabKey, trip);
   };
 
   const updateSearchForm = (key, value) => {
@@ -951,10 +873,7 @@ useEffect(() => {
                 const reviewCount = Number(pick(trip, ['reviewCount', 'ReviewCount'], 0));
 
                 return (
-                  <article
-                    className={`trip-result-card${expandedTripId === tripId ? ' trip-result-card--expanded' : ''}`}
-                    key={tripId || `${operatorName}-${departureTime}`}
-                  >
+                  <article className="trip-result-card" key={tripId || `${operatorName}-${departureTime}`}>
                     <div className="operator-avatar">
                       {operatorImageUrl ? (
                         <img src={operatorImageUrl} alt={operatorName} />
@@ -1029,215 +948,7 @@ useEffect(() => {
                       <button className="btn btn-primary" type="button" onClick={() => chooseTrip(trip)}>
                         Chọn chuyến
                       </button>
-                      <button
-                        type="button"
-                        className={`trip-detail-toggle-btn${expandedTripId === tripId ? ' active' : ''}`}
-                        onClick={() => toggleTripDetail(tripId, trip)}
-                      >
-                        Thông tin chi tiết
-                        <i className={`fa-solid fa-chevron-${expandedTripId === tripId ? 'up' : 'down'}`} />
-                      </button>
                     </div>
-
-                    {expandedTripId === tripId && (
-                      <div className="trip-detail-panel">
-                        {/* ── Tab bar ── */}
-                        <div className="trip-detail-tabs">
-                          {DETAIL_TABS.map((tab) => (
-                            <button
-                              key={tab.key}
-                              type="button"
-                              className={`trip-detail-tab-btn${activeTab === tab.key ? ' active' : ''}`}
-                              onClick={() => switchDetailTab(tab.key, tripId, trip)}
-                            >
-                              {tab.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* ── Tab content ── */}
-                        <div className="trip-detail-content">
-
-                          {/* Đón / Trả */}
-                          {activeTab === 'pickup' && (() => {
-                            const ck = `${tripId}_pickup`;
-                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
-                            const data = tripDetailData[ck];
-                            if (!data) return <div className="td-empty">Không tải được điểm đón/trả.</div>;
-                            const { pickupStops, dropoffStops } = data;
-                            return (
-                              <div className="td-pickup-grid">
-                                <div className="td-stops-col">
-                                  <div className="td-stops-head"><i className="fa-solid fa-circle-dot" /> Điểm đón</div>
-                                  {pickupStops.length === 0
-                                    ? <p className="td-no-stops">Chưa có điểm đón.</p>
-                                    : pickupStops.map((stop) => {
-                                        const sid = pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']);
-                                        const name = pick(stop, ['stopName', 'StopName'], 'Điểm dừng');
-                                        const addr = pick(stop, ['stopAddress', 'StopAddress'], '');
-                                        const offset = pick(stop, ['arrivalOffset', 'ArrivalOffset']);
-                                        return (
-                                          <div key={sid} className="td-stop-item">
-                                            <i className="fa-solid fa-circle td-dot-blue" />
-                                            <div>
-                                              <strong>{name}</strong>
-                                              {addr && <small>{addr}</small>}
-                                              {offset != null && <span>+{offset} phút so với giờ khởi hành</span>}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                </div>
-                                <div className="td-stops-col">
-                                  <div className="td-stops-head"><i className="fa-solid fa-location-dot" /> Điểm trả</div>
-                                  {dropoffStops.length === 0
-                                    ? <p className="td-no-stops">Chưa có điểm trả.</p>
-                                    : dropoffStops.map((stop) => {
-                                        const sid = pick(stop, ['stopPointID', 'StopPointID', 'id', 'Id']);
-                                        const name = pick(stop, ['stopName', 'StopName'], 'Điểm dừng');
-                                        const addr = pick(stop, ['stopAddress', 'StopAddress'], '');
-                                        const offset = pick(stop, ['arrivalOffset', 'ArrivalOffset']);
-                                        return (
-                                          <div key={sid} className="td-stop-item">
-                                            <i className="fa-solid fa-circle td-dot-orange" />
-                                            <div>
-                                              <strong>{name}</strong>
-                                              {addr && <small>{addr}</small>}
-                                              {offset != null && <span>+{offset} phút so với giờ khởi hành</span>}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Giảm giá */}
-                          {activeTab === 'discount' && (() => {
-                            const ck = `${tripId}_discount`;
-                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
-                            const data = tripDetailData[ck];
-                            if (!data || data.length === 0) return <div className="td-empty">Không có mã giảm giá.</div>;
-                            return (
-                              <div className="td-discount-list">
-                                {data.map((promo) => {
-                                  const code = pick(promo, ['code', 'Code'], '');
-                                  const discountType = pick(promo, ['discountType', 'DiscountType'], 'fixed');
-                                  const discountValue = Number(pick(promo, ['discountValue', 'DiscountValue', 'value', 'Value'], 0));
-                                  const maxDiscount = Number(pick(promo, ['maxDiscount', 'MaxDiscount'], 0));
-                                  const minOrderAmount = Number(pick(promo, ['minOrderAmount', 'MinOrderAmount'], 0));
-                                  const usageLimit = Number(pick(promo, ['usageLimit', 'UsageLimit'], 0));
-                                  const usedCount = Number(pick(promo, ['usedCount', 'UsedCount'], 0));
-                                  const expiryDate = pick(promo, ['expiryDate', 'ExpiryDate', 'endDate', 'EndDate']);
-                                  const description = pick(promo, ['description', 'Description'], '');
-                                  const remaining = usageLimit > 0 ? usageLimit - usedCount : null;
-                                  const isPercent = String(discountType).toLowerCase().includes('percent');
-                                  const discountText = isPercent
-                                    ? `Giảm ${discountValue}%${maxDiscount > 0 ? ` (tối đa ${formatVND(maxDiscount)})` : ''}`
-                                    : `Giảm ${formatVND(discountValue)}`;
-                                  const promoId = pick(promo, ['promotionID', 'PromotionID', 'id', 'Id']);
-                                  return (
-                                    <div key={promoId || code} className="td-promo-card">
-                                      <div className="td-promo-code">{code}</div>
-                                      <div className="td-promo-discount">{discountText}</div>
-                                      {description && <div className="td-promo-desc">{description}</div>}
-                                      <div className="td-promo-meta">
-                                        {minOrderAmount > 0 && <span>Đơn từ {formatVND(minOrderAmount)}</span>}
-                                        {remaining !== null && remaining > 0 && <span>Còn {remaining} lượt</span>}
-                                        {expiryDate && <span>Hết hạn {formatDate(expiryDate)}</span>}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })()}
-
-                          {/* Đánh giá */}
-                          {activeTab === 'review' && (() => {
-                            const ck = `${tripId}_review`;
-                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
-                            const data = tripDetailData[ck];
-                            const avgRating = Number(data?.averageRating ?? data?.AverageRating ?? 0);
-                            const reviewItems = data?.items || data?.Items || [];
-                            if (!data || reviewItems.length === 0) return <div className="td-empty"><i className="fa-regular fa-star" /> Chưa có đánh giá.</div>;
-                            return (
-                              <div className="td-review-section">
-                                <div className="td-review-header">
-                                  <span className="td-avg-rating">{avgRating.toFixed(1)}</span>
-                                  <i className="fa-solid fa-star td-star-icon" />
-                                  <span className="td-review-count">{reviewItems.length} đánh giá</span>
-                                </div>
-                                <div className="td-review-list">
-                                  {reviewItems.map((item) => {
-                                    const rating = Number(pick(item, ['rating', 'Rating'], 0));
-                                    const rid = pick(item, ['reviewID', 'ReviewID', 'id', 'Id']);
-                                    return (
-                                      <div key={rid} className="td-review-item">
-                                        <div className="td-review-top">
-                                          <strong>{pick(item, ['userName', 'UserName'], 'Khách hàng')}</strong>
-                                          <span>{formatReviewDate(pick(item, ['createdAt', 'CreatedAt']))}</span>
-                                        </div>
-                                        <div className="td-review-stars">
-                                          {'★'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
-                                        </div>
-                                        <p>{pick(item, ['comment', 'Comment'], '') || 'Không có bình luận.'}</p>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Chính sách */}
-                          {activeTab === 'policy' && (
-                            <div className="td-policy">
-                              <h4>Điều kiện đặt vé</h4>
-                              <ul>
-                                <li>Vé đã mua không được hoàn trả sau khi xác nhận thanh toán.</li>
-                                <li>Có thể đổi vé trước giờ khởi hành ít nhất 24 giờ (phí đổi vé 50.000đ).</li>
-                                <li>Khách hàng phải có mặt trước giờ xuất phát ít nhất 15 phút.</li>
-                              </ul>
-                              <h4>Hành lý</h4>
-                              <ul>
-                                <li>Miễn phí 20kg hành lý ký gửi và 7kg hành lý xách tay.</li>
-                                <li>Hành lý quá kích thước hoặc trọng lượng sẽ tính phụ phí.</li>
-                                <li>Không vận chuyển hàng hóa nguy hiểm, dễ cháy nổ.</li>
-                              </ul>
-                              <h4>Hỗ trợ khách hàng</h4>
-                              <p>Hotline: <strong>1900 xxxx</strong> (7:00 – 22:00 hàng ngày)</p>
-                              <p>Email: <strong>support@vexeaz.vn</strong></p>
-                            </div>
-                          )}
-
-                          {/* Hình ảnh */}
-                          {activeTab === 'images' && (() => {
-                            const ck = `${tripId}_images`;
-                            if (tripDetailLoading[ck]) return <div className="td-loading"><i className="fa-solid fa-spinner fa-spin" /> Đang tải...</div>;
-                            const data = tripDetailData[ck];
-                            if (!data || data.length === 0) return <div className="td-empty"><i className="fa-regular fa-image" /> Chưa có hình ảnh.</div>;
-                            return (
-                              <div className="td-images-grid">
-                                {data.map((img) => {
-                                  const imgId = pick(img, ['imageID', 'ImageID', 'id', 'Id']);
-                                  const rawUrl = pick(img, ['imageURL', 'imageUrl', 'ImageURL', 'ImageUrl', 'url', 'Url'], '');
-                                  if (!rawUrl) return null;
-                                  const url = rawUrl.startsWith('/') ? `${API_BASE}${rawUrl}` : rawUrl;
-                                  return (
-                                    <button key={imgId} type="button" className="td-img-thumb" onClick={() => setLightboxImage(url)}>
-                                      <img src={url} alt="Ảnh xe" />
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })()}
-
-                        </div>
-                      </div>
-                    )}
                   </article>
                 );
               })}
@@ -1257,20 +968,6 @@ useEffect(() => {
           )}
         </main>
       </section>
-
-      {lightboxImage && (
-        <div className="td-lightbox-overlay" onClick={() => setLightboxImage(null)}>
-          <button type="button" className="td-lightbox-close" onClick={() => setLightboxImage(null)} aria-label="Đóng ảnh">
-            <i className="fa-solid fa-xmark" />
-          </button>
-          <img
-            src={lightboxImage}
-            alt="Ảnh xe phóng to"
-            className="td-lightbox-img"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
 
       {reviewModal.open && (
         <div className="review-modal-backdrop" role="dialog" aria-modal="true" aria-label={reviewModal.title}>

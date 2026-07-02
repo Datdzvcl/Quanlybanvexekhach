@@ -5,6 +5,7 @@ using BaseCore.Repository;
 using BaseCore.Entities;
 using BaseCore.Common;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -289,8 +290,33 @@ namespace BaseCore.APIService.Controllers
             });
         }
 
+        // POST /api/driver/incidents/upload-image
+        [HttpPost("incidents/upload-image")]
+        public async Task<IActionResult> UploadIncidentImage([FromForm] IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Không có file" });
+
+            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowed.Contains(ext))
+                return BadRequest(new { message = "Chỉ chấp nhận ảnh JPG, PNG, WEBP" });
+
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(new { message = "Ảnh không được vượt quá 5MB" });
+
+            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "incidents");
+            Directory.CreateDirectory(uploadDir);
+            var fileName = $"incident_{Guid.NewGuid():N}{ext}";
+            var filePath = Path.Combine(uploadDir, fileName);
+            await using (var stream = System.IO.File.Create(filePath))
+                await file.CopyToAsync(stream);
+
+            return Ok(new { url = $"/uploads/incidents/{fileName}" });
+        }
+
         // POST /api/driver/trips/{id}/incident
-        // body: { incidentType, description }
+        // body: { incidentType, description, imageUrls }
         [HttpPost("trips/{id:int}/incident")]
         public async Task<IActionResult> ReportIncident(int id, [FromBody] IncidentRequest request)
         {
@@ -305,6 +331,11 @@ namespace BaseCore.APIService.Controllers
             if (string.IsNullOrWhiteSpace(request.Description))
                 return BadRequest(new { message = "Mô tả sự cố không được để trống" });
 
+            var severity = request.Severity?.Trim().ToLower() switch {
+                "low"  => "low",
+                "high" => "high",
+                _      => "medium"
+            };
             var incident = new TripIncident
             {
                 TripID      = id,
@@ -312,11 +343,34 @@ namespace BaseCore.APIService.Controllers
                 IncidentType = request.IncidentType?.Trim() ?? "other",
                 Description = request.Description.Trim(),
                 ReportedAt  = DateTime.Now,
-                IsResolved  = false
+                IsResolved  = false,
+                Severity    = severity,
+                ImageUrls   = request.ImageUrls != null && request.ImageUrls.Count > 0
+                    ? JsonSerializer.Serialize(request.ImageUrls)
+                    : null
             };
 
             _context.TripIncidents.Add(incident);
             await _context.SaveChangesAsync();
+
+            // Gửi thông báo cho nhà xe
+            var trip = await _context.Trips
+                .AsNoTracking()
+                .Include(t => t.Bus)
+                .FirstOrDefaultAsync(t => t.TripID == id);
+            if (trip?.Bus?.OperatorID != null)
+            {
+                var opUser = await _context.Users
+                    .Where(u => u.OperatorID == trip.Bus.OperatorID && u.Role == RoleConstant.Operator)
+                    .Select(u => new { u.UserID })
+                    .FirstOrDefaultAsync();
+                if (opUser != null)
+                    NotificationsController.AddNotification(_context, opUser.UserID,
+                        $"Sự cố chuyến #{id}",
+                        $"Tài xế báo cáo: [{incident.IncidentType}] {incident.Description}",
+                        4, $"/operator/incidents");
+                await _context.SaveChangesAsync();
+            }
 
             return Ok(new { message = "Đã báo cáo sự cố", incidentID = incident.IncidentID });
         }
@@ -549,6 +603,8 @@ namespace BaseCore.APIService.Controllers
     {
         public string? IncidentType { get; set; }
         public string? Description { get; set; }
+        public List<string>? ImageUrls { get; set; }
+        public string? Severity { get; set; }
     }
 
     public class DelayTripRequest

@@ -78,112 +78,6 @@ const reasons = [
   ],
 ];
 
-const statistics = [
-  {
-    value: "10M+",
-    label: "Hành khách tin dùng",
-    desc: "Số lượng lượt đi và về thành công trên toàn quốc.",
-    icon: "fa-users",
-  },
-  {
-    value: "2,000+",
-    label: "Đối tác nhà xe",
-    desc: "Các hãng xe khách uy tín hàng đầu chạy khắp các tỉnh thành.",
-    icon: "fa-handshake",
-  },
-  {
-    value: "5,000+",
-    label: "Tuyến đường phủ khắp",
-    desc: "Kết nối mọi miền Tổ quốc từ Bắc vào Nam dễ dàng.",
-    icon: "fa-route",
-  },
-  {
-    value: "99%",
-    label: "Khách hàng hài lòng",
-    desc: "Được đánh giá cao về chất lượng dịch vụ và hỗ trợ.",
-    icon: "fa-star-half-stroke",
-  },
-];
-
-const partnerOperators = [
-  {
-    id: 1,
-    name: "Nhà xe Phương Trang (FUTA)",
-    rating: 4.8,
-    reviews: 12500,
-    routes: "Sài Gòn - Đà Lạt, Sài Gòn - Nha Trang, Sài Gòn - Cần Thơ",
-    color: "#ff3d00",
-    initials: "PT",
-    badge: "Phổ biến nhất",
-  },
-  {
-    id: 2,
-    name: "Nhà xe Thành Bưởi",
-    rating: 4.7,
-    reviews: 8400,
-    routes: "Sài Gòn - Đà Lạt, Sài Gòn - Cần Thơ",
-    color: "#00b0ff",
-    initials: "TB",
-    badge: "Dịch vụ 5 sao",
-  },
-  {
-    id: 4,
-    name: "Hãng xe Sao Việt",
-    rating: 4.6,
-    reviews: 3200,
-    routes: "Hà Nội - Sa Pa, Hà Nội - Lào Cai",
-    color: "#ffc107",
-    initials: "SV",
-    badge: "Tuyến Tây Bắc",
-  },
-  {
-    id: 3,
-    name: "Hải Vân Limousine",
-    rating: 4.9,
-    reviews: 4100,
-    routes: "Hà Nội - Hải Phòng, Sài Gòn - Vũng Tàu",
-    color: "#00e676",
-    initials: "HV",
-    badge: "Xe VIP Limousine",
-  },
-];
-
-const customerReviews = [
-  {
-    name: "Nguyễn Văn Hùng",
-    role: "Khách hàng thường xuyên",
-    rating: 5,
-    date: "20/06/2026",
-    content:
-      "Dịch vụ đặt vé cực kỳ nhanh chóng và tiện lợi. Mình chỉ mất chưa đầy 1 phút là đã thanh toán xong và nhận được vé điện tử qua SMS. Sẽ tiếp tục ủng hộ VéXeAZ!",
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&q=80",
-    verified: true,
-  },
-  {
-    name: "Trần Thị Mai",
-    role: "Khách du lịch",
-    rating: 5,
-    date: "18/06/2026",
-    content:
-      "Rất thích tính năng chọn ghế ngồi trực quan của web. Mình có thể chủ động chọn những hàng ghế đầu để tránh say xe. Nhà xe phục vụ chu đáo, chạy đúng giờ.",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&q=80",
-    verified: true,
-  },
-  {
-    name: "Lê Minh Tuấn",
-    role: "Nhân viên văn phòng",
-    rating: 5,
-    date: "15/06/2026",
-    content:
-      "Mã giảm giá ở đây cực kỳ nhiều và dễ áp dụng. Chuyến đi khứ hồi Hà Nội - Sa Pa vừa rồi giúp mình tiết kiệm được hơn 100k. Đội ngũ tổng đài hỗ trợ 24/7 nhiệt tình.",
-    avatar:
-      "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=150&h=150&fit=crop&q=80",
-    verified: true,
-  },
-];
-
 function getToday() {
   const now = new Date();
   const year = now.getFullYear();
@@ -372,37 +266,15 @@ function LocationPicker({
   placeholder,
 }) {
   const [open, setOpen] = useState(false);
-  const [inputText, setInputText] = useState(value);
-
-  // Sync local text khi giá trị thay đổi bên ngoài (ví dụ: nút đổi chiều)
-  useEffect(() => {
-    setInputText(value);
-  }, [value]);
-
-  const filteredOptions = useMemo(() => {
-    const q = normalizeText(inputText);
-    if (!q) return options.slice(0, 12);
-    return options.filter((o) => normalizeText(o).includes(q)).slice(0, 12);
-  }, [inputText, options]);
-
-  const handleChange = (e) => {
-    const text = e.target.value;
-    setInputText(text);
-    onChange(text);
-    setOpen(true);
-  };
 
   const selectLocation = (location) => {
-    setInputText(location);
     onChange(location);
     setOpen(false);
   };
 
-  const handleClear = () => {
-    setInputText("");
-    onChange("");
-    setOpen(true);
-  };
+  const filteredOptions = useMemo(() => {
+    return options.slice(0, 12);
+  }, [options]);
 
   return (
     <div className={`home-location-picker ${open ? "open" : ""}`}>
@@ -410,32 +282,17 @@ function LocationPicker({
       <label>
         <span>{label}</span>
         <input
-          value={inputText}
+          value={value}
           placeholder={placeholder}
-          onChange={handleChange}
+          readOnly           // ← không cho gõ tay
           onFocus={() => setOpen(true)}
-          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-          autoComplete="off"
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
         />
       </label>
-      {inputText && (
-        <button
-          type="button"
-          className="home-location-clear"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={handleClear}
-          tabIndex={-1}
-          aria-label="Xóa"
-        >
-          <i className="fa-solid fa-xmark" />
-        </button>
-      )}
 
       {open && (
         <div className="home-location-menu">
-          <strong>
-            {normalizeText(inputText) ? "Gợi ý địa điểm" : "Địa điểm phổ biến"}
-          </strong>
+          <strong>Địa điểm phổ biến</strong>
           {filteredOptions.length > 0 ? (
             filteredOptions.map((location) => (
               <button
@@ -449,7 +306,7 @@ function LocationPicker({
               </button>
             ))
           ) : (
-            <p>Không có gợi ý phù hợp.</p>
+            <p>Không có gợi ý.</p>
           )}
         </div>
       )}
@@ -529,17 +386,17 @@ export default function Home() {
   //     .catch(() => setLocations([]));
   // }, []);
   useEffect(() => {
-    fetch(`${API_BASE}/api/trips/locations`)
-      .then((response) => response.json())
-      .then((data) => {
-        setDepartureOptions(data.departures || []);
-        setArrivalOptions(data.arrivals || []);
-      })
-      .catch(() => {
-        setDepartureOptions([]);
-        setArrivalOptions([]);
-      });
-  }, []);
+  fetch(`${API_BASE}/api/trips/locations`)
+    .then((response) => response.json())
+    .then((data) => {
+      setDepartureOptions(data.departures || []);
+      setArrivalOptions(data.arrivals || []);
+    })
+    .catch(() => {
+      setDepartureOptions([]);
+      setArrivalOptions([]);
+    });
+}, []);
 
   useEffect(() => {
     promotionApi
@@ -652,7 +509,7 @@ export default function Home() {
           >
             <div className="home-search-widget">
               {/* <LocationPicker  */}
-              {/* label="Nơi xuất phát"
+                {/* label="Nơi xuất phát"
                 value={form.from}
                 onChange={(value) => updateForm("from", value)}
                 options={locationOptions}
@@ -725,37 +582,37 @@ export default function Home() {
                 </button>
               )} */}
               {form.isRoundTrip ? (
-                <div className="return-date-wrapper">
-                  <DatePickerField
-                    label="Ngày về"
-                    value={form.returnDate}
-                    min={form.departureDate || today}
-                    onChange={(value) => updateForm("returnDate", value)}
-                    icon="fa-calendar-plus"
-                    emptyText="Chọn ngày về"
-                  />
-                  <button
-                    type="button"
-                    className="remove-return-date-btn"
-                    onClick={() => {
-                      updateForm("returnDate", null);
-                      updateForm("isRoundTrip", false);
-                    }}
-                    title="Bỏ ngày về"
-                  >
-                    <i className="fa-solid fa-xmark" />
-                  </button>
-                </div>
-              ) : (
+              <div className="return-date-wrapper">
+                <DatePickerField
+                  label="Ngày về"
+                  value={form.returnDate}
+                  min={form.departureDate || today}
+                  onChange={(value) => updateForm("returnDate", value)}
+                  icon="fa-calendar-plus"
+                  emptyText="Chọn ngày về"
+                />
                 <button
                   type="button"
-                  className="home-return-button"
-                  onClick={() => updateForm("isRoundTrip", true)}
+                  className="remove-return-date-btn"
+                  onClick={() => {
+                    updateForm("returnDate", null);
+                    updateForm("isRoundTrip", false);
+                  }}
+                  title="Bỏ ngày về"
                 >
-                  <i className="fa-solid fa-plus" />
-                  Thêm ngày về
+                  <i className="fa-solid fa-xmark" />
                 </button>
-              )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="home-return-button"
+                onClick={() => updateForm("isRoundTrip", true)}
+              >
+                <i className="fa-solid fa-plus" />
+                Thêm ngày về
+              </button>
+            )}
 
               <button type="submit" className="home-search-button">
                 Tìm kiếm
@@ -804,74 +661,6 @@ export default function Home() {
               </div>
             </article>
           ))}
-        </div>
-      </section>
-
-      {/* Thống kê thành tựu */}
-      <section className="trust-stats-section">
-        <div className="container">
-          <div className="stats-grid">
-            {statistics.map((stat) => (
-              <article className="stat-card" key={stat.label}>
-                <div className="stat-icon-wrapper">
-                  <i className={`fa-solid ${stat.icon}`} />
-                </div>
-                <div className="stat-info">
-                  <h3>{stat.value}</h3>
-                  <h4>{stat.label}</h4>
-                  <p>{stat.desc}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Đối tác nhà xe uy tín */}
-      <section className="partners-section">
-        <div className="container home-section">
-          <div className="home-section-head text-center">
-            <span>Hợp tác cùng các thương hiệu lớn</span>
-            <h2>Đối Tác Nhà Xe Uy Tín</h2>
-            <p className="section-subtitle">
-              Chúng tôi liên kết với hơn 2,000+ nhà xe uy tín trên khắp cả nước
-              để mang lại hành trình an toàn, chất lượng.
-            </p>
-          </div>
-          <div className="partners-grid">
-            {partnerOperators.map((partner) => (
-              <article
-                className="partner-card clickable-partner-card"
-                key={partner.name}
-                onClick={() => partner.id && navigate(`/nha-xe/${partner.id}`)}
-              >
-                {partner.badge && (
-                  <span className="partner-badge">{partner.badge}</span>
-                )}
-                <div
-                  className="partner-avatar-wrapper"
-                  style={{ backgroundColor: partner.color }}
-                >
-                  <span>{partner.initials}</span>
-                </div>
-                <div className="partner-content">
-                  <h3>{partner.name}</h3>
-                  <div className="partner-rating">
-                    <span className="stars">
-                      <i className="fa-solid fa-star" /> {partner.rating}
-                    </span>
-                    <span className="reviews">
-                      ({partner.reviews.toLocaleString("vi-VN")} đánh giá)
-                    </span>
-                  </div>
-                  <p className="partner-routes">
-                    <i className="fa-solid fa-route" />{" "}
-                    <strong>Tuyến chạy:</strong> {partner.routes}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -995,54 +784,62 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Đánh giá từ khách hàng */}
-      <section className="testimonials-section">
-        <div className="container home-section">
-          <div className="home-section-head text-center">
-            <span>Chia sẻ từ khách hàng</span>
-            <h2>Khách Hàng Nói Gì Về VéXeAZ</h2>
-            <p className="section-subtitle">
-              Sự hài lòng của khách hàng là động lực lớn nhất để chúng tôi không
-              ngừng cải tiến dịch vụ.
-            </p>
+      <section id="refund" className="container home-section">
+        <div className="home-section-head">
+          <span>Chính sách</span>
+          <h2>Chính sách hoàn &amp; hủy vé</h2>
+        </div>
+        <div className="refund-policy">
+          <div className="refund-policy-block">
+            <h3><i className="fa-solid fa-user" /> Khách hàng tự hủy vé</h3>
+            <p>Khi bạn muốn hủy vé, hãy gửi yêu cầu qua mục <strong>Vé của tôi</strong>. Nhà xe sẽ xem xét và xử lý trong thời gian sớm nhất. Số tiền hoàn phụ thuộc vào thời điểm hủy so với giờ khởi hành:</p>
+            <table className="refund-table">
+              <thead>
+                <tr>
+                  <th>Thời gian trước khởi hành</th>
+                  <th>Tỉ lệ hoàn tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Trước hơn 24 giờ</td>
+                  <td className="refund-rate high">Hoàn 90%</td>
+                </tr>
+                <tr>
+                  <td>Từ 6 đến 24 giờ</td>
+                  <td className="refund-rate mid">Hoàn 70%</td>
+                </tr>
+                <tr>
+                  <td>Dưới 6 giờ</td>
+                  <td className="refund-rate low">Hoàn 50%</td>
+                </tr>
+                <tr>
+                  <td>Sau giờ khởi hành</td>
+                  <td className="refund-rate none">Không hoàn</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="refund-note"><i className="fa-solid fa-circle-info" /><span>Số tiền hoàn được tính trên tổng giá vé sau khi đã áp dụng khuyến mãi.</span></p>
           </div>
-          <div className="testimonials-grid">
-            {customerReviews.map((review) => (
-              <article className="testimonial-card" key={review.name}>
-                <div className="testimonial-stars">
-                  {Array.from({ length: review.rating }).map((_, i) => (
-                    <i key={i} className="fa-solid fa-star" />
-                  ))}
-                </div>
-                <p className="testimonial-text">
-                  <i className="fa-solid fa-quote-left quote-icon" />
-                  {review.content}
-                </p>
-                <div className="testimonial-author">
-                  <img
-                    src={review.avatar}
-                    alt={review.name}
-                    className="author-avatar"
-                  />
-                  <div className="author-info">
-                    <h4>
-                      {review.name}
-                      {review.verified && (
-                        <span
-                          className="verified-badge"
-                          title="Đã đặt vé thành công"
-                        >
-                          <i className="fa-solid fa-circle-check" /> Đã xác thực
-                        </span>
-                      )}
-                    </h4>
-                    <span>
-                      {review.role} • {review.date}
-                    </span>
-                  </div>
-                </div>
-              </article>
-            ))}
+
+          <div className="refund-policy-block highlight">
+            <h3><i className="fa-solid fa-bus" /> Nhà xe hủy chuyến</h3>
+            <p>Trong trường hợp nhà xe chủ động hủy chuyến, <strong>VéXeAZ đảm bảo hoàn trả 100%</strong> số tiền bạn đã thanh toán — không trừ bất kỳ khoản phí nào.</p>
+            <ul className="refund-guarantee-list">
+              <li><i className="fa-solid fa-check" /> Hoàn 100% giá vé</li>
+              <li><i className="fa-solid fa-check" /> Không mất phí xử lý</li>
+              <li><i className="fa-solid fa-check" /> Thông báo ngay qua hệ thống</li>
+            </ul>
+          </div>
+
+          <div className="refund-policy-block">
+            <h3><i className="fa-solid fa-rotate-left" /> Quy trình hoàn tiền</h3>
+            <ol className="refund-steps">
+              <li>Gửi yêu cầu hủy vé trong mục <strong>Vé của tôi</strong>.</li>
+              <li>Nhà xe xem xét và phê duyệt yêu cầu.</li>
+              <li>Tiền được admin hoàn về phương thức thanh toán ban đầu trong vòng <strong>3–7 ngày làm việc</strong>.</li>
+            </ol>
+            <p className="refund-note"><i className="fa-solid fa-circle-info" /><span>Mọi thắc mắc về hoàn tiền, vui lòng liên hệ hotline <strong>1900 1234</strong> hoặc email <strong>support@vexeaz.vn</strong>.</span></p>
           </div>
         </div>
       </section>
